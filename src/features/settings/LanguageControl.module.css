@@ -1,0 +1,32 @@
+.control {
+  min-inline-size: 0;
+}
+
+.label {
+  display: block;
+  margin-block-end: 0.75rem;
+  font-weight: 700;
+}
+
+.select {
+  inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding-inline: 0.85rem 2.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: var(--color-surface-subtle);
+  color: var(--color-text);
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.select:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.current {
+  margin-block: 0.75rem 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta id="app-theme-color" name="theme-color" content="#fbf8f7" />
+    <title>perfectdays</title>
+    <script>
+      (() => {
+        const storageKey = 'perfect-days:theme';
+        let preference = 'system';
+
+        try {
+          const storedPreference = window.localStorage.getItem(storageKey);
+          if (['system', 'light', 'dark'].includes(storedPreference)) {
+            preference = storedPreference;
+          }
+        } catch {
+          // The system theme remains a safe fallback when storage is unavailable.
+        }
+
+        const resolvedTheme =
+          preference === 'system'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+            : preference;
+
+        document.documentElement.dataset.theme = resolvedTheme;
+        document.documentElement.style.colorScheme = resolvedTheme;
+        document
+          .querySelector('#app-theme-color')
+          ?.setAttribute('content', resolvedTheme === 'dark' ? '#171316' : '#fbf8f7');
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

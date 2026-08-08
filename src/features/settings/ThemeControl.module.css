@@ -1,0 +1,65 @@
+.fieldset {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin-block-end: 0.75rem;
+  font-weight: 700;
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.option {
+  position: relative;
+  min-inline-size: 0;
+}
+
+.option input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+}
+
+.option span {
+  display: grid;
+  min-block-size: 2.75rem;
+  place-items: center;
+  padding-inline: 0.65rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: var(--color-surface-subtle);
+  color: var(--color-text);
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.option input:checked + span {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.option input:focus-visible + span {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.current {
+  margin-block: 0.75rem 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+@media (forced-colors: active) {
+  .option input:checked + span {
+    border: 2px solid ButtonText;
+  }
+}

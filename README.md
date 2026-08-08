@@ -4,7 +4,7 @@
 
 A private, mobile-first menstrual journal that records bleeding and helps its user notice her own recurring wellbeing patterns. The product uses red, orange, and green calendar markers, but treats them as personal context rather than biological verdicts or judgments about competence.
 
-**Status:** implementation-ready planning. The repository does not contain application code yet.
+**Status:** Phase 0 foundation implemented. The repository contains the typed React application shell, light/dark themes, English/German localization, domain foundations, security boundaries, and automated test setup; menstrual logging and PIN encryption are not implemented yet.
 
 ## Product goal
 
@@ -30,6 +30,7 @@ The product promise is **“patterns, not prescriptions.”** It must not tell s
 5. **Privacy is architecture.** The MVP has no account, backend, advertising, analytics, or third-party tracking.
 6. **The user remains in charge.** Suggestions invite a check-in; they do not direct behavior.
 7. **Accessibility is part of the MVP.** Color is never the only way information is communicated.
+8. **Every message is translatable.** User-visible copy, accessible names, errors, empty states, confirmations, and notification text come from keyed per-language resources rather than being embedded in components.
 
 ## Calendar markers
 
@@ -69,6 +70,7 @@ Language to avoid:
 - Use confidence as the initial green metric.
 - Offer an optional six-digit PIN and explain that, when enabled, forgetting it requires erasing the inaccessible encrypted local data.
 - Choose **System**, **Light**, or **Dark** appearance. Default: System.
+- Choose **Device language**, **English**, or **Deutsch**. Default: Device language; unsupported device languages fall back to English.
 
 ### 2. Calendar and home
 
@@ -100,6 +102,7 @@ Language to avoid:
 ### 5. Settings and privacy
 
 - System, light, and dark theme selection.
+- Device-language, English, and German language selection.
 - Enable, disable, or change the local PIN.
 - Auto-lock timing: immediately, 1 minute, 5 minutes, or 15 minutes after backgrounding. Default: 1 minute.
 - Configure or disable the orange window.
@@ -204,10 +207,13 @@ type DailyLog = {
 };
 
 type ThemePreference = "system" | "light" | "dark";
+type SupportedLanguage = "en" | "de";
+type LanguagePreference = "system" | SupportedLanguage;
 type AutoLockDelay = "immediate" | "1-minute" | "5-minutes" | "15-minutes";
 
 type UserSettings = {
   theme: ThemePreference;
+  language: LanguagePreference;
   orangeEnabled: boolean;
   orangeDays: number;
   typicalCycleLength?: number;
@@ -221,7 +227,7 @@ type VaultPayload = {
   schemaVersion: number;
   episodes: PeriodEpisode[];
   logs: DailyLog[];
-  settings: Omit<UserSettings, "theme">;
+  settings: Omit<UserSettings, "theme" | "language" | "pinEnabled">;
   createdAt: string;
   updatedAt: string;
 };
@@ -237,6 +243,8 @@ type Forecast = {
 ```
 
 Cycles, marker combinations, insights, and forecasts are derived. They are not persisted as authoritative health observations.
+
+`pinEnabled` is derived from the active storage representation rather than duplicated inside the encrypted payload. This avoids contradictory security state. Theme and language are non-health UI preferences intentionally stored outside the health-data vault so the future lock screen can use them before unlock.
 
 Episode invariants:
 
@@ -343,18 +351,23 @@ flowchart LR
     SW[Service worker] --> SHELL[Application shell only]
 ```
 
-Planned stack:
+Foundation stack:
 
 - React and TypeScript
 - Vite
-- IndexedDB through Dexie, behind a small repository/vault interface
-- Web Crypto for PIN-based vault protection
-- Zod for persisted-data validation and schema migrations
-- CSS Modules or plain scoped CSS with design tokens
+- i18next and react-i18next with locally bundled, typed resources
+- CSS Modules with shared design tokens
 - Vitest and React Testing Library
 - Playwright for end-to-end, mobile, offline, and accessibility flows
-- A Vite-compatible PWA plugin after the core application flow works
 - ESLint, Prettier, and strict TypeScript settings
+
+Secure-core additions, intentionally deferred until Phase 1:
+
+- IndexedDB through Dexie, behind the existing repository/vault interface
+- Web Crypto implementation behind the existing cryptography interface
+- Zod validation and explicit migrations at the persistence boundary
+
+A Vite-compatible PWA plugin remains deferred until the core application flow works. Keeping unused production dependencies out of the initial scaffold reduces supply-chain surface and prevents placeholder storage or cryptography from being mistaken for a security feature.
 
 Architecture constraints:
 
@@ -365,16 +378,79 @@ Architecture constraints:
 - Forecast logic remains pure and independent from React, IndexedDB, and encryption.
 - Stored data has an explicit schema version and tested migration path.
 - Production deployments use HTTPS and a restrictive Content Security Policy.
+- English is the canonical typed translation schema. Every supported catalog must have the same keys and interpolation placeholders.
+- Translation resources are bundled with the application; no runtime translation backend, detector plugin, or translation-service request is allowed.
+- Domain models, application services, and persistence use stable locale-neutral codes. Translation happens only at the presentation/composition boundary.
+- Whole messages are translated. Components do not concatenate translated sentence fragments; interpolation and plural rules carry dynamic values.
+- Health values must never be used as translation keys or copied into translation resources.
+
+### Repository structure
+
+```text
+e2e/                         Playwright browser and accessibility smoke tests
+src/
+  app/                       Composition and cross-cutting React providers
+    i18n/                    Language preference context and document synchronization
+  application/ports/         Interfaces owned by application policy
+  domain/                    Pure models and deterministic date logic
+  features/                  UI grouped by user workflow
+  i18n/                      Configuration, typed resources, locale resolution, and tests
+    locales/en.ts            Canonical English message catalog
+    locales/de.ts            German message catalog
+  infrastructure/            Browser-specific implementations of application ports
+  shared/styles/             Global styles and light/dark design tokens
+  test/                      Shared Vitest and Testing Library setup
+index.html                   App entry and pre-render theme initialization
+eslint.config.mjs            Typed linting and dependency-boundary rules
+playwright.config.ts         Desktop and mobile browser projects
+vite.config.ts               Production and development bundling
+vitest.config.ts             Unit and component test configuration
+```
+
+The dependency direction is:
+
+```text
+features -> application -> domain
+infrastructure -> application + domain
+app -> composition of all layers
+```
+
+- `domain` stays independent of React, browser APIs, persistence, and encryption.
+- `application` owns interfaces; browser infrastructure implements them.
+- Features may call application services but may not import infrastructure directly.
+- Only the composition layer wires concrete adapters into the UI.
+- Components select typed message keys; locale resources do not leak into the domain or persistence layers.
+- ESLint enforces the most important import boundaries and rejects `console` calls in `src`, reducing the risk of sensitive records appearing in logs.
+- ESLint rejects literal user-visible JSX text, while tests enforce translation key and interpolation-placeholder parity.
+- Directories are added when they contain a real implementation or contract; empty placeholder layers and generic `utils` folders are avoided.
+
+### Implemented foundation
+
+- A responsive, accessible React shell rendered in `StrictMode`.
+- System, light, and dark theme selection with local persistence.
+- Theme application before React renders, preventing an explicit saved theme from flashing incorrectly at startup.
+- Device-language, English, and German selection with local persistence and English fallback.
+- Typed English and German message catalogs stored in separate per-language files with no runtime translation network request.
+- Immediate copy updates plus synchronized document `lang`, `dir`, title, and description metadata when language changes.
+- Device locale resolution by supported base tag, including values such as `de-DE` and `de-AT`, and live re-resolution after a browser language change while Device language is selected.
+- CSS design tokens for both themes, reduced-motion handling, visible keyboard focus, and non-color marker accents.
+- A validated local-date type and timezone-independent date arithmetic with leap-year and boundary tests.
+- Explicit storage and cryptography ports for staged, verifiable PIN migrations without exposing `CryptoKey` objects to React.
+- Strict TypeScript, type-aware ESLint, Prettier, Vitest, Testing Library, Playwright, and an automated axe accessibility smoke test.
+
+Not implemented yet: IndexedDB persistence, encryption, PIN screens, cycle forecasting, logging, calendar UI, service worker, or installability. The interfaces in the scaffold are constraints for those features, not claims that they already protect data.
 
 ## Privacy and data lifecycle
 
 - Collect no real name, email, date of birth, contacts, precise location, advertising identifier, or unrelated device data.
 - Keep health data on the device by default.
 - Keep sensitive values out of URLs, console logs, error messages, crash reports, notification payloads, and cached responses.
+- Persist only the non-sensitive language preference under `perfect-days:language`; it contains `system`, `en`, or `de`, never health data.
+- Keep every language catalog in the application bundle. Localization must not send copy, identifiers, or health data to an external service.
 - Make encrypted export the safe default.
 - Clearly warn that plaintext JSON or CSV exports can be read by anyone who obtains the file.
 - Make correction and deletion available from the UI.
-- “Erase everything” removes the encrypted vault, wrapped key, salt, user preferences, and every other application-controlled item that could contain personal data. A static application shell may remain cached because it contains no user data.
+- “Erase everything” removes the encrypted vault, wrapped key, salt, theme/language preferences, and every other application-controlled item that could contain personal data. A static application shell and its translation catalogs may remain cached because they contain no user data.
 - Use generic notifications and never show period status on the lock screen without explicit opt-in.
 - Do not claim that local-only storage or a PIN makes the application invulnerable.
 
@@ -399,6 +475,15 @@ The interface must never diagnose from a single entry or turn safety information
 
 ## Accessibility and localization
 
+- The MVP ships complete English (`en`) and German (`de`) catalogs. English is the fallback language.
+- **Device language** is the default. The app checks browser language tags in priority order, resolves supported base tags such as `de-DE` to `de`, and falls back to English when none is supported.
+- Every visible message and every user-facing accessible name, description, validation error, empty state, confirmation, and notification must use a typed key from a per-language file.
+- The document `lang` and `dir` attributes, page title, and description metadata update whenever the resolved language changes.
+- The language selector uses a native labeled control and language endonyms (`English`, `Deutsch`), not flags.
+- Translation keys represent complete messages. Use interpolation, context, and locale-aware plural rules rather than concatenating fragments.
+- Format dates, month and weekday names, numbers, and quantities with the resolved language at the presentation boundary. Persisted `LocalDate` values and enum codes remain locale-neutral.
+- English and German are left-to-right, while layout continues to use logical CSS properties for future right-to-left locales.
+- Catalog tests require identical keys, non-empty values, and matching interpolation placeholders. Component and browser tests exercise visible and accessible behavior in both languages.
 - Meet WCAG 2.2 AA contrast in light and dark themes.
 - Never communicate a state with color alone; use text, icons, patterns, and screen-reader descriptions.
 - Example announcement: “August 12, predicted period, medium confidence.”
@@ -408,7 +493,7 @@ The interface must never diagnose from a single entry or turn safety information
 - Respect reduced-motion preferences.
 - Use locale-aware month names, date formatting, and first day of the week while storing ISO local dates internally.
 - Keep language simple and avoid gender assumptions in generic UI copy, while allowing the product to speak naturally to women who describe themselves that way.
-- Design for future right-to-left layout support even if the MVP launches in English first.
+- Review clinical and safety meaning in every translation; syntactic key parity does not replace human language review.
 
 Calendar-specific behavior:
 
@@ -438,12 +523,13 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 ## Implementation roadmap
 
-### Phase 0 — Foundation
+### Phase 0 — Foundation (complete)
 
-- Finalize this README as the initial product specification.
-- Initialize Git and scaffold React, TypeScript, and Vite without losing this document.
-- Configure strict TypeScript, linting, formatting, unit tests, and production builds.
-- Establish theme tokens and local-date utilities before feature components.
+- [x] Finalize this README as the initial product specification.
+- [x] Initialize Git and scaffold React, TypeScript, and Vite without losing this document.
+- [x] Configure strict TypeScript, linting, formatting, unit tests, and production builds.
+- [x] Establish theme tokens and local-date utilities before feature components.
+- [x] Add typed, locally bundled English/German catalogs, device-language resolution, selection, persistence, and metadata synchronization.
 
 ### Phase 1 — Secure local core
 
@@ -453,7 +539,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 ### Phase 2 — First vertical slice
 
-- Onboarding with historical starts, orange setting, theme, and PIN.
+- Onboarding with historical starts, orange setting, theme, language, and PIN.
 - Calendar with recorded red days and accessible legends.
 - Day editor for flow, spotting, confidence, tension, energy, pain, and notes.
 - Green badges for recorded confidence values of 4–5.
@@ -498,10 +584,16 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [ ] Data survives reload while the browser retains the origin's storage and remains available offline after installation under the same condition.
 - [ ] PIN-enabled encrypted backup/restore and application-level personal-data erasure work as documented.
 
-### Theme and accessibility
+### Theme, localization, and accessibility
 
 - [ ] System, light, and dark modes work on the lock screen and every application screen.
 - [ ] The correct theme appears before first paint without a visible flash.
+- [x] Device-language, English, and German selection updates the current application shell and survives reload.
+- [x] Supported device base tags resolve predictably, with English as the tested fallback.
+- [x] Language changes update current visible/accessibility copy, document `lang`/`dir`, title, and description metadata without losing selector focus.
+- [x] English and German catalogs have exact key and interpolation-placeholder parity.
+- [ ] The future lock screen and every future feature expose no hard-coded user-visible copy.
+- [ ] Calendar dates, months, weekdays, numbers, and plural messages follow the resolved language while persisted domain values remain locale-neutral.
 - [ ] Every marker is understandable without color.
 - [ ] Both themes meet WCAG 2.2 AA contrast.
 - [ ] Core flows work at 320 CSS pixels wide, with keyboard, large text, and a screen reader.
@@ -531,6 +623,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 - [ ] Lint, formatting checks, strict type-checking, unit tests, production build, and Playwright smoke tests pass.
 - [ ] Persisted schema migrations are tested.
+- [x] Translation catalog parity, locale resolution, storage failure, component switching, and localized browser smoke tests are automated.
 - [ ] The application works with the network disabled after installation while its origin storage and application-shell cache remain available.
 - [ ] Dependencies and production assets introduce no advertising or tracking behavior.
 
@@ -550,17 +643,45 @@ Verified on August 7, 2026:
 - Node.js `v24.19.0`
 - npm `11.17.0`
 - Git `2.55.0.windows.3`
-- The directory is not yet a Git repository.
+- Git repository on `main`, tracking `origin/main`
 - PowerShell blocks the `npm.ps1` shim under the current execution policy; use `npm.cmd` and `npx.cmd` rather than changing machine-wide policy merely for this project.
 
-The first implementation step will require permission to download npm dependencies. Exact local setup commands should be added after the application has been scaffolded so that every documented command is executable in the repository's real state.
+### Local setup
+
+From PowerShell in the repository root:
+
+```powershell
+npm.cmd install
+npx.cmd playwright install
+npm.cmd run dev
+```
+
+Vite prints the local development URL. Stop it with `Ctrl+C`.
+
+Quality commands:
+
+| Command | Purpose |
+| --- | --- |
+| `npm.cmd run format:check` | Check formatting without changing files |
+| `npm.cmd run lint` | Run type-aware linting and architecture rules |
+| `npm.cmd run typecheck` | Run strict TypeScript checks without emitting files |
+| `npm.cmd test` | Run Vitest unit and component tests once |
+| `npm.cmd run test:watch` | Run Vitest interactively while developing |
+| `npm.cmd run test:e2e` | Run Playwright across configured desktop and mobile projects |
+| `npm.cmd run build` | Type-check and create the production bundle in `dist/` |
+| `npm.cmd run verify` | Run formatting, linting, unit tests, and production build |
+| `npm.cmd run ci` | Run the complete verification and browser-test suite |
+
+The Playwright browser download is machine-local and is not stored in this repository. CI on Linux should install its browsers and operating-system dependencies with `npx playwright install --with-deps` before running `npm run ci`. Commit `package-lock.json`; use `npm ci` for reproducible CI and clean-machine installs.
+
+`npm.cmd test` includes catalog key/placeholder parity and language-resolution tests. Add a message to `src/i18n/locales/en.ts` first, then add the matching key and placeholders to every other locale; TypeScript and the test suite reject drift.
 
 ## Decisions assumed unless changed
 
 - Mobile-first installable PWA
 - Local-only, offline, single-user MVP
 - Adult self-tracking use case
-- English-first, locale-aware UI
+- English and German MVP catalogs; Device language by default; English fallback
 - Final product name deferred
 - System theme by default
 - Optional six-digit PIN
@@ -601,6 +722,8 @@ Privacy and data protection:
 Technical foundations:
 
 - [Vite documentation](https://vite.dev/guide/)
+- [react-i18next documentation](https://react.i18next.com/latest)
+- [i18next TypeScript documentation](https://www.i18next.com/overview/typescript)
 - [Dexie React tutorial](https://dexie.org/docs/Tutorial/React)
 - [Playwright documentation](https://playwright.dev/docs/intro)
 
