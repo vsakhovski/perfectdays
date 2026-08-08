@@ -1,10 +1,10 @@
-import { HomePage } from '../features/home/HomePage';
+import { VaultGate } from '../features/vault/VaultGate';
 import styles from './App.module.css';
 
 export function App() {
   return (
     <div className={styles['app']}>
-      <HomePage />
+      <VaultGate />
     </div>
   );
 }

@@ -4,7 +4,7 @@
 
 A private, mobile-first menstrual journal that records bleeding and helps its user notice her own recurring wellbeing patterns. The product uses red, orange, and green calendar markers, but treats them as personal context rather than biological verdicts or judgments about competence.
 
-**Status:** Phase 0 foundation implemented. The repository contains the typed React application shell, light/dark themes, English/German localization, domain foundations, security boundaries, and automated test setup; menstrual logging and PIN encryption are not implemented yet.
+**Status:** Phase 1 secure local core implemented. The repository now contains the typed React application shell, light/dark themes, English/German localization, a versioned IndexedDB vault, optional PIN encryption, lock/reset flows, lifecycle-driven auto-lock, and automated browser coverage. Menstrual logging, calendar markers, and forecasting remain Phase 2 work.
 
 ## Product goal
 
@@ -244,7 +244,7 @@ type Forecast = {
 
 Cycles, marker combinations, insights, and forecasts are derived. They are not persisted as authoritative health observations.
 
-`pinEnabled` is derived from the active storage representation rather than duplicated inside the encrypted payload. This avoids contradictory security state. Theme and language are non-health UI preferences intentionally stored outside the health-data vault so the future lock screen can use them before unlock.
+`pinEnabled` is derived from the active storage representation rather than duplicated inside the encrypted payload. This avoids contradictory security state. Theme and language are non-health UI preferences intentionally stored outside the health-data vault so the lock screen can use them before unlock.
 
 Episode invariants:
 
@@ -278,11 +278,13 @@ The PIN is a local app lock, not an online login. There is no username, email ad
 - PIN setup is optional but prominently recommended during onboarding.
 - Use a six-digit PIN entered twice for confirmation.
 - Require the PIN when the PWA is opened and after the configured background timeout.
+- Lock or reload every open tab when another tab changes protection state, resets the vault, or requests a manual/automatic lock.
 - Apply increasing delays after repeated incorrect attempts.
 - Allow PIN changes only while the current vault is unlocked.
 - “Forgot PIN” explains that recovery is impossible and offers destructive local reset.
 - Export, restore, PIN changes, and deletion require an unlocked vault.
 - Use a neutral lock screen that does not reveal menstrual information.
+- If the required Web Crypto primitives are unavailable, hide PIN entry/setup and explain the browser limitation without presenting it as a wrong PIN.
 
 ### PIN-disabled mode and transitions
 
@@ -313,10 +315,13 @@ Using a separate random data key allows a PIN change to re-protect the data key 
 ### Honest limitations
 
 - A six-digit PIN has limited entropy. Key derivation and UI throttling slow guessing but cannot make it equivalent to a long passphrase.
+- The increasing retry delay is in-memory, per tab, and resets after a reload. It is user-interface friction, not a defense against offline guessing.
 - UI attempt limits cannot stop an attacker who has copied the encrypted browser database and performs offline guesses.
 - Encryption does not protect data while the vault is unlocked, against malicious browser extensions, or on a compromised device.
 - JavaScript cannot guarantee immediate memory zeroization.
 - App-switcher preview concealment is best-effort in a PWA and varies by browser and operating system.
+- Cross-tab invalidation uses browser messaging, a non-sensitive revision marker, and lifecycle reconciliation. A browser that blocks all of those mechanisms can weaken coordination between already-open tabs.
+- The app asks browsers and password managers not to save or autofill the local PIN, but user-agent policy ultimately controls that behavior.
 - Clearing browser/site data can permanently erase the vault; encrypted export is therefore important.
 
 A longer passphrase and platform passkey/biometric unlock may be added later, but the product must not overstate what the MVP PIN protects.
@@ -344,10 +349,11 @@ A longer passphrase and platform passkey/biometric unlock may be added later, bu
 ```mermaid
 flowchart LR
     UI[React UI] --> APP[Application services]
+    UI --> I18N[Typed local catalogs]
     APP --> DOMAIN[Cycle and forecast engine]
     APP --> VAULT[Vault service]
     VAULT --> CRYPTO[Web Crypto]
-    CRYPTO --> DB[(IndexedDB)]
+    VAULT --> DB[(IndexedDB)]
     SW[Service worker] --> SHELL[Application shell only]
 ```
 
@@ -358,16 +364,22 @@ Foundation stack:
 - i18next and react-i18next with locally bundled, typed resources
 - CSS Modules with shared design tokens
 - Vitest and React Testing Library
-- Playwright for end-to-end, mobile, offline, and accessibility flows
+- Playwright for end-to-end, mobile, cross-tab, and accessibility flows
 - ESLint, Prettier, and strict TypeScript settings
+- Dexie for IndexedDB access
+- Zod validation and explicit persisted-schema migration
+- Browser Web Crypto for PIN-protected encryption
 
-Secure-core additions, intentionally deferred until Phase 1:
+Secure local core:
 
-- IndexedDB through Dexie, behind the existing repository/vault interface
-- Web Crypto implementation behind the existing cryptography interface
-- Zod validation and explicit migrations at the persistence boundary
+- Immutable staged vault records are validated before an atomic active-record replacement.
+- Disabling PIN protection creates and activates the unprotected replacement inside one IndexedDB transaction, so a crash cannot strand a durable plaintext candidate.
+- PIN-enabled records use PBKDF2-SHA-256, a random data-encryption key, and AES-256-GCM.
+- Opaque crypto sessions retain key material behind the application port; React never receives a `CryptoKey`.
+- PIN-free mode intentionally stores the versioned payload as unprotected IndexedDB data and says so in the UI.
+- PIN unlock revalidates the authoritative active record before and after decryption so an obsolete tab cannot unlock a replaced record.
 
-A Vite-compatible PWA plugin remains deferred until the core application flow works. Keeping unused production dependencies out of the initial scaffold reduces supply-chain surface and prevents placeholder storage or cryptography from being mistaken for a security feature.
+A Vite-compatible PWA plugin remains deferred until the logging and calendar flow works. Keeping unused production dependencies out of the current implementation reduces supply-chain surface.
 
 Architecture constraints:
 
@@ -391,13 +403,19 @@ e2e/                         Playwright browser and accessibility smoke tests
 src/
   app/                       Composition and cross-cutting React providers
     i18n/                    Language preference context and document synchronization
+    vault/                   Observable vault provider and UI-safe actions
   application/ports/         Interfaces owned by application policy
+  application/vault/         Vault manager, PIN transitions, and auto-lock policy
   domain/                    Pure models and deterministic date logic
-  features/                  UI grouped by user workflow
+  features/                  UI grouped by workflow, including PIN and lock screens
   i18n/                      Configuration, typed resources, locale resolution, and tests
     locales/en.ts            Canonical English message catalog
     locales/de.ts            German message catalog
-  infrastructure/            Browser-specific implementations of application ports
+  infrastructure/
+    cryptography/            Web Crypto adapter and PBKDF2 calibration policy
+    lifecycle/               Auto-lock and cross-tab invalidation adapters
+    persistence/             Dexie store, Zod schemas, codec, and migrations
+    preferences/             Non-sensitive theme and language stores
   shared/styles/             Global styles and light/dark design tokens
   test/                      Shared Vitest and Testing Library setup
 index.html                   App entry and pre-render theme initialization
@@ -424,7 +442,7 @@ app -> composition of all layers
 - ESLint rejects literal user-visible JSX text, while tests enforce translation key and interpolation-placeholder parity.
 - Directories are added when they contain a real implementation or contract; empty placeholder layers and generic `utils` folders are avoided.
 
-### Implemented foundation
+### Implemented foundation and secure core
 
 - A responsive, accessible React shell rendered in `StrictMode`.
 - System, light, and dark theme selection with local persistence.
@@ -435,22 +453,33 @@ app -> composition of all layers
 - Device locale resolution by supported base tag, including values such as `de-DE` and `de-AT`, and live re-resolution after a browser language change while Device language is selected.
 - CSS design tokens for both themes, reduced-motion handling, visible keyboard focus, and non-color marker accents.
 - A validated local-date type and timezone-independent date arithmetic with leap-year and boundary tests.
-- Explicit storage and cryptography ports for staged, verifiable PIN migrations without exposing `CryptoKey` objects to React.
+- A strict version-1 logical payload schema, tested version-0 migration, domain-invariant validation, and rejection of unsupported future versions.
+- Dexie-backed immutable record staging and atomic compare-and-swap replacement that removes the prior representation in the same final IndexedDB transaction.
+- Optional six-digit PIN protection using calibrated PBKDF2-SHA-256, a random 256-bit data key, and AES-256-GCM with authenticated metadata and fresh IVs.
+- A complete in-memory Web Crypto preflight before PIN controls are offered; unsupported environments fail closed with distinct, non-destructive guidance.
+- Opaque, closeable crypto sessions for encrypted saves and PIN rewrapping without exposing `CryptoKey` objects to React or rewriting payload ciphertext during a PIN change.
+- Local PIN setup, unlock, manual lock, PIN change, protection disable, generic delayed failure, and explicitly confirmed destructive-reset flows.
+- A neutral localized loading/lock/unavailable experience whose document title and description do not reveal menstrual information before the vault is confirmed unlocked.
+- Best-effort lifecycle auto-lock through visibility, `pagehide`, and elapsed-time checks after suspended background timers.
+- Cross-tab invalidation through BroadcastChannel plus a persisted opaque revision, with storage-event, foreground, and BFCache reconciliation and authoritative unlock revalidation.
+- Concurrent first-run recovery when two tabs race to create the initial vault.
+- Reset reporting that distinguishes failed deletion, fully completed reset, retained UI preferences, and deletion followed by failed empty-vault recreation.
+- Keyboard-focus management for PIN workflows and destructive disclosures, including explicit disclosure state and disarmed confirmations after collapse.
 - Strict TypeScript, type-aware ESLint, Prettier, Vitest, Testing Library, Playwright, and an automated axe accessibility smoke test.
 
-Not implemented yet: IndexedDB persistence, encryption, PIN screens, cycle forecasting, logging, calendar UI, service worker, or installability. The interfaces in the scaffold are constraints for those features, not claims that they already protect data.
+Not implemented yet: menstrual logging, calendar UI, cycle forecasting, insights, service worker/installability, or encrypted export/restore. The current persisted vault contains only the empty versioned payload until Phase 2 adds user-entered health records.
 
 ## Privacy and data lifecycle
 
 - Collect no real name, email, date of birth, contacts, precise location, advertising identifier, or unrelated device data.
 - Keep health data on the device by default.
 - Keep sensitive values out of URLs, console logs, error messages, crash reports, notification payloads, and cached responses.
-- Persist only the non-sensitive language preference under `perfect-days:language`; it contains `system`, `en`, or `de`, never health data.
+- Persist only non-sensitive coordination and UI state outside the vault: language under `perfect-days:language`, theme under `perfect-days:theme`, and an opaque cross-tab invalidation revision. None contains health data.
 - Keep every language catalog in the application bundle. Localization must not send copy, identifiers, or health data to an external service.
 - Make encrypted export the safe default.
 - Clearly warn that plaintext JSON or CSV exports can be read by anyone who obtains the file.
 - Make correction and deletion available from the UI.
-- “Erase everything” removes the encrypted vault, wrapped key, salt, theme/language preferences, and every other application-controlled item that could contain personal data. A static application shell and its translation catalogs may remain cached because they contain no user data.
+- “Erase everything” transactionally removes the vault, wrapped key, salt, and every application-controlled item that could contain personal data, then attempts to remove theme/language preferences. If the browser refuses a preference removal or cannot recreate an empty vault, the UI reports that partial outcome instead of claiming full success. A static application shell, translation catalogs, and opaque coordination revision may remain because they contain no user data.
 - Use generic notifications and never show period status on the lock screen without explicit opt-in.
 - Do not claim that local-only storage or a PIN makes the application invulnerable.
 
@@ -531,11 +560,12 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Establish theme tokens and local-date utilities before feature components.
 - [x] Add typed, locally bundled English/German catalogs, device-language resolution, selection, persistence, and metadata synchronization.
 
-### Phase 1 — Secure local core
+### Phase 1 — Secure local core (complete)
 
-- Implement the versioned logical data model.
-- Implement the encrypted vault, PIN setup, unlock, auto-lock, PIN change, and destructive reset.
-- Test cryptographic round trips, wrong-PIN behavior, corruption, locking, and schema migration.
+- [x] Implement the versioned logical data model and validated migration boundary.
+- [x] Implement unprotected and encrypted IndexedDB representations with crash-safe staged replacement.
+- [x] Implement PIN setup, unlock, manual/automatic lock, PIN change, protection disable, and destructive reset.
+- [x] Test cryptographic round trips, fresh IVs, wrong-PIN behavior, Web Crypto preflight, corruption, locking, cross-tab invalidation, transaction failure, reset outcomes, and schema migration.
 
 ### Phase 2 — First vertical slice
 
@@ -586,13 +616,13 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 ### Theme, localization, and accessibility
 
-- [ ] System, light, and dark modes work on the lock screen and every application screen.
-- [ ] The correct theme appears before first paint without a visible flash.
+- [x] System, light, and dark modes work on the lock screen and every implemented application screen.
+- [x] The correct theme appears before first paint without a visible flash.
 - [x] Device-language, English, and German selection updates the current application shell and survives reload.
 - [x] Supported device base tags resolve predictably, with English as the tested fallback.
 - [x] Language changes update current visible/accessibility copy, document `lang`/`dir`, title, and description metadata without losing selector focus.
 - [x] English and German catalogs have exact key and interpolation-placeholder parity.
-- [ ] The future lock screen and every future feature expose no hard-coded user-visible copy.
+- [x] The current lock and PIN-security screens expose no hard-coded user-visible copy.
 - [ ] Calendar dates, months, weekdays, numbers, and plural messages follow the resolved language while persisted domain values remain locale-neutral.
 - [ ] Every marker is understandable without color.
 - [ ] Both themes meet WCAG 2.2 AA contrast.
@@ -601,14 +631,16 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 ### PIN and security
 
-- [ ] When PIN protection is enabled, the correct PIN unlocks the vault after a reload.
-- [ ] A failed UI unlock renders no health records.
-- [ ] Auto-lock works through supported page-lifecycle events after the configured background timeout and through the manual lock action.
-- [ ] When PIN protection is enabled, no PIN, plaintext record, or unwrapped data key is persisted.
-- [ ] PIN enable/disable migrations verify the new representation before removing the previous one and recover safely from an interrupted migration.
-- [ ] Every AES-GCM encryption uses a fresh IV.
-- [ ] Corrupt or tampered ciphertext fails closed without destroying the original automatically.
-- [ ] Reset removes the encrypted vault, key material, preferences, and every application-controlled copy of personal data after explicit confirmation.
+- [x] When PIN protection is enabled, the correct PIN unlocks the vault after a reload.
+- [x] A failed UI unlock renders no health records.
+- [x] Auto-lock works through supported page-lifecycle events after the configured background timeout and through the manual lock action.
+- [x] When PIN protection is enabled, no PIN, plaintext record, or unwrapped data key is persisted.
+- [x] PIN enable/disable migrations verify the new representation before removing the previous one and recover safely from an interrupted migration.
+- [x] Every AES-GCM encryption uses a fresh IV.
+- [x] Corrupt or tampered ciphertext fails closed without destroying the original automatically.
+- [x] PIN and reset changes invalidate other open tabs, including after a frozen/BFCache page returns; unlock also rejects an obsolete active record.
+- [x] Missing secure-cryptography support is distinguished from an incorrect PIN and cannot silently downgrade encrypted data.
+- [x] Reset removes the vault and key material after explicit confirmation, attempts to clear outside-vault preferences, creates a new empty payload when storage permits, and reports any partial outcome truthfully.
 - [ ] No health data appears in logs, URLs, notifications, service-worker caches, or network requests.
 
 ### Date and forecast correctness
@@ -621,8 +653,8 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 ### Build quality
 
-- [ ] Lint, formatting checks, strict type-checking, unit tests, production build, and Playwright smoke tests pass.
-- [ ] Persisted schema migrations are tested.
+- [x] Lint, formatting checks, strict type-checking, unit tests, production build, and Playwright smoke tests pass.
+- [x] Persisted schema migrations are tested.
 - [x] Translation catalog parity, locale resolution, storage failure, component switching, and localized browser smoke tests are automated.
 - [ ] The application works with the network disabled after installation while its origin storage and application-shell cache remain available.
 - [ ] Dependencies and production assets introduce no advertising or tracking behavior.
@@ -637,7 +669,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 ## Current development environment
 
-Verified on August 7, 2026:
+Verified on August 8, 2026:
 
 - Windows and PowerShell
 - Node.js `v24.19.0`
@@ -645,6 +677,7 @@ Verified on August 7, 2026:
 - Git `2.55.0.windows.3`
 - Git repository on `main`, tracking `origin/main`
 - PowerShell blocks the `npm.ps1` shim under the current execution policy; use `npm.cmd` and `npx.cmd` rather than changing machine-wide policy merely for this project.
+- The current baseline passes 101 Vitest tests and 28 Playwright tests across desktop Chromium/Firefox and mobile Chromium/WebKit.
 
 ### Local setup
 

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { LanguageControl } from '../settings/LanguageControl';
+import { PinSecurityPanel } from '../settings/PinSecurityPanel';
 import { ThemeControl } from '../settings/ThemeControl';
 import styles from './HomePage.module.css';
 
@@ -58,6 +59,8 @@ export function HomePage() {
           <LanguageControl />
         </div>
       </section>
+
+      <PinSecurityPanel />
 
       <footer className={styles['footer']}>{t(($) => $.home.footer)}</footer>
     </main>

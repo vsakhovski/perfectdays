@@ -5,6 +5,7 @@ export const LANGUAGE_STORAGE_KEY = 'perfect-days:language';
 
 interface LanguageStorage {
   getItem(key: string): string | null;
+  removeItem(key: string): void;
   setItem(key: string, value: string): void;
 }
 
@@ -27,6 +28,14 @@ export function createBrowserLanguageStore(getStorage: () => LanguageStorage): L
         getStorage().setItem(LANGUAGE_STORAGE_KEY, preference);
       } catch {
         // Language persistence is optional when browser storage is unavailable.
+      }
+    },
+    clear() {
+      try {
+        getStorage().removeItem(LANGUAGE_STORAGE_KEY);
+        return true;
+      } catch {
+        return false;
       }
     },
   };

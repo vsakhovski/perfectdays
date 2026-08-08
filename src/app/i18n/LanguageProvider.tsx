@@ -54,10 +54,17 @@ export function LanguageProvider({
     },
     [store],
   );
+  const clearPreference = useCallback(() => {
+    const cleared = store.clear();
+    if (cleared) {
+      setPreferenceState('system');
+    }
+    return cleared;
+  }, [store]);
 
   const value = useMemo(
-    () => ({ preference, resolvedLanguage, setPreference }),
-    [preference, resolvedLanguage, setPreference],
+    () => ({ preference, resolvedLanguage, clearPreference, setPreference }),
+    [preference, resolvedLanguage, clearPreference, setPreference],
   );
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;

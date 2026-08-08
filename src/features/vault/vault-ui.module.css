@@ -1,0 +1,215 @@
+.centeredPage,
+.lockPage {
+  display: grid;
+  min-block-size: 100dvh;
+  align-content: center;
+  inline-size: min(100% - 2rem, 42rem);
+  gap: 1.5rem;
+  margin-inline: auto;
+  padding-block: 2rem;
+}
+
+.statusCard,
+.lockCard,
+.lockPreferences {
+  padding: clamp(1.25rem, 5vw, 2rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.statusCard h1,
+.lockCard h1,
+.lockPreferences h2,
+.resetBox h2 {
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+.statusCard > p:last-child,
+.introduction,
+.resetBox p {
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+.eyebrow {
+  margin: 0 0 0.55rem;
+  color: var(--color-accent);
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.form {
+  display: grid;
+  gap: 0.75rem;
+  margin-block-start: 1.5rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.45rem;
+  font-weight: 700;
+}
+
+.field input {
+  min-block-size: 3rem;
+  inline-size: 100%;
+  padding-inline: 0.9rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-background);
+  color: var(--color-text);
+  letter-spacing: 0.3em;
+}
+
+.field input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.field input:focus-visible,
+.confirmation input:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.hint,
+.error {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.hint {
+  color: var(--color-text-muted);
+}
+
+.error {
+  color: var(--color-danger);
+  font-weight: 650;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton,
+.textButton {
+  min-block-size: 2.75rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  padding-inline: 1rem;
+  border: 1px solid transparent;
+}
+
+.primaryButton {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.secondaryButton {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-subtle);
+  color: var(--color-text);
+}
+
+.dangerButton {
+  background: var(--color-danger);
+  color: var(--color-on-danger);
+}
+
+.textButton {
+  margin-block-start: 0.75rem;
+  padding-inline: 0.5rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.dangerButton:focus-visible,
+.textButton:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.dangerButton:disabled,
+.textButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.resetBox {
+  display: grid;
+  gap: 1rem;
+  margin-block-start: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-small);
+  background: var(--color-danger-subtle);
+}
+
+.resetBox p {
+  margin: 0;
+}
+
+.confirmation {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr;
+  align-items: start;
+  gap: 0.65rem;
+  line-height: 1.45;
+  min-block-size: 2.75rem;
+}
+
+.confirmation input {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin: 0.1rem 0 0;
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.lockPreferences h2 {
+  margin-block-end: 1.25rem;
+  font-size: 1.2rem;
+}
+
+.preferenceGrid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.preferenceGrid > * + * {
+  padding-block-start: 1.5rem;
+  border-block-start: 1px solid var(--color-border);
+}
+
+@media (min-width: 38rem) {
+  .form .primaryButton {
+    justify-self: start;
+    min-inline-size: 9rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .primaryButton,
+  .dangerButton {
+    border-color: ButtonText;
+  }
+}

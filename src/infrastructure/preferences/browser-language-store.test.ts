@@ -9,6 +9,9 @@ function createMemoryStorage(initial: Record<string, string> = {}) {
     values,
     storage: {
       getItem: (key: string) => values.get(key) ?? null,
+      removeItem: (key: string) => {
+        values.delete(key);
+      },
       setItem: (key: string, value: string) => {
         values.set(key, value);
       },
@@ -35,6 +38,19 @@ describe('browser language store', () => {
     expect(memory.values.get('perfect-days:theme')).toBe('dark');
   });
 
+  it('clears only the stored language preference', () => {
+    const memory = createMemoryStorage({
+      [LANGUAGE_STORAGE_KEY]: 'de',
+      'perfect-days:theme': 'dark',
+    });
+    const store = createBrowserLanguageStore(() => memory.storage);
+
+    expect(store.clear()).toBe(true);
+
+    expect(store.read()).toBe('system');
+    expect(memory.values.get('perfect-days:theme')).toBe('dark');
+  });
+
   it('fails safely when browser storage is unavailable', () => {
     const store = createBrowserLanguageStore(() => {
       throw new DOMException('Storage unavailable');
@@ -44,5 +60,6 @@ describe('browser language store', () => {
     expect(() => {
       store.write('de');
     }).not.toThrow();
+    expect(store.clear()).toBe(false);
   });
 });

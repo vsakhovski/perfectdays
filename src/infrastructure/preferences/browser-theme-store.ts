@@ -23,4 +23,12 @@ export const browserThemeStore: ThemeStore = {
       // Theme persistence is optional when browser storage is unavailable.
     }
   },
+  clear() {
+    try {
+      window.localStorage.removeItem(THEME_STORAGE_KEY);
+      return true;
+    } catch {
+      return false;
+    }
+  },
 };

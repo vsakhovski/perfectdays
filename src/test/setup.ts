@@ -23,6 +23,7 @@ afterEach(() => {
   document.documentElement.removeAttribute('data-theme');
   document.documentElement.removeAttribute('dir');
   document.documentElement.removeAttribute('lang');
+  document.documentElement.removeAttribute('data-vault-state');
   document.documentElement.removeAttribute('style');
   document.querySelector('#app-description')?.remove();
   document.title = '';

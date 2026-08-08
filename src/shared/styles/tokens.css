@@ -11,6 +11,9 @@
   --color-accent: #87365a;
   --color-on-accent: #ffffff;
   --color-focus: #1c6ea4;
+  --color-danger: #9b243b;
+  --color-danger-subtle: #fff0f2;
+  --color-on-danger: #ffffff;
   --color-marker-red: #bb3850;
   --color-marker-orange: #bd6918;
   --color-marker-green: #35765a;
@@ -31,6 +34,9 @@
   --color-accent: #f0a4c2;
   --color-on-accent: #311323;
   --color-focus: #8fd2ff;
+  --color-danger: #ff9aaa;
+  --color-danger-subtle: #351c22;
+  --color-on-danger: #2d0710;
   --color-marker-red: #ff8798;
   --color-marker-orange: #f2ae69;
   --color-marker-green: #85c8a8;

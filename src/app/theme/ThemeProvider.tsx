@@ -53,10 +53,17 @@ export function ThemeProvider({ children, store }: ThemeProviderProps) {
     },
     [store],
   );
+  const clearPreference = useCallback(() => {
+    const cleared = store.clear();
+    if (cleared) {
+      setPreferenceState('system');
+    }
+    return cleared;
+  }, [store]);
 
   const value = useMemo(
-    () => ({ preference, resolvedTheme, setPreference }),
-    [preference, resolvedTheme, setPreference],
+    () => ({ preference, resolvedTheme, clearPreference, setPreference }),
+    [preference, resolvedTheme, clearPreference, setPreference],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

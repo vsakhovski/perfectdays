@@ -29,6 +29,117 @@ test.describe('English application shell', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   });
 
+  test('opens the shared vault when two first-run tabs start together', async ({
+    context,
+    page,
+  }) => {
+    const secondPage = await context.newPage();
+    const privateHeading = /your patterns, in your hands/i;
+
+    await Promise.all([page.goto('/'), secondPage.goto('/')]);
+
+    await expect(page.getByRole('heading', { name: privateHeading })).toBeVisible();
+    await expect(secondPage.getByRole('heading', { name: privateHeading })).toBeVisible();
+  });
+
+  test('persists the complete PIN lock lifecycle with real browser cryptography', async ({
+    page,
+  }) => {
+    test.slow();
+    const firstPin = '246810';
+    const secondPin = '135790';
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Set up a PIN' }).click();
+    await page.getByLabel('New PIN', { exact: true }).fill(firstPin);
+    await page.getByLabel('Confirm new PIN', { exact: true }).fill(firstPin);
+    await page.getByRole('button', { name: 'Enable PIN protection' }).click();
+    await expect(page.getByText('PIN protection is now on.')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Lock now' }).click();
+    await expect(page.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
+    await expect(page).toHaveTitle('Private app — locked');
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+    await page.getByLabel('PIN').fill('000000');
+    await page.getByRole('button', { name: 'Unlock' }).click();
+    await expect(page.getByRole('alert')).toContainText('could not be unlocked');
+
+    await page.getByLabel('PIN').fill(firstPin);
+    await page.getByRole('button', { name: 'Unlock' }).click();
+    await expect(
+      page.getByRole('heading', { name: /your patterns, in your hands/i }),
+    ).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
+    await page.getByLabel('PIN').fill(firstPin);
+    await page.getByRole('button', { name: 'Unlock' }).click();
+    await expect(page.getByRole('button', { name: 'Change PIN', exact: true })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Change PIN', exact: true }).click();
+    await page.getByLabel('Current PIN').fill(firstPin);
+    await page.getByLabel('New PIN', { exact: true }).fill(secondPin);
+    await page.getByLabel('Confirm new PIN', { exact: true }).fill(secondPin);
+    await page.getByRole('button', { name: 'Change PIN', exact: true }).click();
+    await expect(page.getByText('The PIN was changed.')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Lock now' }).click();
+    await page.getByLabel('PIN').fill(firstPin);
+    await page.getByRole('button', { name: 'Unlock' }).click();
+    await expect(page.getByRole('alert')).toContainText('could not be unlocked');
+    await page.getByLabel('PIN').fill(secondPin);
+    await page.getByRole('button', { name: 'Unlock' }).click();
+
+    await page.getByRole('button', { name: 'Turn off PIN protection' }).click();
+    await page.getByLabel('Current PIN').fill(secondPin);
+    await page
+      .getByLabel('I understand that the journal will be stored without PIN protection.')
+      .check();
+    await page.getByRole('button', { name: 'Turn off PIN protection' }).click();
+    await expect(page.getByText('PIN protection is now off.')).toBeVisible();
+
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: /your patterns, in your hands/i }),
+    ).toBeVisible();
+    await expect(page.getByText('PIN protection is off')).toBeVisible();
+  });
+
+  test('invalidates unlocked views in another tab after PIN and lock changes', async ({
+    context,
+    page,
+  }) => {
+    test.slow();
+    const pin = '246810';
+    const secondPage = await context.newPage();
+    const privateHeading = /your patterns, in your hands/i;
+
+    // Let one tab commit the first local vault before the second joins it. This
+    // keeps the scenario focused on invalidating an established shared vault.
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: privateHeading })).toBeVisible();
+    await secondPage.goto('/');
+    await expect(secondPage.getByRole('heading', { name: privateHeading })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Set up a PIN' }).click();
+    await page.getByLabel('New PIN', { exact: true }).fill(pin);
+    await page.getByLabel('Confirm new PIN', { exact: true }).fill(pin);
+    await page.getByRole('button', { name: 'Enable PIN protection' }).click();
+    await expect(page.getByText('PIN protection is now on.')).toBeVisible();
+
+    await expect(secondPage.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
+    await expect(secondPage.getByRole('heading', { name: privateHeading })).not.toBeVisible();
+
+    await secondPage.getByLabel('PIN').fill(pin);
+    await secondPage.getByRole('button', { name: 'Unlock' }).click();
+    await expect(secondPage.getByRole('heading', { name: privateHeading })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Lock now' }).click();
+    await expect(secondPage.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
+    await expect(secondPage.getByRole('heading', { name: privateHeading })).not.toBeVisible();
+  });
+
   test('switches to German, persists the choice, and keeps the localized page accessible', async ({
     page,
   }) => {
