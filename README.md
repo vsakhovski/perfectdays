@@ -4,7 +4,7 @@
 
 A private, mobile-first menstrual journal that records bleeding and helps its user notice her own recurring wellbeing patterns. The product uses red, orange, and green calendar markers, but treats them as personal context rather than biological verdicts or judgments about competence.
 
-**Status:** Phase 2 first vertical slice implemented. The repository now contains the secure local core plus tracker onboarding, period and daily check-in logging, a localized monthly calendar, recorded and forecast markers, deterministic next-period estimates, tracking preferences, and reload-persistent IndexedDB storage. Insights, PWA installability, export/restore, and pilot calibration remain future work.
+**Status:** Phase 3 engineering slice implemented. Alongside the secure local core and Phase 2 tracker flow, the app now presents recent cycle, known bleeding-duration, retrospective green-day, and forecast-context insights; exposes a localized history editor for correcting one episode's boundaries; and includes a developer-facing walk-forward evaluator for held-out forecast histories. The tested Phase 2 forecast rules remain unchanged: the evaluator is engineering evidence, not clinical validation or range calibration. Episode splitting/merging, PWA installability, export/restore, and evidence-driven pilot calibration remain future work.
 
 ## Product goal
 
@@ -123,13 +123,13 @@ Forecasting must remain deterministic, explainable, and separately testable from
 ### Cycle definitions
 
 - Calendar observations use local date-only values in `YYYY-MM-DD` form.
-- A menstrual episode has an explicit start date and an inclusive end date. An episode without an end date is active. Arbitrary boundary editing is not yet exposed in the Phase 2 UI.
+- A menstrual episode has an explicit start date and an inclusive end date. An episode without an end date is active. The history UI can correct either boundary of one episode and explicitly distinguish a known end, an unknown end, or an active episode, subject to the same date and overlap invariants as journal entry.
 - A start-only onboarding observation is normalized to a closed one-day episode with `durationKnown: false`; this lets it contribute a start without pretending its duration is known or leaving it active.
 - The episode start is authoritative for cycle calculation and must have a linked log that is not explicitly `none` or `spotting`; omitted intensity is allowed.
 - A cycle length is the number of calendar days between successive episode starts.
 - Spotting alone never creates an episode or starts a new cycle.
 - Episodes cannot overlap. Starting a new episode while another is active requires ending or correcting the active episode first.
-- Missing or `none` flow inside an episode does not silently create a new cycle; splitting or merging episodes is an explicit correction.
+- Missing or `none` flow inside an episode does not silently create a new cycle. Splitting or merging must be a separate, explicit user action if research supports adding it; the current correction editor changes one episode only.
 - Timestamps may be used for metadata such as `updatedAt`, but never to determine which calendar day was recorded.
 
 ### Initial next-period algorithm
@@ -273,7 +273,7 @@ Episode invariants:
 - A start-date log must exist and cannot explicitly have `none` or `spotting` flow.
 - A spotting log does not require an episode and never creates one.
 - An episode is a user-controlled boundary. A linked `none`/spotting log or an entirely unlogged date within its range does not split it automatically.
-- Ending an episode records an inclusive `endDate`. Removing an episode revalidates its linked daily logs before forecasts are recalculated; arbitrary boundary editing, splitting, and merging remain future work.
+- Ending an episode records an inclusive `endDate`. Removing an episode revalidates its linked daily logs before forecasts are recalculated. Correcting one episode's boundaries rejects future, reversed, overlapping, or second-active ranges; recreates or relinks its required start log; and reconciles linked logs that move outside the corrected range without discarding unrelated daily observations. Splitting and merging remain separate future work.
 - A known completed bleeding duration is `endDate - startDate + 1` calendar days. Episodes with `durationKnown: false` are excluded, and daily flow intensity does not change the calculation.
 
 Action mapping:
@@ -282,6 +282,7 @@ Action mapping:
 - **Continue period** creates or updates a log linked to the active episode.
 - **End period** sets the active episode's inclusive end date and creates or links that final day's log without overwriting an explicit flow value.
 - **Remove period** requires confirmation, then removes the episode and period-only facts while retaining unrelated daily check-in values.
+- **Correct period** changes one episode's start, end state (known, unknown, or active), and explicit start-day flow choice. Changing the start requires a fresh choice, including an explicit unspecified value. Period-only flow and stale links outside the corrected range are cleared, while explicit `none`/spotting values and subjective check-in fields are retained.
 - Historical entry creates the episode and its linked start-day log. It does not infer a red log for every date inside a supplied range.
 - **Delete check-in** removes a normal day's log, but an episode-start log is protected until the episode itself is removed.
 
@@ -365,7 +366,7 @@ A longer passphrase and platform passkey/biometric unlock may be added later, bu
 ```mermaid
 flowchart LR
     UI[React tracker UI] --> APP[Vault context and application services]
-    UI --> DOMAIN[Pure journal, forecast, and marker engines]
+    UI --> DOMAIN[Pure journal, forecast, insight, marker, and backtest engines]
     UI --> I18N[Typed local catalogs]
     APP --> VAULT[Vault service]
     VAULT --> CRYPTO[Web Crypto]
@@ -423,8 +424,8 @@ src/
     vault/                   Observable vault provider and UI-safe actions
   application/ports/         Interfaces owned by application policy
   application/vault/         Vault manager, PIN transitions, and auto-lock policy
-  domain/                    Pure models, journal mutations, onboarding, markers, forecasts, and date logic
-  features/                  Calendar, day detail, onboarding, settings, PIN, and lock workflows
+  domain/                    Pure models, journal mutations, onboarding, markers, forecasts, insights, backtesting, and date logic
+  features/                  Calendar, day detail, history correction, insights, onboarding, settings, PIN, and lock workflows
   i18n/                      Typed resources, locale resolution, localized date formatting, and tests
     locales/en.ts            Canonical English message catalog
     locales/de.ts            German message catalog
@@ -460,7 +461,7 @@ app -> composition of all layers
 - ESLint rejects literal user-visible JSX text, while tests enforce translation key and interpolation-placeholder parity.
 - Directories are added when they contain a real implementation or contract; empty placeholder layers and generic `utils` folders are avoided.
 
-### Implemented foundation, secure core, and first tracker slice
+### Implemented foundation, secure core, and Phase 3 engineering slice
 
 - A responsive, accessible React shell rendered in `StrictMode`.
 - System, light, and dark theme selection with local persistence.
@@ -485,13 +486,16 @@ app -> composition of all layers
 - Keyboard-focus management for PIN workflows and destructive disclosures, including explicit disclosure state and disarmed confirmations after collapse.
 - Strict TypeScript, type-aware ESLint, Prettier, Vitest, Testing Library, Playwright, and an automated axe accessibility smoke test.
 - Setup that imports optional historical starts/ends and bounded fallback values, validates dates and overlap, configures the orange window, and can be explicitly finished without history or invented observations.
-- Pure, separately tested journal mutations for starting, continuing, ending, and removing a period and for creating, editing, clearing, and deleting daily check-ins.
+- Pure, separately tested journal mutations for starting, continuing, ending, correcting, and removing a period and for creating, editing, clearing, and deleting daily check-ins.
 - A localized six-week monthly calendar with recorded, predicted, possible-start, orange, retrospective-green, spotting, and neutral markers; a non-color legend; and keyboard navigation.
 - A modal daily editor for flow, confidence, tension, energy, pain, and private notes, with focus return and explicit confirmation for daily deletion and whole-period removal.
 - Deterministic forecast statistics, uncertainty ranges, late-estimate behavior, marker suppression for highly variable histories, and tracking preferences for fallbacks, orange, and forecast pause.
+- Derived, presentation-neutral insight summaries for the six most recent successive cycle lengths, known completed bleeding durations, and explicitly recorded confidence-4-or-5 days, plus the forecast source, confidence, history count, variability, and span shown in localized insight cards.
+- A localized, accessible period-history list and modal correction editor for changing one episode's start, explicit known/unknown/active end state, and start-day flow without weakening journal invariants, converting start-only history into invented durations, or silently deleting unrelated daily observations.
+- A pure expanding-window backtest evaluator that holds out each later episode start in turn and reports per-sample signed and absolute start error, range inclusion, training-history variability band, skipped targets, aggregate median absolute error, empirical range coverage, and the same aggregate metrics segmented by variability for developer evaluation only.
 - Vault-backed saves for tracker observations and preferences, with a real-browser test covering setup, period/check-in entry, and IndexedDB persistence across reloads in all configured Playwright projects.
 
-Not implemented yet: richer multi-cycle insights, arbitrary episode-boundary editing/splitting/merging, service worker/installability, encrypted or plaintext export/restore, forecast backtesting/calibration, or public-beta clinical, legal, accessibility, and security review.
+Not implemented yet: episode splitting/merging, service worker/installability, encrypted or plaintext export/restore, evidence-based forecast-range refinement or calibration from pilot data, or public-beta clinical, legal, accessibility, and security review. The backtest evaluator is not exposed as a user-facing accuracy score and does not establish clinical accuracy.
 
 ## Privacy and data lifecycle
 
@@ -504,7 +508,7 @@ Not implemented yet: richer multi-cycle insights, arbitrary episode-boundary edi
 - Keep every language catalog in the application bundle. Localization must not send copy, identifiers, or health data to an external service.
 - Make encrypted export the safe default.
 - Clearly warn that plaintext JSON or CSV exports can be read by anyone who obtains the file.
-- Make daily check-in correction/deletion and whole-period removal available from the UI. Arbitrary period-boundary correction remains planned work and must not be implied by the current interface.
+- Make daily check-in correction/deletion, whole-period removal, and arbitrary single-episode boundary correction available from the UI. Boundary correction preserves the distinction between a known end, an unknown end, and an active episode; keeps unrelated confidence, tension, energy, pain, note, `none`, and spotting observations; and removes only stale episode links and period-only bleeding intensity outside the revised range. Splitting or merging episodes is not available and must not be implied by the current interface.
 - “Erase everything” transactionally removes the vault, wrapped key, salt, and every application-controlled item that could contain personal data, then attempts to remove theme/language preferences. If the browser refuses a preference removal or cannot recreate an empty vault, the UI reports that partial outcome instead of claiming full success. A static application shell, translation catalogs, and opaque coordination revision may remain because they contain no user data.
 - Use generic notifications and never show period status on the lock screen without explicit opt-in.
 - Do not claim that local-only storage or a PIN makes the application invulnerable.
@@ -540,7 +544,7 @@ The interface must never diagnose from a single entry or turn safety information
 - Translation keys represent complete messages. Use interpolation, context, and locale-aware plural rules rather than concatenating fragments.
 - Format dates, month and weekday names, numbers, and quantities with the resolved language at the presentation boundary. Persisted `LocalDate` values and enum codes remain locale-neutral.
 - English and German are left-to-right, while layout continues to use logical CSS properties for future right-to-left locales.
-- Catalog tests require identical keys, non-empty values, and matching interpolation placeholders. Localized browser smoke tests cover the English and German application shell; the Phase 2 persistence flow currently runs in English across every configured browser project.
+- Catalog tests require identical keys, non-empty values, and matching interpolation placeholders. Localized browser smoke tests cover the English and German application shell; the tracker persistence flow currently runs in English across every configured browser project.
 - Meet WCAG 2.2 AA contrast in light and dark themes.
 - Never communicate a state with color alone; use text, icons, patterns, and screen-reader descriptions.
 - Example announcement: “August 12, predicted period, medium confidence.”
@@ -604,12 +608,13 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Implement and test cycle/duration medians, uncertainty and confidence rules, predicted/possible-start styling, orange behavior, variable-history suppression, and fixed late estimates.
 - [x] Persist tracker data through the versioned vault, recalculate derived forecasts after saves, and verify a setup-to-check-in reload flow against real IndexedDB in every Playwright project.
 
-### Phase 3 — Forecast refinement and insights
+### Phase 3 — Forecast refinement and insights (engineering slice complete)
 
-- Add richer insights for recent cycle lengths, known bleeding durations, forecast confidence, and retrospective green days.
-- Add explicit UI for correcting arbitrary episode boundaries and, if user research supports it, splitting or merging episodes.
-- Build repeatable backtesting over held-out histories; the current scenario unit fixtures are not a calibrated backtesting system.
-- Refine uncertainty ranges and explanations only from pilot evidence while preserving the tested Phase 2 rules as the documented baseline.
+- [x] Add richer localized insights for recent cycle lengths, known bleeding durations, forecast confidence/source/variability, and retrospective green days.
+- [x] Add explicit history UI for correcting arbitrary boundaries of one episode while preserving journal invariants and unrelated daily observations.
+- [ ] Add episode splitting or merging only if user research supports the additional correction workflow.
+- [x] Build a repeatable, pure walk-forward evaluator that forecasts held-out episode starts from strictly earlier history and reports sample errors and empirical range coverage overall and by training-history variability.
+- [ ] Refine uncertainty ranges or describe calibrated coverage only from pilot evidence. The tested Phase 2 rules remain the documented baseline, and the developer evaluator alone is not calibration or clinical validation.
 
 ### Phase 4 — PWA and hardening
 
@@ -633,11 +638,13 @@ Initial browser targets for the prototype are the latest two major versions of C
 ### Functional
 
 - [x] A user can start, continue, end, and remove periods and create, edit, clear, and delete eligible daily check-ins.
-- [ ] A user can directly correct arbitrary period boundaries or split and merge episodes.
+- [x] A user can directly correct arbitrary start/end boundaries for one period, including changing its active state and start-day intensity, without creating overlap or discarding unrelated daily observations.
+- [ ] A user can explicitly split or merge episodes if research confirms that the added correction workflow is needed.
 - [x] Spotting does not start a period automatically.
 - [x] Opening a day and using **Start period** records a useful minimum bleeding entry in two actions.
 - [x] Forecasts update from the saved payload immediately after relevant edits.
 - [x] Forecasts show a range, confidence, and number of cycle-length records used.
+- [x] Insights show recent cycle lengths, known bleeding durations, retrospective high-confidence days, and forecast context using neutral, localized wording.
 - [x] Green is based only on an explicit qualifying check-in in the MVP.
 - [x] Recorded facts remain visible when markers overlap: recorded red supersedes conflicting forecast coloring, while green can coexist with red.
 - [x] Tracker setup and recorded check-ins survive reload while the browser retains the origin's IndexedDB storage.
@@ -682,12 +689,14 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Tests cover month/year boundaries, leap years, editing, deletion, spotting, and overlapping markers.
 - [x] Actual bleeding overrides conflicting forecasts.
 - [x] A late period does not cause the app to invent a moving exact date.
+- [x] A repeatable walk-forward evaluator holds each eligible later start out of its training history and reports per-sample error, range inclusion, skipped samples, median absolute error, and empirical range coverage overall and by training-history variability.
 
 ### Build quality
 
 - [x] Lint, formatting checks, strict type-checking, unit tests, production build, and Playwright smoke tests pass.
 - [x] Persisted schema migrations are tested.
 - [x] Translation catalog parity, locale resolution, storage failure, component switching, and localized browser smoke tests are automated.
+- [x] Pure insight derivation, held-out backtesting, invariant-preserving boundary correction, and the insight/history components have automated tests.
 - [ ] The application works with the network disabled after installation while its origin storage and application-shell cache remain available.
 - [ ] Dependencies and production assets introduce no advertising or tracking behavior.
 
@@ -695,13 +704,13 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 - At least 90% of usability-test participants should distinguish recorded from predicted days without coaching.
 - Users should understand that orange is a check-in suggestion, not a judgment about competence.
-- Backtesting should report median start-date error and empirical coverage of forecast ranges, segmented by cycle variability.
+- The developer-facing evaluator now reports per-sample signed/absolute start-date error and range inclusion plus aggregate median absolute error and empirical range coverage, segmented by the variability of the training history. Interpretation against pilot data remains validation work.
 - An intended 80% prediction interval should cover approximately 80% of held-out starts before it is described that way in the UI.
 - Deletion should leave no application-controlled copy recoverable through normal product behavior.
 
 ## Current development environment
 
-Verified on August 8, 2026:
+Verified on August 9, 2026:
 
 - Windows and PowerShell
 - Node.js `v24.19.0`
@@ -709,7 +718,7 @@ Verified on August 8, 2026:
 - Git `2.55.0.windows.3`
 - Git repository on `main`, tracking `origin/main`
 - PowerShell blocks the `npm.ps1` shim under the current execution policy; use `npm.cmd` and `npx.cmd` rather than changing machine-wide policy merely for this project.
-- The current baseline passes 229 Vitest tests and 32 Playwright tests across desktop Chromium/Firefox and mobile Chromium/WebKit.
+- The current baseline passes 282 Vitest tests and 36 Playwright tests across desktop Chromium/Firefox and mobile Chromium/WebKit.
 
 ### Local setup
 
@@ -740,9 +749,16 @@ Quality commands:
 
 The Playwright browser download is machine-local and is not stored in this repository. CI on Linux should install its browsers and operating-system dependencies with `npx playwright install --with-deps` before running `npm run ci`. Commit `package-lock.json`; use `npm ci` for reproducible CI and clean-machine installs.
 
+Playwright uses port `4173` by default. If another local server is intentionally using that port, select a free port without stopping it:
+
+```powershell
+$env:E2E_PORT = '4181'
+npm.cmd run test:e2e
+```
+
 Run `npm.cmd run build` before `npm.cmd run preview` whenever source files have changed. Preview serves the generated bundle; opening `dist/index.html` directly is not a reliable substitute for an HTTP server.
 
-`npm.cmd test` includes catalog key/placeholder parity and language resolution; schema-v3 migration and persistence boundaries; local-date and localized-date behavior; pure onboarding, journal, forecast, and marker rules; and calendar, onboarding, day-editor, settings, vault, and application component tests. The Playwright suite includes a real IndexedDB flow that finishes setup without history, starts a period, saves confidence and a private note, reloads, and verifies the persisted red/green record and check-in values.
+`npm.cmd test` includes catalog key/placeholder parity and language resolution; schema-v3 migration and persistence boundaries; local-date and localized-date behavior; pure onboarding, journal, forecast, insight, marker, and walk-forward backtest rules; invariant-preserving single-episode correction; and calendar, onboarding, day-editor, insights, history, settings, vault, and application component tests. The Playwright suite includes real IndexedDB flows that persist a red/green check-in and that correct a period boundary, retain unrelated check-in values, and verify the correction after reload.
 
 Add a message to `src/i18n/locales/en.ts` first, then add the matching key and placeholders to every other locale; TypeScript and the test suite reject drift.
 

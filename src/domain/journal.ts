@@ -62,6 +62,18 @@ export interface EndPeriodInput {
   date?: LocalDate;
 }
 
+export interface CorrectPeriodInput {
+  episodeId: string;
+  startDate: LocalDate;
+  /** Inclusive final day; `null` keeps the end unknown, omission makes the episode active. */
+  endDate?: LocalDate | null;
+  /**
+   * An explicit choice for the corrected start day. `null` knowingly records
+   * bleeding with unspecified intensity; a bleeding value records its intensity.
+   */
+  startFlow: BleedingFlow | null;
+}
+
 export interface DailyCheckInInput {
   date?: LocalDate;
   /** `null` clears an explicit value; omission leaves it unchanged. */
@@ -83,6 +95,18 @@ function compareLogs(left: DailyLog, right: DailyLog): number {
 
 function containsDate(episode: PeriodEpisode, date: LocalDate): boolean {
   return date >= episode.startDate && (episode.endDate === undefined || date <= episode.endDate);
+}
+
+function rangesOverlap(
+  leftStart: LocalDate,
+  leftEnd: LocalDate | undefined,
+  rightStart: LocalDate,
+  rightEnd: LocalDate | undefined,
+): boolean {
+  return (
+    (leftEnd === undefined || rightStart <= leftEnd) &&
+    (rightEnd === undefined || leftStart <= rightEnd)
+  );
 }
 
 function isBleedingFlow(flow: Flow | undefined): flow is BleedingFlow {
@@ -349,6 +373,135 @@ export function endPeriod(
   const logs = [...state.logs.filter((log) => log.date !== date), finalLog];
 
   return finalized(episodes, logs);
+}
+
+/**
+ * Corrects one episode's inclusive boundaries without splitting or merging it.
+ * Logs which no longer belong to the episode are reconciled conservatively:
+ * their subjective observations and explicit `none`/`spotting` values survive,
+ * while period-only bleeding intensity and the stale episode link are cleared.
+ */
+export function correctPeriod(
+  state: JournalState,
+  input: CorrectPeriodInput,
+  context: JournalMutationContext,
+): JournalMutationResult {
+  assertJournalInvariants(state);
+
+  const target = state.episodes.find((episode) => episode.id === input.episodeId);
+
+  if (target === undefined) {
+    throw new JournalError('episode-not-found');
+  }
+
+  const today = context.today();
+
+  if (
+    input.startDate > today ||
+    (input.endDate !== undefined && input.endDate !== null && input.endDate > today)
+  ) {
+    throw new JournalError('future-date');
+  }
+
+  if (input.endDate !== undefined && input.endDate !== null && input.endDate < input.startDate) {
+    throw new JournalError('invalid-episode-range');
+  }
+
+  if (input.startFlow !== null && !isBleedingFlow(input.startFlow)) {
+    throw new JournalError('invalid-start-flow');
+  }
+
+  const otherEpisodes = state.episodes.filter((episode) => episode.id !== input.episodeId);
+  const correctedEndDate = input.endDate === null ? input.startDate : input.endDate;
+
+  if (
+    input.endDate === undefined &&
+    otherEpisodes.some((episode) => episode.endDate === undefined)
+  ) {
+    throw new JournalError('active-episode-exists');
+  }
+
+  if (
+    otherEpisodes.some((episode) =>
+      rangesOverlap(input.startDate, correctedEndDate, episode.startDate, episode.endDate),
+    )
+  ) {
+    throw new JournalError('episode-overlap');
+  }
+
+  const timestamp = context.now();
+  const correctedEpisode: PeriodEpisode = {
+    ...target,
+    startDate: input.startDate,
+    updatedAt: timestamp,
+  };
+
+  delete correctedEpisode.endDate;
+  delete correctedEpisode.durationKnown;
+
+  if (correctedEndDate !== undefined) {
+    correctedEpisode.endDate = correctedEndDate;
+  }
+  if (input.endDate === null) {
+    correctedEpisode.durationKnown = false;
+  }
+
+  const logs: DailyLog[] = [];
+  let hasCorrectedStartLog = false;
+
+  for (const sourceLog of state.logs) {
+    const log = { ...sourceLog };
+    let changed = false;
+
+    if (
+      log.episodeId === input.episodeId &&
+      (log.date < input.startDate ||
+        (correctedEndDate !== undefined && log.date > correctedEndDate))
+    ) {
+      delete log.episodeId;
+      if (isBleedingFlow(log.flow)) {
+        delete log.flow;
+      }
+      changed = true;
+    }
+
+    if (log.date === input.startDate) {
+      log.episodeId = input.episodeId;
+      delete log.flow;
+      if (input.startFlow !== null) {
+        log.flow = input.startFlow;
+      }
+      changed = true;
+      hasCorrectedStartLog = true;
+    }
+
+    if (changed) {
+      log.updatedAt = timestamp;
+    }
+
+    if (hasLogContent(log)) {
+      logs.push(log);
+    }
+  }
+
+  if (!hasCorrectedStartLog) {
+    const startLog: DailyLog = {
+      date: input.startDate,
+      episodeId: input.episodeId,
+      updatedAt: timestamp,
+    };
+
+    if (input.startFlow !== null) {
+      startLog.flow = input.startFlow;
+    }
+
+    logs.push(startLog);
+  }
+
+  return finalized(
+    state.episodes.map((episode) => (episode.id === input.episodeId ? correctedEpisode : episode)),
+    logs,
+  );
 }
 
 export function removePeriod(

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -12,7 +12,7 @@ import type {
 } from '../application/vault/auto-lock-controller';
 import type { VaultSnapshot } from '../application/vault/vault-controller';
 import { VaultManagerError } from '../application/vault/vault-manager';
-import type { LanguagePreference, ThemePreference } from '../domain/models';
+import type { LanguagePreference, ThemePreference, VaultPayload } from '../domain/models';
 import { asLocalDate } from '../domain/local-date';
 import { createAppI18n } from '../i18n/create-i18n';
 import { resolveLanguage } from '../i18n/language';
@@ -202,6 +202,92 @@ async function renderApp({
   };
 }
 
+function createRecordedMultiCyclePayload(): VaultPayload {
+  const timestamp = '2026-06-01T08:00:00.000Z';
+  const payload = createEmptyVaultPayload(timestamp);
+
+  return {
+    ...payload,
+    episodes: [
+      {
+        id: 'episode-june-1',
+        startDate: asLocalDate('2026-06-01'),
+        endDate: asLocalDate('2026-06-05'),
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+      {
+        id: 'episode-june-29',
+        startDate: asLocalDate('2026-06-29'),
+        endDate: asLocalDate('2026-06-29'),
+        durationKnown: false,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+      {
+        id: 'episode-july-27',
+        startDate: asLocalDate('2026-07-27'),
+        endDate: asLocalDate('2026-07-31'),
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+    ],
+    logs: [
+      {
+        date: asLocalDate('2026-06-01'),
+        episodeId: 'episode-june-1',
+        flow: 'medium',
+        updatedAt: timestamp,
+      },
+      {
+        date: asLocalDate('2026-06-29'),
+        episodeId: 'episode-june-29',
+        updatedAt: timestamp,
+      },
+      {
+        date: asLocalDate('2026-07-27'),
+        episodeId: 'episode-july-27',
+        flow: 'medium',
+        updatedAt: timestamp,
+      },
+      {
+        date: asLocalDate('2026-07-28'),
+        confidence: 4,
+        note: 'Keep the check-in on the corrected start.',
+        updatedAt: timestamp,
+      },
+      {
+        date: asLocalDate('2026-07-31'),
+        episodeId: 'episode-july-27',
+        flow: 'heavy',
+        confidence: 5,
+        tension: 4,
+        energy: 2,
+        pain: 3,
+        note: 'Keep every subjective value outside the corrected range.',
+        updatedAt: timestamp,
+      },
+      {
+        date: asLocalDate('2026-08-02'),
+        confidence: 3,
+        updatedAt: timestamp,
+      },
+    ],
+    settings: {
+      ...payload.settings,
+      onboardingCompleted: true,
+    },
+  };
+}
+
+function sectionWithHeading(name: string): HTMLElement {
+  const section = screen.getByRole('heading', { name }).closest('section');
+  if (!(section instanceof HTMLElement)) {
+    throw new Error(`Expected the heading "${name}" to be inside a section.`);
+  }
+  return section;
+}
+
 describe('App', () => {
   it('renders the private local-first foundation in English', async () => {
     await renderApp();
@@ -313,6 +399,147 @@ describe('App', () => {
     expect(
       screen.getByText(/A new open period cannot begin before a later recorded period/i),
     ).toBeVisible();
+  });
+
+  it('renders localized insight data derived from recorded multi-cycle history', async () => {
+    const payload = createRecordedMultiCyclePayload();
+    await renderApp({
+      vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
+    });
+
+    expect(
+      screen.getByRole('heading', { name: 'Recent patterns from your journal' }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        /These summaries use up to six recent recorded observations.*describe your history/i,
+      ),
+    ).toBeVisible();
+
+    const cycleLengths = within(sectionWithHeading('Recent cycle lengths'));
+    expect(cycleLengths.getAllByText('28 days')).toHaveLength(2);
+    expect(cycleLengths.getByText(/Jun 29, 2026.*Jul 27, 2026/)).toBeVisible();
+    expect(cycleLengths.getByText(/Jun 1, 2026.*Jun 29, 2026/)).toBeVisible();
+
+    const bleedingDurations = within(sectionWithHeading('Known bleeding durations'));
+    expect(bleedingDurations.getAllByText('5 days')).toHaveLength(2);
+    expect(bleedingDurations.getByText(/Jul 27, 2026.*Jul 31, 2026/)).toBeVisible();
+    expect(bleedingDurations.getByText(/Jun 1, 2026.*Jun 5, 2026/)).toBeVisible();
+    expect(bleedingDurations.queryByText('Jun 29, 2026')).not.toBeInTheDocument();
+
+    const higherConfidenceDays = within(sectionWithHeading('Recent higher-confidence days'));
+    expect(higherConfidenceDays.getByText('2 recent records')).toBeVisible();
+    expect(higherConfidenceDays.getByText('Confidence 4 of 5')).toBeVisible();
+    expect(higherConfidenceDays.getByText('Confidence 5 of 5')).toBeVisible();
+    expect(higherConfidenceDays.getByText('Jul 28, 2026')).toBeVisible();
+    expect(higherConfidenceDays.getByText('Jul 31, 2026')).toBeVisible();
+    expect(higherConfidenceDays.queryByText('Aug 2, 2026')).not.toBeInTheDocument();
+
+    const forecastExplanation = within(sectionWithHeading('Why this estimate looks this way'));
+    expect(forecastExplanation.getByText('Recent recorded period starts')).toBeVisible();
+    expect(forecastExplanation.getByText('2 cycles')).toBeVisible();
+    expect(
+      forecastExplanation.getByText('Recent cycle lengths differ by 4 days or less'),
+    ).toBeVisible();
+    expect(forecastExplanation.getByText('0 days')).toBeVisible();
+  });
+
+  it('keeps an imported unknown period end unknown when it is saved unchanged', async () => {
+    const user = userEvent.setup();
+    const payload = createRecordedMultiCyclePayload();
+    const { vaultController } = await renderApp({
+      vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
+    });
+
+    await user.click(screen.getByRole('button', { name: /Correct period starting Jun 29, 2026/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Correct period dates' });
+    expect(within(dialog).getByRole('radio', { name: 'Ended — date unknown' })).toBeChecked();
+    expect(within(dialog).getByLabelText('Inclusive end date')).toBeDisabled();
+    expect(within(dialog).getByLabelText('Inclusive end date')).toHaveValue('');
+
+    await user.click(within(dialog).getByRole('button', { name: 'Save corrected dates' }));
+    expect(await within(dialog).findByText('Period dates corrected.')).toBeVisible();
+
+    const snapshot = vaultController.getSnapshot();
+    expect(snapshot.phase).toBe('unlocked');
+    if (snapshot.phase !== 'unlocked') return;
+    expect(
+      snapshot.payload.episodes.find((episode) => episode.id === 'episode-june-29'),
+    ).toMatchObject({
+      startDate: '2026-06-29',
+      endDate: '2026-06-29',
+      durationKnown: false,
+    });
+  });
+
+  it('corrects a period through the German UI while preserving unrelated check-in values', async () => {
+    const user = userEvent.setup();
+    const payload = createRecordedMultiCyclePayload();
+    const { vaultController } = await renderApp({
+      languagePreference: 'de',
+      vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
+    });
+
+    await user.click(
+      screen.getByRole('button', {
+        name: /Periode ab 27\. Juli 2026.*31\. Juli 2026 korrigieren/,
+      }),
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Periodendaten korrigieren' });
+    fireEvent.change(within(dialog).getByLabelText('Startdatum'), {
+      target: { value: '2026-07-28' },
+    });
+    fireEvent.change(within(dialog).getByLabelText(/^Einschließliches Enddatum$/), {
+      target: { value: '2026-07-30' },
+    });
+    await user.click(within(dialog).getByRole('radio', { name: 'Stark' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Korrigierte Daten speichern' }));
+
+    expect(await within(dialog).findByText('Periodendaten korrigiert.')).toBeVisible();
+    expect(
+      screen.getByRole('button', {
+        name: /Periode ab 28\. Juli 2026.*30\. Juli 2026 korrigieren/,
+      }),
+    ).toBeVisible();
+
+    const snapshot = vaultController.getSnapshot();
+    expect(snapshot.phase).toBe('unlocked');
+    if (snapshot.phase !== 'unlocked') return;
+
+    const correctedEpisode = snapshot.payload.episodes.find(
+      (episode) => episode.id === 'episode-july-27',
+    );
+    expect(correctedEpisode).toMatchObject({
+      startDate: '2026-07-28',
+      endDate: '2026-07-30',
+      updatedAt: '2026-08-08T08:00:00.000Z',
+    });
+    expect(correctedEpisode).not.toHaveProperty('durationKnown');
+    expect(snapshot.payload.logs.find((log) => log.date === '2026-07-27')).toBeUndefined();
+
+    const correctedStartLog = snapshot.payload.logs.find((log) => log.date === '2026-07-28');
+    expect(correctedStartLog).toEqual(
+      expect.objectContaining({
+        episodeId: 'episode-july-27',
+        flow: 'heavy',
+        confidence: 4,
+        note: 'Keep the check-in on the corrected start.',
+      }),
+    );
+
+    const preservedOutsideLog = snapshot.payload.logs.find((log) => log.date === '2026-07-31');
+    expect(preservedOutsideLog).toEqual(
+      expect.objectContaining({
+        confidence: 5,
+        tension: 4,
+        energy: 2,
+        pain: 3,
+        note: 'Keep every subjective value outside the corrected range.',
+        updatedAt: '2026-08-08T08:00:00.000Z',
+      }),
+    );
+    expect(preservedOutsideLog).not.toHaveProperty('episodeId');
+    expect(preservedOutsideLog).not.toHaveProperty('flow');
   });
 
   it('uses the supported base language from the device preference', async () => {

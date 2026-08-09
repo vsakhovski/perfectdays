@@ -72,6 +72,92 @@ test.describe('English application shell', () => {
     expect(accessibilityScan.violations).toEqual([]);
   });
 
+  test('persists a corrected period boundary and its unrelated check-in values', async ({
+    page,
+  }) => {
+    test.slow();
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Finish without history' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Your recorded days and estimates' }),
+    ).toBeVisible();
+
+    const today = page.locator('button[aria-current="date"]');
+    await today.click();
+    const dayDialog = page.getByRole('dialog', { name: 'Daily check-in' });
+    await dayDialog.getByRole('radio', { name: 'Medium' }).check();
+    await dayDialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }).check();
+    await dayDialog.getByRole('radio', { name: 'Tension: 4 out of 5' }).check();
+    await dayDialog.getByLabel('Private note').fill('Keep this after correcting the dates.');
+    await dayDialog.getByRole('button', { name: /Start period/ }).click();
+    await expect(dayDialog.getByText('Period started.')).toBeVisible();
+    await dayDialog.getByRole('button', { name: 'Save check-in' }).click();
+    await expect(dayDialog.getByText('Check-in saved.')).toBeVisible();
+    await dayDialog.getByRole('button', { name: /End period/ }).click();
+    await expect(dayDialog.getByText('Period ended.')).toBeVisible();
+    await dayDialog.getByRole('button', { name: 'Close daily check-in' }).click();
+
+    const hasNoHorizontalOverflow = await page.evaluate<boolean>(
+      'document.documentElement.scrollWidth <= document.documentElement.clientWidth',
+    );
+    expect(hasNoHorizontalOverflow).toBe(true);
+
+    await page.getByRole('button', { name: /Correct period starting/ }).click();
+    const correctionDialog = page.getByRole('dialog', { name: 'Correct period dates' });
+    const startDateInput = correctionDialog.getByLabel('Start date');
+    const endDateInput = correctionDialog.getByLabel('Inclusive end date');
+    const recordedDate = await startDateInput.inputValue();
+    expect(await endDateInput.inputValue()).toBe(recordedDate);
+    const correctedStartDate = await page.evaluate((startDate) => {
+      const date = new Date(`${startDate}T12:00:00.000Z`);
+      date.setUTCDate(date.getUTCDate() - 1);
+      return date.toISOString().slice(0, 10);
+    }, recordedDate);
+
+    await startDateInput.fill(correctedStartDate);
+    await correctionDialog.getByRole('radio', { name: 'Heavy' }).check();
+    await correctionDialog.getByRole('button', { name: 'Save corrected dates' }).click();
+    await expect(correctionDialog.getByText('Period dates corrected.')).toBeVisible();
+    const accessibilityScan = await new AxeBuilder({ page }).analyze();
+    expect(accessibilityScan.violations).toEqual([]);
+    await correctionDialog.getByRole('button', { name: 'Close period correction' }).click();
+
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: 'Your recorded days and estimates' }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: /Correct period starting/ }).click();
+
+    const persistedCorrectionDialog = page.getByRole('dialog', {
+      name: 'Correct period dates',
+    });
+    await expect(persistedCorrectionDialog.getByLabel('Start date')).toHaveValue(
+      correctedStartDate,
+    );
+    await expect(persistedCorrectionDialog.getByLabel('Inclusive end date')).toHaveValue(
+      recordedDate,
+    );
+    await expect(persistedCorrectionDialog.getByRole('radio', { name: 'Heavy' })).toBeChecked();
+    await persistedCorrectionDialog
+      .getByRole('button', { name: 'Close period correction' })
+      .click();
+
+    const persistedToday = page.locator('button[aria-current="date"]');
+    await expect(persistedToday).toHaveAccessibleName(/Recorded period day/);
+    await persistedToday.click();
+    const persistedDayDialog = page.getByRole('dialog', { name: 'Daily check-in' });
+    await expect(persistedDayDialog.getByRole('radio', { name: 'Medium' })).toBeChecked();
+    await expect(
+      persistedDayDialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }),
+    ).toBeChecked();
+    await expect(
+      persistedDayDialog.getByRole('radio', { name: 'Tension: 4 out of 5' }),
+    ).toBeChecked();
+    await expect(persistedDayDialog.getByLabel('Private note')).toHaveValue(
+      'Keep this after correcting the dates.',
+    );
+  });
+
   test('opens the shared vault when two first-run tabs start together', async ({
     context,
     page,

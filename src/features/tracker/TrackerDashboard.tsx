@@ -52,6 +52,8 @@ import {
   type TrackerSettingsCopy,
   type TrackerSettingsValue,
 } from '../settings/TrackerSettingsPanel';
+import { TrackerHistorySection } from './TrackerHistorySection';
+import { TrackerInsightsSection } from './TrackerInsightsSection';
 import styles from './tracker-dashboard.module.css';
 
 function valueFromLog(log: DailyLog | undefined): DayDetailValue {
@@ -694,53 +696,59 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
   const messages = forecastMessages(forecast, payload, resolvedLanguage, t);
 
   return (
-    <section className={styles['tracker']} aria-labelledby="tracker-calendar-title">
-      <header className={styles['header']}>
-        <p className={styles['sectionLabel']}>{t(($) => $.tracker.calendar.sectionLabel)}</p>
-        <h2 id="tracker-calendar-title">{t(($) => $.tracker.calendar.title)}</h2>
-        <p>{t(($) => $.tracker.calendar.description)}</p>
-      </header>
+    <>
+      <section className={styles['tracker']} aria-labelledby="tracker-calendar-title">
+        <header className={styles['header']}>
+          <p className={styles['sectionLabel']}>{t(($) => $.tracker.calendar.sectionLabel)}</p>
+          <h2 id="tracker-calendar-title">{t(($) => $.tracker.calendar.title)}</h2>
+          <p>{t(($) => $.tracker.calendar.description)}</p>
+        </header>
 
-      <section className={styles['forecast']} aria-labelledby="tracker-forecast-title">
-        <h3 id="tracker-forecast-title">{t(($) => $.tracker.forecast.title)}</h3>
-        {messages.map((message) => (
-          <p key={message}>{message}</p>
-        ))}
-      </section>
+        <section className={styles['forecast']} aria-labelledby="tracker-forecast-title">
+          <h3 id="tracker-forecast-title">{t(($) => $.tracker.forecast.title)}</h3>
+          {messages.map((message) => (
+            <p key={message}>{message}</p>
+          ))}
+        </section>
 
-      <MonthlyCalendar
-        copy={calendarCopy}
-        days={days}
-        monthLabel={formatMonthTitle(visibleMonth, resolvedLanguage)}
-        onNextMonth={() => {
-          setVisibleMonth((current) => addMonths(current, 1));
-        }}
-        onPreviousMonth={() => {
-          setVisibleMonth((current) => addMonths(current, -1));
-        }}
-        onSelectDate={(date) => {
-          setSelectedDate(date);
-          if (date > today) {
-            setEditorOpen(false);
+        <MonthlyCalendar
+          copy={calendarCopy}
+          days={days}
+          monthLabel={formatMonthTitle(visibleMonth, resolvedLanguage)}
+          onNextMonth={() => {
+            setVisibleMonth((current) => addMonths(current, 1));
+          }}
+          onPreviousMonth={() => {
+            setVisibleMonth((current) => addMonths(current, -1));
+          }}
+          onSelectDate={(date) => {
+            setSelectedDate(date);
+            if (date > today) {
+              setEditorOpen(false);
+              setErrorMessage(undefined);
+              setStatusMessage(undefined);
+              return;
+            }
+            setEditorValue(valueFromLog(payload.logs.find((log) => log.date === date)));
             setErrorMessage(undefined);
             setStatusMessage(undefined);
-            return;
-          }
-          setEditorValue(valueFromLog(payload.logs.find((log) => log.date === date)));
-          setErrorMessage(undefined);
-          setStatusMessage(undefined);
-          setEditorOpen(true);
-        }}
-        selectedDate={selectedDate}
-        today={today}
-        weekdays={weekdays}
-      />
+            setEditorOpen(true);
+          }}
+          selectedDate={selectedDate}
+          today={today}
+          weekdays={weekdays}
+        />
 
-      {selectedDate > today ? (
-        <p className={styles['calendarNotice']} role="status">
-          {t(($) => $.tracker.calendar.future)}
-        </p>
-      ) : null}
+        {selectedDate > today ? (
+          <p className={styles['calendarNotice']} role="status">
+            {t(($) => $.tracker.calendar.future)}
+          </p>
+        ) : null}
+      </section>
+
+      <TrackerInsightsSection forecast={forecast} payload={payload} />
+
+      <TrackerHistorySection payload={payload} />
 
       <TrackerPreferences payload={payload} />
 
@@ -772,7 +780,7 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
           value={editorValue}
         />
       ) : null}
-    </section>
+    </>
   );
 }
 

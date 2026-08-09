@@ -141,6 +141,127 @@ export const de = {
         'Die letzten Zykluslängen schwanken stark. Deshalb werden Kalenderschätzungen ausgeblendet, der Textzeitraum bleibt aber sichtbar.',
       late: 'Diese Schätzung liegt nun hinter ihrem ursprünglichen Zeitraum. Sie wurde nicht automatisch nach vorn verschoben.',
     },
+    insights: {
+      sectionLabel: 'Einblicke',
+      title: 'Aktuelle Muster aus deinem Tagebuch',
+      description:
+        'Diese Zusammenfassungen verwenden bis zu sechs aktuelle Aufzeichnungen. Sie beschreiben deinen Verlauf, nicht jeden Zyklus oder künftigen Tag.',
+      noRecords: 'Noch nicht genügend Verlauf aufgezeichnet.',
+      cycles: {
+        title: 'Letzte Zykluslängen',
+        description: 'Tage zwischen aufeinanderfolgenden aufgezeichneten Periodenstarts.',
+        days: '{{count}} Tage',
+        days_one: '{{count}} Tag',
+        days_other: '{{count}} Tage',
+      },
+      bleeding: {
+        title: 'Bekannte Blutungsdauern',
+        description: 'Einbezogen werden nur beendete Perioden mit bekanntem Enddatum.',
+        days: '{{count}} Tage',
+        days_one: '{{count}} Tag',
+        days_other: '{{count}} Tage',
+      },
+      greenDays: {
+        title: 'Letzte Tage mit höherem Selbstvertrauen',
+        description:
+          'Einbezogen werden nur Tage, an denen du ausdrücklich Selbstvertrauen 4 oder 5 eingetragen hast.',
+        count: '{{count}} aktuelle Einträge',
+        count_one: '{{count}} aktueller Eintrag',
+        count_other: '{{count}} aktuelle Einträge',
+        confidence: 'Selbstvertrauen {{rating}} von 5',
+      },
+      forecast: {
+        title: 'Warum diese Schätzung so aussieht',
+        description:
+          'Dies erklärt die aktuelle deterministische Schätzung; es ist kein Maß für klinische Genauigkeit.',
+        unavailable: 'Es gibt derzeit keine Schätzung, die erklärt werden kann.',
+        confidenceLabel: 'Verlässlichkeit',
+        sourceLabel: 'Quelle der Zykluslänge',
+        source: {
+          recorded: 'Letzte aufgezeichnete Periodenstarts',
+          typical: 'Deine optionale übliche Zykluslänge',
+        },
+        cyclesUsedLabel: 'Verwendete aufgezeichnete Zyklen',
+        cyclesUsed: '{{count}} Zyklen',
+        cyclesUsed_one: '{{count}} Zyklus',
+        cyclesUsed_other: '{{count}} Zyklen',
+        variabilityLabel: 'Letzte Schwankung',
+        variability: {
+          unavailable: 'Noch nicht genügend Zykluslängen aufgezeichnet',
+          narrow: 'Die letzten Zykluslängen unterscheiden sich um höchstens 4 Tage',
+          variable: 'Die letzten Zykluslängen unterscheiden sich um 5 bis 10 Tage',
+          highlyVariable: 'Die letzten Zykluslängen unterscheiden sich um mehr als 10 Tage',
+        },
+        spanLabel: 'Unterschied zwischen kürzester und längster Dauer',
+        span: '{{count}} Tage',
+        span_one: '{{count}} Tag',
+        span_other: '{{count}} Tage',
+      },
+    },
+    history: {
+      sectionLabel: 'Periodenverlauf',
+      title: 'Periodendaten prüfen und korrigieren',
+      description:
+        'Bearbeite den Start und das einschließliche Ende einer aufgezeichneten Periode. Teilen und Zusammenführen gehören noch nicht zu dieser Version.',
+      empty: 'Noch keine Periode aufgezeichnet.',
+      active: 'Aktive Periode',
+      completed: 'Beendet; Dauer bekannt',
+      unknownDuration: 'Start aufgezeichnet; Dauer unbekannt',
+      startIntensityLabel: 'Blutung am Starttag:',
+      startIntensity: {
+        unspecified: 'Nicht angegeben',
+        light: 'Leicht',
+        medium: 'Mittel',
+        heavy: 'Stark',
+      },
+      edit: 'Daten korrigieren',
+      editLabel: 'Periode ab {{date}} korrigieren',
+      correction: {
+        title: 'Periodendaten korrigieren',
+        close: 'Korrektur der Periodendaten schließen',
+        explanation: 'Passe diese Periode an, ohne die Grenzen einer anderen zu verändern.',
+        consequence:
+          'Beim Verschieben, Verkürzen oder Markieren eines unbekannten Endes werden alte Periodenverknüpfungen und reine Blutungsangaben außerhalb der korrigierten Daten entfernt. Die gewählte Blutungsstärke ersetzt Angaben am korrigierten Startdatum; andere Bewertungen und Notizen bleiben erhalten.',
+        startDate: 'Startdatum',
+        endDate: 'Einschließliches Enddatum',
+        endDateDescription: 'Wird nur verwendet, wenn du ein bekanntes Enddatum auswählst.',
+        endState: 'Periodenende',
+        endStateOptions: {
+          known: {
+            label: 'Beendet — Datum bekannt',
+            description: 'Diese Periode fließt in Zusammenfassungen der Blutungsdauer ein.',
+          },
+          unknown: {
+            label: 'Beendet — Datum unbekannt',
+            description: 'Als reinen Starteintrag behalten, ohne eine Dauer zu erfinden.',
+          },
+          active: {
+            label: 'Noch aktiv',
+            description: 'Diese Periode hat noch kein Enddatum.',
+          },
+        },
+        startIntensity: 'Blutung am Starttag',
+        validation: {
+          startRequired: 'Gib ein Startdatum ein.',
+          endRequired: 'Gib ein Enddatum ein oder wähle ein unbekanntes oder aktives Ende.',
+          endBeforeStart: 'Das Enddatum darf nicht vor dem Startdatum liegen.',
+          futureDate: 'Periodendaten dürfen nicht in der Zukunft liegen.',
+          startIntensityRequired: 'Wähle die Blutungsstärke für das korrigierte Startdatum.',
+        },
+        save: 'Korrigierte Daten speichern',
+        saving: 'Korrektur wird gespeichert…',
+        cancel: 'Abbrechen',
+        errors: {
+          overlap: 'Diese Daten überschneiden sich mit einer anderen aufgezeichneten Periode.',
+          activeConflict: 'Eine andere Periode ist bereits aktiv.',
+          missing:
+            'Diese Periode existiert nicht mehr. Schließe den Dialog und versuche es erneut.',
+          failed:
+            'Die Korrektur konnte nicht gespeichert werden. Dein bestehendes Tagebuch wurde nicht verändert.',
+        },
+        saved: 'Periodendaten korrigiert.',
+      },
+    },
     dayDetail: {
       title: 'Täglicher Check-in',
       close: 'Täglichen Check-in schließen',

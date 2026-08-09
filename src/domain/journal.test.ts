@@ -5,12 +5,14 @@ import type { DailyLog, Flow, PeriodEpisode } from './models';
 import {
   assertJournalInvariants,
   continuePeriod,
+  correctPeriod,
   deleteDailyCheckIn,
   endPeriod,
   JournalError,
   removePeriod,
   startPeriod,
   upsertDailyCheckIn,
+  type CorrectPeriodInput,
   type JournalErrorCode,
   type JournalMutationContext,
   type JournalState,
@@ -350,6 +352,491 @@ describe('period mutations', () => {
       () => removePeriod(completedState(), 'missing', context()),
       'episode-not-found',
     );
+  });
+});
+
+describe('period boundary correction', () => {
+  it('expands the start, preserves observations, and explicitly replaces spotting at the new start', () => {
+    const state: JournalState = {
+      episodes: [
+        {
+          ...episode('period-1', '2026-08-05', '2026-08-08'),
+          durationKnown: false,
+        },
+      ],
+      logs: [
+        log('2026-08-01', { flow: 'spotting', confidence: 5, note: 'keep both' }),
+        log('2026-08-05', { episodeId: 'period-1', flow: 'medium', pain: 2 }),
+        log('2026-08-06', { episodeId: 'period-1', flow: 'none', tension: 3 }),
+        log('2026-08-12', { energy: 4 }),
+      ],
+    };
+    const snapshot = structuredClone(state);
+    const result = correctPeriod(
+      state,
+      {
+        episodeId: 'period-1',
+        startDate: asLocalDate('2026-08-01'),
+        endDate: asLocalDate('2026-08-08'),
+        startFlow: 'heavy',
+      },
+      context(),
+    );
+
+    expect(result.episodes).toEqual([
+      {
+        id: 'period-1',
+        startDate: '2026-08-01',
+        endDate: '2026-08-08',
+        createdAt,
+        updatedAt: changedAt,
+      },
+    ]);
+    expect(result.logs).toEqual([
+      {
+        date: '2026-08-01',
+        episodeId: 'period-1',
+        flow: 'heavy',
+        confidence: 5,
+        note: 'keep both',
+        updatedAt: changedAt,
+      },
+      {
+        date: '2026-08-05',
+        episodeId: 'period-1',
+        flow: 'medium',
+        pain: 2,
+        updatedAt: createdAt,
+      },
+      {
+        date: '2026-08-06',
+        episodeId: 'period-1',
+        flow: 'none',
+        tension: 3,
+        updatedAt: createdAt,
+      },
+      { date: '2026-08-12', energy: 4, updatedAt: createdAt },
+    ]);
+    expect(state).toEqual(snapshot);
+  });
+
+  it('contracts the start and conservatively reconciles every formerly linked log', () => {
+    const state: JournalState = {
+      episodes: [episode('period-1', '2026-08-01', '2026-08-08')],
+      logs: [
+        log('2026-08-01', { episodeId: 'period-1', flow: 'medium' }),
+        log('2026-08-02', { episodeId: 'period-1', flow: 'heavy', confidence: 4 }),
+        log('2026-08-03', {
+          episodeId: 'period-1',
+          flow: 'spotting',
+          note: 'keep spotting',
+        }),
+        log('2026-08-04', { episodeId: 'period-1', flow: 'none' }),
+        log('2026-08-05', { episodeId: 'period-1', flow: 'light', pain: 2 }),
+        log('2026-08-06', { episodeId: 'period-1', flow: 'medium', energy: 3 }),
+      ],
+    };
+    const result = correctPeriod(
+      state,
+      {
+        episodeId: 'period-1',
+        startDate: asLocalDate('2026-08-05'),
+        endDate: asLocalDate('2026-08-08'),
+        startFlow: null,
+      },
+      context(),
+    );
+
+    expect(result.logs).toEqual([
+      { date: '2026-08-02', confidence: 4, updatedAt: changedAt },
+      { date: '2026-08-03', flow: 'spotting', note: 'keep spotting', updatedAt: changedAt },
+      { date: '2026-08-04', flow: 'none', updatedAt: changedAt },
+      {
+        date: '2026-08-05',
+        episodeId: 'period-1',
+        pain: 2,
+        updatedAt: changedAt,
+      },
+      {
+        date: '2026-08-06',
+        episodeId: 'period-1',
+        flow: 'medium',
+        energy: 3,
+        updatedAt: createdAt,
+      },
+    ]);
+    expect(result.episodes[0]).toMatchObject({
+      startDate: '2026-08-05',
+      endDate: '2026-08-08',
+      updatedAt: changedAt,
+    });
+  });
+
+  it('expands a closed end without auto-linking unrelated logs and clears historical duration metadata', () => {
+    const state: JournalState = {
+      episodes: [
+        {
+          ...episode('period-1', '2026-08-01', '2026-08-03'),
+          durationKnown: false,
+        },
+      ],
+      logs: [
+        log('2026-08-01', { episodeId: 'period-1', flow: 'light' }),
+        log('2026-08-06', { flow: 'none', confidence: 5 }),
+      ],
+    };
+    const result = correctPeriod(
+      state,
+      {
+        episodeId: 'period-1',
+        startDate: asLocalDate('2026-08-01'),
+        endDate: asLocalDate('2026-08-08'),
+        startFlow: 'medium',
+      },
+      context(),
+    );
+
+    expect(result.episodes[0]).toEqual({
+      id: 'period-1',
+      startDate: '2026-08-01',
+      endDate: '2026-08-08',
+      createdAt,
+      updatedAt: changedAt,
+    });
+    expect(result.logs).toContainEqual({
+      date: '2026-08-06',
+      flow: 'none',
+      confidence: 5,
+      updatedAt: createdAt,
+    });
+  });
+
+  it('contracts a closed end while retaining none, spotting, and non-period observations', () => {
+    const state: JournalState = {
+      episodes: [episode('period-1', '2026-08-01', '2026-08-08')],
+      logs: [
+        log('2026-08-01', { episodeId: 'period-1', flow: 'medium' }),
+        log('2026-08-04', { episodeId: 'period-1', flow: 'light' }),
+        log('2026-08-05', { episodeId: 'period-1', flow: 'heavy', pain: 4 }),
+        log('2026-08-06', { episodeId: 'period-1', flow: 'spotting', tension: 2 }),
+        log('2026-08-07', { episodeId: 'period-1', flow: 'none' }),
+        log('2026-08-08', { episodeId: 'period-1' }),
+      ],
+    };
+    const result = correctPeriod(
+      state,
+      {
+        episodeId: 'period-1',
+        startDate: asLocalDate('2026-08-01'),
+        endDate: asLocalDate('2026-08-04'),
+        startFlow: 'medium',
+      },
+      context(),
+    );
+
+    expect(result.logs).toEqual([
+      {
+        date: '2026-08-01',
+        episodeId: 'period-1',
+        flow: 'medium',
+        updatedAt: changedAt,
+      },
+      { date: '2026-08-04', episodeId: 'period-1', flow: 'light', updatedAt: createdAt },
+      { date: '2026-08-05', pain: 4, updatedAt: changedAt },
+      { date: '2026-08-06', flow: 'spotting', tension: 2, updatedAt: changedAt },
+      { date: '2026-08-07', flow: 'none', updatedAt: changedAt },
+    ]);
+  });
+
+  it('converts a closed episode to active and an active episode to closed', () => {
+    const madeActive = correctPeriod(
+      {
+        episodes: [
+          {
+            ...episode('period-1', '2026-08-10', '2026-08-12'),
+            durationKnown: false,
+          },
+        ],
+        logs: [log('2026-08-10', { episodeId: 'period-1', flow: 'medium' })],
+      },
+      {
+        episodeId: 'period-1',
+        startDate: asLocalDate('2026-08-10'),
+        startFlow: null,
+      },
+      context(),
+    );
+
+    expect(madeActive.episodes[0]).toEqual({
+      id: 'period-1',
+      startDate: '2026-08-10',
+      createdAt,
+      updatedAt: changedAt,
+    });
+    expect(madeActive.logs[0]).toEqual({
+      date: '2026-08-10',
+      episodeId: 'period-1',
+      updatedAt: changedAt,
+    });
+
+    const activeWithLaterLog: JournalState = {
+      episodes: [episode('active', '2026-08-15')],
+      logs: [
+        log('2026-08-15', { episodeId: 'active', flow: 'light' }),
+        log('2026-08-19', { episodeId: 'active', flow: 'heavy', note: 'keep note' }),
+      ],
+    };
+    const madeClosed = correctPeriod(
+      activeWithLaterLog,
+      {
+        episodeId: 'active',
+        startDate: asLocalDate('2026-08-15'),
+        endDate: asLocalDate('2026-08-18'),
+        startFlow: 'light',
+      },
+      context(),
+    );
+
+    expect(madeClosed.episodes[0]).toMatchObject({ endDate: '2026-08-18' });
+    expect(madeClosed.logs).toContainEqual({
+      date: '2026-08-19',
+      note: 'keep note',
+      updatedAt: changedAt,
+    });
+  });
+
+  it('corrects a start-only observation without inventing a known duration', () => {
+    const result = correctPeriod(
+      {
+        episodes: [
+          {
+            ...episode('start-only', '2026-08-01', '2026-08-01'),
+            durationKnown: false,
+          },
+        ],
+        logs: [log('2026-08-01', { episodeId: 'start-only' })],
+      },
+      {
+        episodeId: 'start-only',
+        startDate: asLocalDate('2026-08-02'),
+        endDate: null,
+        startFlow: null,
+      },
+      context(),
+    );
+
+    expect(result.episodes).toEqual([
+      {
+        id: 'start-only',
+        startDate: '2026-08-02',
+        endDate: '2026-08-02',
+        durationKnown: false,
+        createdAt,
+        updatedAt: changedAt,
+      },
+    ]);
+    expect(result.logs).toEqual([
+      {
+        date: '2026-08-02',
+        episodeId: 'start-only',
+        updatedAt: changedAt,
+      },
+    ]);
+  });
+
+  it.each(['light', 'medium', 'heavy'] as const)(
+    'creates a missing corrected start log with %s bleeding',
+    (startFlow) => {
+      const result = correctPeriod(
+        completedState(),
+        {
+          episodeId: 'period-1',
+          startDate: asLocalDate('2026-07-31'),
+          endDate: asLocalDate('2026-08-05'),
+          startFlow,
+        },
+        context(),
+      );
+
+      expect(result.logs[0]).toEqual({
+        date: '2026-07-31',
+        episodeId: 'period-1',
+        flow: startFlow,
+        updatedAt: changedAt,
+      });
+    },
+  );
+
+  it('rejects a missing episode, future boundaries, and a reversed range', () => {
+    expectJournalError(
+      () =>
+        correctPeriod(
+          completedState(),
+          {
+            episodeId: 'missing',
+            startDate: asLocalDate('2026-08-01'),
+            endDate: asLocalDate('2026-08-05'),
+            startFlow: null,
+          },
+          context(),
+        ),
+      'episode-not-found',
+    );
+    expectJournalError(
+      () =>
+        correctPeriod(
+          completedState(),
+          {
+            episodeId: 'period-1',
+            startDate: asLocalDate('2026-08-21'),
+            endDate: asLocalDate('2026-08-21'),
+            startFlow: null,
+          },
+          context(),
+        ),
+      'future-date',
+    );
+    expectJournalError(
+      () =>
+        correctPeriod(
+          completedState(),
+          {
+            episodeId: 'period-1',
+            startDate: asLocalDate('2026-08-01'),
+            endDate: asLocalDate('2026-08-21'),
+            startFlow: null,
+          },
+          context(),
+        ),
+      'future-date',
+    );
+    expectJournalError(
+      () =>
+        correctPeriod(
+          completedState(),
+          {
+            episodeId: 'period-1',
+            startDate: asLocalDate('2026-08-10'),
+            endDate: asLocalDate('2026-08-09'),
+            startFlow: null,
+          },
+          context(),
+        ),
+      'invalid-episode-range',
+    );
+  });
+
+  it('rejects inclusive overlap on either side and refuses to create a second active episode', () => {
+    const state: JournalState = {
+      episodes: [
+        episode('earlier', '2026-07-20', '2026-07-25'),
+        episode('target', '2026-08-01', '2026-08-05'),
+        episode('later', '2026-08-10', '2026-08-12'),
+      ],
+      logs: [
+        log('2026-07-20', { episodeId: 'earlier' }),
+        log('2026-08-01', { episodeId: 'target' }),
+        log('2026-08-10', { episodeId: 'later' }),
+      ],
+    };
+
+    expectJournalError(
+      () =>
+        correctPeriod(
+          state,
+          {
+            episodeId: 'target',
+            startDate: asLocalDate('2026-07-25'),
+            endDate: asLocalDate('2026-08-05'),
+            startFlow: null,
+          },
+          context(),
+        ),
+      'episode-overlap',
+    );
+    expectJournalError(
+      () =>
+        correctPeriod(
+          state,
+          {
+            episodeId: 'target',
+            startDate: asLocalDate('2026-08-01'),
+            endDate: asLocalDate('2026-08-10'),
+            startFlow: null,
+          },
+          context(),
+        ),
+      'episode-overlap',
+    );
+
+    const withAnotherActive: JournalState = {
+      episodes: [episode('target', '2026-07-01', '2026-07-03'), episode('active', '2026-08-15')],
+      logs: [
+        log('2026-07-01', { episodeId: 'target' }),
+        log('2026-08-15', { episodeId: 'active' }),
+      ],
+    };
+    expectJournalError(
+      () =>
+        correctPeriod(
+          withAnotherActive,
+          {
+            episodeId: 'target',
+            startDate: asLocalDate('2026-07-01'),
+            startFlow: null,
+          },
+          context(),
+        ),
+      'active-episode-exists',
+    );
+  });
+
+  it.each(['none', 'spotting', undefined] as const)(
+    'rejects non-bleeding or omitted runtime start-flow choice: %s',
+    (startFlow) => {
+      const invalidInput = {
+        episodeId: 'period-1',
+        startDate: asLocalDate('2026-08-01'),
+        endDate: asLocalDate('2026-08-05'),
+        startFlow,
+      } as unknown as CorrectPeriodInput;
+
+      expectJournalError(
+        () => correctPeriod(completedState(), invalidInput, context()),
+        'invalid-start-flow',
+      );
+    },
+  );
+
+  it('leaves the complete input graph untouched when a correction fails', () => {
+    const state: JournalState = {
+      episodes: [
+        episode('target', '2026-08-01', '2026-08-05'),
+        episode('later', '2026-08-10', '2026-08-12'),
+      ],
+      logs: [
+        log('2026-08-01', { episodeId: 'target', flow: 'medium', confidence: 4 }),
+        log('2026-08-03', { episodeId: 'target', flow: 'spotting', note: 'untouched' }),
+        log('2026-08-10', { episodeId: 'later', flow: 'light' }),
+      ],
+    };
+    const snapshot = structuredClone(state);
+
+    expectJournalError(
+      () =>
+        correctPeriod(
+          state,
+          {
+            episodeId: 'target',
+            startDate: asLocalDate('2026-08-01'),
+            endDate: asLocalDate('2026-08-10'),
+            startFlow: 'heavy',
+          },
+          context(),
+        ),
+      'episode-overlap',
+    );
+    expect(state).toEqual(snapshot);
   });
 });
 

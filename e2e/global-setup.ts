@@ -1,8 +1,10 @@
 import { createServer } from 'vite';
 
+import { getE2EBaseUrl, getE2EPort } from './runtime-config';
+
 const E2E_HOST = '127.0.0.1';
-const E2E_PORT = 4173;
-const E2E_URL = 'http://127.0.0.1:4173';
+const E2E_PORT = getE2EPort();
+const E2E_URL = getE2EBaseUrl();
 
 async function serverIsAvailable(): Promise<boolean> {
   try {

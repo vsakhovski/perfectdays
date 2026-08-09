@@ -1,0 +1,397 @@
+.panel,
+.heading,
+.list,
+.entry,
+.entrySummary,
+.dialogHeader,
+.form,
+.fields,
+.dateField,
+.endStateFieldset,
+.intensityFieldset {
+  display: grid;
+  gap: 1rem;
+}
+
+.panel {
+  margin-block-start: clamp(2.5rem, 8vw, 5rem);
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.heading h2,
+.heading p,
+.entry p,
+.dialogHeader h2,
+.dialogHeader p,
+.consequence,
+.formError,
+.status {
+  margin: 0;
+}
+
+.heading h2,
+.dialogHeader h2 {
+  font-size: clamp(1.4rem, 4vw, 1.9rem);
+  letter-spacing: -0.025em;
+}
+
+.heading > p:last-child,
+.empty,
+.dialogHeader p,
+.fieldDescription,
+.status {
+  color: var(--color-text-muted);
+}
+
+.heading > p:last-child,
+.dialogHeader p {
+  line-height: 1.6;
+}
+
+.eyebrow {
+  color: var(--color-accent);
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.entry {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  background: var(--color-surface-subtle);
+}
+
+.entrySummary {
+  gap: 0.65rem;
+  min-inline-size: 0;
+}
+
+.entrySummary > div,
+.entrySummary p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.8rem;
+}
+
+.entrySummary strong {
+  overflow-wrap: anywhere;
+}
+
+.entrySummary p span,
+.state {
+  color: var(--color-text-muted);
+}
+
+.state {
+  padding-inline-start: 0.8rem;
+  border-inline-start: 2px solid var(--color-border-strong);
+}
+
+.editButton,
+.saveButton,
+.secondaryButton,
+.closeButton {
+  min-block-size: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.editButton,
+.secondaryButton,
+.closeButton {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.editButton[aria-pressed='true'] {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+.backdrop {
+  position: fixed;
+  z-index: 20;
+  display: grid;
+  align-items: end;
+  padding: 0;
+  background: rgb(20 12 17 / 58%);
+  inset: 0;
+}
+
+.dialog {
+  inline-size: 100%;
+  max-block-size: min(94dvh, 52rem);
+  padding: 1rem max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large) var(--radius-large) 0 0;
+  outline: none;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-soft);
+}
+
+.dialogHeader {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.dialogHeader > div {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.closeButton {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 2.75rem;
+  padding: 0;
+  font-size: 1.5rem;
+}
+
+.consequence {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin-block-start: 1rem;
+  padding: 0.8rem;
+  border: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-surface-subtle);
+  line-height: 1.5;
+}
+
+.consequence > span:first-child {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border: 2px solid currentcolor;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.form {
+  margin-block-start: 1rem;
+}
+
+.fields {
+  min-inline-size: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.dateField {
+  gap: 0.35rem;
+  min-inline-size: 0;
+  font-weight: 700;
+}
+
+.dateField input {
+  inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.dateField input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+  box-shadow: inset 0 0 0 1px var(--color-danger);
+}
+
+.fieldDescription,
+.fieldError,
+.endStateOptions small {
+  font-size: 0.84rem;
+  font-weight: 400;
+}
+
+.fieldError,
+.formError {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.endStateFieldset,
+.intensityFieldset {
+  min-inline-size: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.endStateFieldset legend,
+.intensityFieldset legend {
+  padding: 0;
+  font-weight: 700;
+}
+
+.endStateOptions,
+.intensityOptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.45rem;
+}
+
+.endStateOptions {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+}
+
+.endStateOptions label,
+.intensityOptions label {
+  position: relative;
+  cursor: pointer;
+}
+
+.endStateOptions input,
+.intensityOptions input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+}
+
+.endStateOptions span,
+.intensityOptions span {
+  display: grid;
+  place-items: center;
+  min-block-size: 2.75rem;
+  padding: 0.45rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+  text-align: center;
+}
+
+.endStateOptions span {
+  align-content: start;
+  justify-items: start;
+  gap: 0.25rem;
+  text-align: start;
+}
+
+.endStateOptions small {
+  color: var(--color-text-muted);
+}
+
+.endStateOptions input:checked + span,
+.intensityOptions input:checked + span {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 14%, var(--color-surface));
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+  font-weight: 750;
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.saveButton {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.editButton:focus-visible,
+.closeButton:focus-visible,
+.saveButton:focus-visible,
+.secondaryButton:focus-visible,
+.dateField input:focus-visible,
+.endStateOptions input:focus-visible + span,
+.intensityOptions input:focus-visible + span {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.editButton:disabled,
+.closeButton:disabled,
+.saveButton:disabled,
+.secondaryButton:disabled,
+.fields:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.visuallyHidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (min-width: 42rem) {
+  .dialog {
+    align-self: center;
+    max-inline-size: 42rem;
+    margin-inline: auto;
+    border-radius: var(--radius-large);
+  }
+
+  .fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .endStateFieldset,
+  .intensityFieldset {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 30rem) {
+  .entry {
+    grid-template-columns: 1fr;
+  }
+
+  .editButton {
+    justify-self: stretch;
+  }
+}
+
+@media (forced-colors: active) {
+  .panel,
+  .entry,
+  .dialog,
+  .consequence,
+  .dateField input,
+  .endStateOptions span,
+  .intensityOptions span {
+    border: 1px solid CanvasText;
+  }
+
+  .dateField input[aria-invalid='true'],
+  .endStateOptions input:checked + span,
+  .intensityOptions input:checked + span,
+  .editButton[aria-pressed='true'] {
+    border: 3px solid Mark;
+    box-shadow: none;
+  }
+}
