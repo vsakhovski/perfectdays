@@ -42,6 +42,7 @@ function createPayload(): VaultPayload {
       },
     ],
     settings: {
+      onboardingCompleted: true,
       orangeEnabled: true,
       orangeDays: 5,
       typicalCycleLength: 28,
@@ -61,6 +62,7 @@ describe('vault payload codec', () => {
       episodes: [],
       logs: [],
       settings: {
+        onboardingCompleted: false,
         orangeEnabled: true,
         orangeDays: 5,
         forecastingPaused: false,
@@ -79,7 +81,28 @@ describe('vault payload codec', () => {
     expect(decodeVaultPayload(encoded)).toEqual(payload);
   });
 
-  it('migrates a version-zero payload and applies the safe auto-lock default', () => {
+  it('round-trips a historical start whose bleeding duration was not supplied', () => {
+    const payload = createPayload();
+    const episode = payload.episodes[0];
+    if (!episode) {
+      throw new Error('Expected an episode fixture.');
+    }
+    const startOnlyHistory: VaultPayload = {
+      ...payload,
+      episodes: [
+        {
+          ...episode,
+          endDate: episode.startDate,
+          durationKnown: false,
+        },
+      ],
+      logs: [payload.logs[0]].filter((log) => log !== undefined),
+    };
+
+    expect(decodeVaultPayload(encodeVaultPayload(startOnlyHistory))).toEqual(startOnlyHistory);
+  });
+
+  it('migrates a version-one payload through current settings and onboarding defaults', () => {
     const current = createPayload();
     const legacySettings = {
       orangeEnabled: current.settings.orangeEnabled,
@@ -87,15 +110,65 @@ describe('vault payload codec', () => {
       typicalCycleLength: current.settings.typicalCycleLength,
       typicalBleedDuration: current.settings.typicalBleedDuration,
       forecastingPaused: current.settings.forecastingPaused,
+      autoLockDelay: current.settings.autoLockDelay,
     };
     const legacyPayload = {
       ...current,
-      schemaVersion: 0,
+      schemaVersion: 1,
       settings: legacySettings,
     };
     const encoded = new TextEncoder().encode(JSON.stringify(legacyPayload));
 
-    expect(decodeVaultPayload(encoded)).toEqual(current);
+    expect(decodeVaultPayload(encoded)).toEqual({
+      ...current,
+      settings: { ...current.settings, onboardingCompleted: false },
+    });
+  });
+
+  it('migrates a version-zero payload through every migration step', () => {
+    const current = createPayload();
+    const legacyPayload = {
+      ...current,
+      schemaVersion: 0,
+      settings: {
+        orangeEnabled: current.settings.orangeEnabled,
+        orangeDays: current.settings.orangeDays,
+        typicalCycleLength: current.settings.typicalCycleLength,
+        typicalBleedDuration: current.settings.typicalBleedDuration,
+        forecastingPaused: current.settings.forecastingPaused,
+      },
+    };
+    const encoded = new TextEncoder().encode(JSON.stringify(legacyPayload));
+
+    expect(decodeVaultPayload(encoded)).toEqual({
+      ...current,
+      settings: {
+        ...current.settings,
+        onboardingCompleted: false,
+        autoLockDelay: '1-minute',
+      },
+    });
+  });
+
+  it('migrates version-two payloads without retaining unsafe forecast fallbacks', () => {
+    const current = createPayload();
+    const legacyPayload = {
+      ...current,
+      schemaVersion: 2,
+      settings: {
+        ...current.settings,
+        typicalCycleLength: 999_999_999_999,
+        typicalBleedDuration: 999_999_999_999,
+      },
+    };
+    const encoded = new TextEncoder().encode(JSON.stringify(legacyPayload));
+
+    const migrated = decodeVaultPayload(encoded);
+    expect(migrated.schemaVersion).toBe(CURRENT_VAULT_SCHEMA_VERSION);
+    expect(migrated.settings).not.toHaveProperty('typicalCycleLength');
+    expect(migrated.settings).not.toHaveProperty('typicalBleedDuration');
+    expect(migrated.episodes).toEqual(current.episodes);
+    expect(migrated.logs).toEqual(current.logs);
   });
 
   it('rejects unknown future versions without treating them as the current shape', () => {
@@ -115,6 +188,57 @@ describe('vault payload codec', () => {
 
     const payloadWithoutStartLog = { ...createPayload(), logs: [] };
     expect(() => encodeVaultPayload(payloadWithoutStartLog)).toThrow(InvalidVaultPayloadError);
+
+    const payload = createPayload();
+    const activeWithDurationFlag: VaultPayload = {
+      ...payload,
+      episodes: payload.episodes.map((episode) => {
+        const active = { ...episode };
+        delete active.endDate;
+        return { ...active, durationKnown: false };
+      }),
+    };
+    expect(() => encodeVaultPayload(activeWithDurationFlag)).toThrow(InvalidVaultPayloadError);
+  });
+
+  it('strictly validates settings for both current and legacy payloads', () => {
+    const current = createPayload();
+    const settingsWithoutOnboarding: Record<string, unknown> = { ...current.settings };
+    delete settingsWithoutOnboarding['onboardingCompleted'];
+    const currentWithoutOnboarding = {
+      ...current,
+      settings: settingsWithoutOnboarding,
+    };
+
+    expect(() =>
+      decodeVaultPayload(new TextEncoder().encode(JSON.stringify(currentWithoutOnboarding))),
+    ).toThrow(InvalidVaultPayloadError);
+
+    const legacyWithUnknownSetting = {
+      ...current,
+      schemaVersion: 1,
+      settings: {
+        ...settingsWithoutOnboarding,
+        unexpected: true,
+      },
+    };
+
+    expect(() =>
+      decodeVaultPayload(new TextEncoder().encode(JSON.stringify(legacyWithUnknownSetting))),
+    ).toThrow(InvalidVaultPayloadError);
+
+    expect(() =>
+      encodeVaultPayload({
+        ...current,
+        settings: { ...current.settings, typicalCycleLength: 366 },
+      }),
+    ).toThrow(InvalidVaultPayloadError);
+    expect(() =>
+      encodeVaultPayload({
+        ...current,
+        settings: { ...current.settings, typicalBleedDuration: 91 },
+      }),
+    ).toThrow(InvalidVaultPayloadError);
   });
 
   it('rejects duplicate dates and overlapping episodes at the persistence boundary', () => {

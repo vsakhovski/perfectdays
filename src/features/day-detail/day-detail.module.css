@@ -1,0 +1,299 @@
+.backdrop {
+  position: fixed;
+  z-index: 20;
+  display: grid;
+  align-items: end;
+  padding: 0;
+  background: rgb(20 12 17 / 58%);
+  inset: 0;
+}
+
+.dialog {
+  inline-size: 100%;
+  max-block-size: min(94dvh, 58rem);
+  padding: 1rem max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large) var(--radius-large) 0 0;
+  outline: none;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-soft);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.header h2,
+.header p,
+.quickActions h3 {
+  margin: 0;
+}
+
+.header p {
+  margin-block-start: 0.25rem;
+  color: var(--color-text-muted);
+}
+
+.closeButton {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  min-inline-size: 2.75rem;
+  min-block-size: 2.75rem;
+  padding: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 1.6rem;
+}
+
+.form {
+  display: grid;
+  gap: 1.25rem;
+  margin-block-start: 1.25rem;
+}
+
+.quickActions,
+.ratingGroups {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.quickActionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: 0.6rem;
+}
+
+.quickAction,
+.dangerAction {
+  display: grid;
+  gap: 0.2rem;
+  min-block-size: 3.5rem;
+  padding: 0.7rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-surface-subtle);
+  color: var(--color-text);
+  cursor: pointer;
+  text-align: start;
+}
+
+.dangerAction {
+  border-color: var(--color-danger);
+  background: var(--color-danger-subtle);
+}
+
+.quickAction span,
+.dangerAction span,
+.fieldDescription {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+.fieldset {
+  min-inline-size: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.fieldset legend {
+  padding: 0;
+  margin-block-end: 0.55rem;
+  font-weight: 700;
+}
+
+.flowOptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
+  gap: 0.45rem;
+}
+
+.flowOptions label,
+.ratingScale label {
+  position: relative;
+  cursor: pointer;
+}
+
+.flowOptions input,
+.ratingScale input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+}
+
+.flowOptions span,
+.ratingScale label > span {
+  display: grid;
+  place-items: center;
+  min-block-size: 2.75rem;
+  padding: 0.45rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.65rem;
+  background: var(--color-surface);
+}
+
+.flowOptions input:checked + span,
+.ratingScale input:checked + span {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 14%, var(--color-surface));
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+  font-weight: 750;
+}
+
+.flowOptions input:focus-visible + span,
+.ratingScale input:focus-visible + span,
+.closeButton:focus-visible,
+.quickAction:focus-visible,
+.dangerAction:focus-visible,
+.saveButton:focus-visible,
+.deleteButton:focus-visible,
+.secondaryButton:focus-visible,
+.clearRating:focus-visible,
+.noteField textarea:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.ratingScale {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(2.75rem, 1fr));
+  gap: 0.35rem;
+}
+
+.clearRating {
+  grid-column: 1 / -1;
+  justify-self: start;
+  min-block-size: 2.75rem;
+  padding: 0.4rem 0.65rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.18rem;
+}
+
+.noteField {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 700;
+}
+
+.noteField textarea {
+  inline-size: 100%;
+  min-block-size: 6.5rem;
+  padding: 0.7rem;
+  resize: vertical;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 400;
+}
+
+.formActions,
+.deleteConfirmation > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.saveButton,
+.deleteButton,
+.secondaryButton {
+  min-block-size: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.saveButton {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.deleteButton {
+  background: var(--color-danger);
+  color: var(--color-on-danger);
+}
+
+.secondaryButton {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.deleteConfirmation {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-small);
+  background: var(--color-danger-subtle);
+}
+
+.deleteConfirmation p,
+.error,
+.status {
+  margin: 0;
+}
+
+.error {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.status {
+  color: var(--color-text-muted);
+}
+
+button:disabled,
+fieldset:disabled label {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+@media (min-width: 42rem) {
+  .backdrop {
+    align-items: center;
+    justify-items: center;
+    padding: 1rem;
+  }
+
+  .dialog {
+    inline-size: min(100%, 44rem);
+    border-radius: var(--radius-large);
+  }
+
+  .ratingGroups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (forced-colors: active) {
+  .flowOptions input:checked + span,
+  .ratingScale input:checked + span {
+    border: 3px solid Highlight;
+    background: Canvas;
+    box-shadow: none;
+    color: CanvasText;
+  }
+
+  .backdrop {
+    background: Canvas;
+  }
+}

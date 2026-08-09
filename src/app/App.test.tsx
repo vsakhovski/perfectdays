@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -13,6 +13,7 @@ import type {
 import type { VaultSnapshot } from '../application/vault/vault-controller';
 import { VaultManagerError } from '../application/vault/vault-manager';
 import type { LanguagePreference, ThemePreference } from '../domain/models';
+import { asLocalDate } from '../domain/local-date';
 import { createAppI18n } from '../i18n/create-i18n';
 import { resolveLanguage } from '../i18n/language';
 import { synchronizeDocumentLanguage } from '../i18n/synchronize-document';
@@ -136,6 +137,16 @@ async function renderApp({
   const i18n = await createAppI18n(initialLanguage);
   synchronizeDocumentLanguage(i18n, initialLanguage);
   const nowIso = '2026-08-08T08:00:00.000Z';
+  let nextJournalId = 1;
+  const journalEnvironment = {
+    createId: () => {
+      const id = `journal-${String(nextJournalId)}`;
+      nextJournalId += 1;
+      return id;
+    },
+    now: () => nowIso,
+    today: () => asLocalDate('2026-08-08'),
+  };
   const createInitialVaultPayload = () => createEmptyVaultPayload(nowIso);
   const initialPayload = createInitialVaultPayload();
   const vaultController = new FakeVaultController(
@@ -167,6 +178,7 @@ async function renderApp({
       createInitialVaultPayload={createInitialVaultPayload}
       nowIso={() => nowIso}
       lifecycle={lifecycle}
+      journalEnvironment={journalEnvironment}
       pinProtectionAvailable={pinProtectionAvailable}
       reloadPage={reloadPage}
       systemLanguageSource={systemLanguagesController.source}
@@ -198,6 +210,109 @@ describe('App', () => {
     expect(screen.getByText(/stay on this device/i)).toBeVisible();
     expect(document.documentElement).toHaveAttribute('lang', 'en');
     expect(document.title).toBe('Menstrual Pattern Tracker');
+  });
+
+  it('completes setup, records a period check-in, and exposes semantic calendar markers', async () => {
+    const { vaultController } = await renderApp();
+
+    expect(screen.getByRole('heading', { name: 'Set up your private journal' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Finish without history' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Your recorded days and estimates' }),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: /Saturday, August 8, 2026/i }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Spotting' }));
+    expect(screen.getByRole('button', { name: /Start period/i })).toBeDisabled();
+    expect(
+      screen.getByText('Choose light, medium, or heavy flow before starting a period.'),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole('radio', { name: 'Medium' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Confidence: 5 out of 5' }));
+    fireEvent.change(screen.getByLabelText('Private note'), {
+      target: { value: 'A synthetic test check-in.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Start period/i }));
+    expect(await screen.findByText('Period started.')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Save check-in' }));
+    expect(await screen.findByText('Check-in saved.')).toBeVisible();
+
+    const snapshot = vaultController.getSnapshot();
+    expect(snapshot.phase).toBe('unlocked');
+    if (snapshot.phase === 'unlocked') {
+      expect(snapshot.payload.episodes).toHaveLength(1);
+      expect(snapshot.payload.logs).toEqual([
+        expect.objectContaining({
+          date: '2026-08-08',
+          flow: 'medium',
+          confidence: 5,
+          note: 'A synthetic test check-in.',
+          episodeId: snapshot.payload.episodes[0]?.id,
+        }),
+      ]);
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close daily check-in' }));
+    expect(
+      screen.getByRole('button', {
+        name: /Saturday, August 8, 2026.*Recorded period day.*Higher confidence recorded/i,
+      }),
+    ).toBeVisible();
+  });
+
+  it('imports start-only history without inventing durations and derives a forecast range', async () => {
+    const user = userEvent.setup();
+    const { vaultController } = await renderApp();
+
+    await user.click(screen.getByRole('button', { name: 'Add previous period' }));
+    await user.click(screen.getByRole('button', { name: 'Add previous period' }));
+    const startDates = screen.getAllByLabelText('Start date');
+    const firstStart = startDates[0];
+    const secondStart = startDates[1];
+    if (!firstStart || !secondStart) {
+      throw new Error('The two historical start-date inputs were not rendered.');
+    }
+    fireEvent.change(firstStart, { target: { value: '2026-07-01' } });
+    fireEvent.change(secondStart, { target: { value: '2026-07-29' } });
+    await user.click(screen.getByRole('button', { name: 'Finish setup' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Your recorded days and estimates' }),
+    ).toBeVisible();
+    expect(screen.getByText(/Your next period may start/)).toBeVisible();
+    expect(screen.getByText('Based on 1 completed cycle-length record.')).toBeVisible();
+
+    const snapshot = vaultController.getSnapshot();
+    expect(snapshot.phase).toBe('unlocked');
+    if (snapshot.phase === 'unlocked') {
+      expect(snapshot.payload.episodes).toEqual([
+        expect.objectContaining({
+          startDate: '2026-07-01',
+          endDate: '2026-07-01',
+          durationKnown: false,
+        }),
+        expect.objectContaining({
+          startDate: '2026-07-29',
+          endDate: '2026-07-29',
+          durationKnown: false,
+        }),
+      ]);
+    }
+
+    const predictedStart = screen.getByRole('button', {
+      name: /Wednesday, August 26, 2026.*Predicted period day.*Forecast confidence: rough.*Central predicted start/i,
+    });
+    expect(predictedStart).toBeVisible();
+    fireEvent.click(predictedStart);
+    expect(screen.getByRole('status')).toHaveTextContent('Future date; check-ins are unavailable.');
+    expect(screen.queryByRole('dialog', { name: 'Daily check-in' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
+    fireEvent.click(screen.getByRole('button', { name: /Wednesday, July 15, 2026/i }));
+    expect(screen.getByRole('button', { name: /Start period/i })).toBeDisabled();
+    expect(
+      screen.getByText(/A new open period cannot begin before a later recorded period/i),
+    ).toBeVisible();
   });
 
   it('uses the supported base language from the device preference', async () => {

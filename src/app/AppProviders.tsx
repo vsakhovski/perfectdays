@@ -12,6 +12,7 @@ import type {
   AutoLockClock,
 } from '../application/vault/auto-lock-controller';
 import type { VaultPayload } from '../domain/models';
+import type { JournalMutationContext } from '../domain/journal';
 import { LanguageProvider } from './i18n/LanguageProvider';
 import { useLanguage } from './i18n/use-language';
 import { ThemeProvider } from './theme/ThemeProvider';
@@ -30,6 +31,7 @@ interface AppProvidersProps {
   nowIso: () => string;
   autoLockClock: AutoLockClock;
   lifecycle: ApplicationLifecycleSource;
+  journalEnvironment: JournalMutationContext;
   pinProtectionAvailable: boolean;
   reloadPage: () => void;
   vaultInvalidationChannel: VaultInvalidationChannel;
@@ -41,6 +43,7 @@ type AppVaultProviderProps = Pick<
   | 'children'
   | 'createInitialVaultPayload'
   | 'lifecycle'
+  | 'journalEnvironment'
   | 'nowIso'
   | 'pinProtectionAvailable'
   | 'reloadPage'
@@ -54,6 +57,7 @@ function AppVaultProvider({
   autoLockClock,
   createInitialVaultPayload,
   lifecycle,
+  journalEnvironment,
   nowIso,
   pinProtectionAvailable,
   reloadPage,
@@ -85,6 +89,7 @@ function AppVaultProvider({
       controller={vaultController}
       createInitialPayload={createInitialVaultPayload}
       initializationFailed={vaultInitializationFailed}
+      journalEnvironment={journalEnvironment}
       lifecycle={lifecycle}
       nowIso={nowIso}
       pinProtectionAvailable={pinProtectionAvailable}
@@ -105,6 +110,7 @@ export function AppProviders({
   themeStore,
   autoLockClock,
   lifecycle,
+  journalEnvironment,
   pinProtectionAvailable,
   reloadPage,
   vaultController,
@@ -125,6 +131,7 @@ export function AppProviders({
             autoLockClock={autoLockClock}
             createInitialVaultPayload={createInitialVaultPayload}
             lifecycle={lifecycle}
+            journalEnvironment={journalEnvironment}
             nowIso={nowIso}
             pinProtectionAvailable={pinProtectionAvailable}
             reloadPage={reloadPage}

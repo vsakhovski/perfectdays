@@ -1,0 +1,211 @@
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
+import { describe, expect, it, vi } from 'vitest';
+
+import { asLocalDate } from '../../domain/local-date';
+import {
+  DayDetailEditor,
+  type DayDetailCopy,
+  type DayDetailEditorProps,
+  type DayDetailValue,
+} from './DayDetailEditor';
+
+const ratingOptions = {
+  1: 'Rating 1',
+  2: 'Rating 2',
+  3: 'Rating 3',
+  4: 'Rating 4',
+  5: 'Rating 5',
+} as const;
+
+const copy: DayDetailCopy = {
+  title: 'Edit day',
+  close: 'Close day editor',
+  quickActionsTitle: 'Period actions',
+  periodActions: {
+    start: { label: 'Start period', description: 'Create a new period episode' },
+    continue: { label: 'Continue period', description: 'Record another period day' },
+    end: { label: 'End period', description: 'Set this as the last period day' },
+    remove: { label: 'Remove period', description: 'Remove period data from this day' },
+  },
+  flowLegend: 'Flow',
+  flowOptions: {
+    none: 'No flow',
+    spotting: 'Spotting',
+    light: 'Light flow',
+    medium: 'Medium flow',
+    heavy: 'Heavy flow',
+  },
+  ratings: {
+    confidence: { legend: 'Confidence', clear: 'Clear confidence', options: ratingOptions },
+    tension: { legend: 'Tension', clear: 'Clear tension', options: ratingOptions },
+    energy: { legend: 'Energy', clear: 'Clear energy', options: ratingOptions },
+    pain: { legend: 'Pain', clear: 'Clear pain', options: ratingOptions },
+  },
+  noteLabel: 'Private note',
+  noteDescription: 'Only stored in the local vault',
+  save: 'Save day',
+  saving: 'Saving day',
+  removePeriodConfirmation: 'Remove this complete period?',
+  confirmRemovePeriod: 'Remove period now',
+  cancelRemovePeriod: 'Keep period',
+  deleteEntry: 'Delete day entry',
+  deleteConfirmation: 'Permanently delete this day entry?',
+  confirmDelete: 'Delete entry now',
+  deleting: 'Deleting entry',
+  cancelDelete: 'Keep entry',
+};
+
+function ControlledEditor({
+  onDelete = vi.fn<NonNullable<DayDetailEditorProps['onDelete']>>(),
+  onPeriodAction = vi.fn<DayDetailEditorProps['onPeriodAction']>(),
+  onSave = vi.fn<DayDetailEditorProps['onSave']>(),
+}: {
+  readonly onDelete?: NonNullable<DayDetailEditorProps['onDelete']>;
+  readonly onPeriodAction?: DayDetailEditorProps['onPeriodAction'];
+  readonly onSave?: DayDetailEditorProps['onSave'];
+}) {
+  const [value, setValue] = useState<DayDetailValue>({ note: '' });
+
+  return (
+    <DayDetailEditor
+      copy={copy}
+      date={asLocalDate('2026-05-12')}
+      dateLabel="Tuesday, May 12, 2026"
+      onChange={setValue}
+      onClose={vi.fn()}
+      onDelete={onDelete}
+      onPeriodAction={onPeriodAction}
+      onSave={onSave}
+      periodActions={[
+        { action: 'start' },
+        { action: 'continue', disabled: true },
+        { action: 'end', disabled: true },
+        { action: 'remove', disabled: true },
+      ]}
+      value={value}
+    />
+  );
+}
+
+describe('DayDetailEditor', () => {
+  it('moves focus into the modal editor and restores the originating control on unmount', () => {
+    const origin = document.createElement('button');
+    document.body.append(origin);
+    origin.focus();
+
+    const result = render(
+      <DayDetailEditor
+        copy={copy}
+        date={asLocalDate('2026-05-12')}
+        dateLabel="Tuesday, May 12, 2026"
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+        onPeriodAction={vi.fn()}
+        onSave={vi.fn()}
+        periodActions={[]}
+        value={{}}
+      />,
+    );
+
+    expect(screen.getByRole('dialog', { name: copy.title })).toHaveFocus();
+    result.unmount();
+    expect(origin).toHaveFocus();
+    origin.remove();
+  });
+
+  it('edits flow, ratings, notes, saves, and invokes valid quick actions', async () => {
+    const user = userEvent.setup();
+    const onPeriodAction = vi.fn<DayDetailEditorProps['onPeriodAction']>();
+    const onSave = vi.fn<DayDetailEditorProps['onSave']>();
+    render(<ControlledEditor onPeriodAction={onPeriodAction} onSave={onSave} />);
+
+    await user.click(screen.getByRole('button', { name: /Start period/u }));
+    expect(onPeriodAction).toHaveBeenCalledWith('start', asLocalDate('2026-05-12'));
+    expect(screen.getByRole('button', { name: /Continue period/u })).toBeDisabled();
+
+    await user.click(screen.getByRole('radio', { name: copy.flowOptions.spotting }));
+    const confidenceFive = screen.getAllByRole('radio', { name: ratingOptions[5] }).at(0);
+    if (!confidenceFive) {
+      throw new Error('Expected a confidence rating control.');
+    }
+    await user.click(confidenceFive);
+    await user.type(screen.getByRole('textbox', { name: copy.noteLabel }), 'A private note');
+    await user.click(screen.getByRole('button', { name: copy.save }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      {
+        flow: 'spotting',
+        confidence: 5,
+        note: 'A private note',
+      },
+      asLocalDate('2026-05-12'),
+    );
+  });
+
+  it('requires a second explicit action before deleting and closes with Escape', async () => {
+    const user = userEvent.setup();
+    const onDelete = vi.fn<NonNullable<DayDetailEditorProps['onDelete']>>();
+    const onClose = vi.fn<DayDetailEditorProps['onClose']>();
+    render(
+      <DayDetailEditor
+        copy={copy}
+        date={asLocalDate('2026-05-12')}
+        dateLabel="Tuesday, May 12, 2026"
+        onChange={vi.fn()}
+        onClose={onClose}
+        onDelete={onDelete}
+        onPeriodAction={vi.fn()}
+        onSave={vi.fn()}
+        periodActions={[]}
+        value={{}}
+      />,
+    );
+
+    const deleteEntry = screen.getByRole('button', { name: copy.deleteEntry });
+    await user.click(deleteEntry);
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: copy.confirmDelete })).toHaveFocus();
+
+    await user.click(screen.getByRole('button', { name: copy.cancelDelete }));
+    expect(deleteEntry).toHaveFocus();
+
+    await user.click(deleteEntry);
+    await user.click(screen.getByRole('button', { name: copy.confirmDelete }));
+    expect(onDelete).toHaveBeenCalledWith(asLocalDate('2026-05-12'));
+
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('requires confirmation before removing a complete period and restores focus on cancel', async () => {
+    const user = userEvent.setup();
+    const onPeriodAction = vi.fn<DayDetailEditorProps['onPeriodAction']>();
+    render(
+      <DayDetailEditor
+        copy={copy}
+        date={asLocalDate('2026-05-12')}
+        dateLabel="Tuesday, May 12, 2026"
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+        onPeriodAction={onPeriodAction}
+        onSave={vi.fn()}
+        periodActions={[{ action: 'remove' }]}
+        value={{}}
+      />,
+    );
+
+    const removePeriod = screen.getByRole('button', { name: /Remove period/u });
+    await user.click(removePeriod);
+    expect(onPeriodAction).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: copy.confirmRemovePeriod })).toHaveFocus();
+
+    await user.click(screen.getByRole('button', { name: copy.cancelRemovePeriod }));
+    expect(removePeriod).toHaveFocus();
+
+    await user.click(removePeriod);
+    await user.click(screen.getByRole('button', { name: copy.confirmRemovePeriod }));
+    expect(onPeriodAction).toHaveBeenCalledWith('remove', asLocalDate('2026-05-12'));
+  });
+});

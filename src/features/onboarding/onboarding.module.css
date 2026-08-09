@@ -1,0 +1,212 @@
+.onboarding {
+  display: grid;
+  gap: 1.5rem;
+  inline-size: min(100%, 52rem);
+  padding: clamp(1rem, 4vw, 2rem);
+  margin-inline: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.header,
+.form,
+.section,
+.historyList,
+.historyEntry,
+.numberFields {
+  display: grid;
+  gap: 1rem;
+}
+
+.header h2,
+.header p,
+.section h3,
+.section p,
+.historyEntry legend,
+.formError,
+.status,
+.empty {
+  margin: 0;
+}
+
+.header p,
+.sectionHeading p,
+.fieldDescription,
+.empty,
+.status {
+  color: var(--color-text-muted);
+}
+
+.section {
+  padding-block-start: 1.25rem;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.sectionHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sectionHeading > div {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.historyEntry {
+  min-inline-size: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  background: var(--color-surface-subtle);
+}
+
+.historyEntry legend {
+  padding-inline: 0.3rem;
+  font-weight: 750;
+}
+
+.dateFields,
+.numberFields {
+  grid-template-columns: 1fr;
+}
+
+.dateFields {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.dateFields label,
+.numberFields label,
+.orangeDays {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 700;
+}
+
+.dateFields input,
+.numberFields input,
+.orangeDays input {
+  inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.65rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.dateFields input[aria-invalid='true'],
+.numberFields input[aria-invalid='true'],
+.orangeDays input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+  box-shadow: inset 0 0 0 1px var(--color-danger);
+}
+
+.dateFields input:focus-visible,
+.numberFields input:focus-visible,
+.orangeDays input:focus-visible,
+.toggle input:focus-visible,
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.removeButton:focus-visible,
+.skipButton:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.fieldDescription,
+.fieldError {
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+.fieldError,
+.formError {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-block-size: 2.75rem;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.toggle input {
+  inline-size: 1.35rem;
+  block-size: 1.35rem;
+  accent-color: var(--color-accent);
+}
+
+.orangeDays {
+  max-inline-size: 18rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  padding-block-start: 0.5rem;
+}
+
+.primaryButton,
+.secondaryButton,
+.removeButton,
+.skipButton {
+  min-block-size: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.primaryButton {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.secondaryButton,
+.skipButton {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.removeButton {
+  justify-self: start;
+  border-color: var(--color-danger);
+  background: var(--color-danger-subtle);
+  color: var(--color-danger);
+}
+
+button:disabled,
+fieldset:disabled,
+input:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+@media (min-width: 38rem) {
+  .dateFields,
+  .numberFields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (forced-colors: active) {
+  .dateFields input[aria-invalid='true'],
+  .numberFields input[aria-invalid='true'],
+  .orangeDays input[aria-invalid='true'] {
+    border: 3px solid Mark;
+    box-shadow: none;
+  }
+}

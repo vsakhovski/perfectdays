@@ -2,8 +2,14 @@ import { z } from 'zod';
 
 import { isLocalDate } from '../../domain/local-date';
 import type { LocalDate, VaultPayload } from '../../domain/models';
+import {
+  isValidTypicalBleedDuration,
+  isValidTypicalCycleLength,
+  MAX_TYPICAL_BLEED_DURATION,
+  MAX_TYPICAL_CYCLE_LENGTH,
+} from '../../domain/tracking-settings';
 
-export const CURRENT_VAULT_SCHEMA_VERSION = 1 as const;
+export const CURRENT_VAULT_SCHEMA_VERSION = 3 as const;
 
 const localDateSchema = z.custom<LocalDate>(
   (value) => typeof value === 'string' && isLocalDate(value),
@@ -24,6 +30,7 @@ const periodEpisodeSchema = z.strictObject({
   id: z.string().min(1),
   startDate: localDateSchema,
   endDate: localDateSchema.optional(),
+  durationKnown: z.boolean().optional(),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
 });
@@ -50,6 +57,13 @@ const vaultSettingsV1Schema = z.strictObject({
 });
 
 const vaultSettingsV0Schema = vaultSettingsV1Schema.omit({ autoLockDelay: true });
+const vaultSettingsV2Schema = vaultSettingsV1Schema.extend({
+  onboardingCompleted: z.boolean(),
+});
+const vaultSettingsV3Schema = vaultSettingsV2Schema.extend({
+  typicalCycleLength: z.number().int().min(1).max(MAX_TYPICAL_CYCLE_LENGTH).optional(),
+  typicalBleedDuration: z.number().int().min(1).max(MAX_TYPICAL_BLEED_DURATION).optional(),
+});
 
 function validateDomainInvariants(
   payload: {
@@ -78,6 +92,14 @@ function validateDomainInvariants(
         code: 'custom',
         message: 'An episode end date cannot precede its start date.',
         path: ['episodes', index, 'endDate'],
+      });
+    }
+
+    if (episode.durationKnown !== undefined && episode.endDate === undefined) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Duration knowledge applies only to a completed episode.',
+        path: ['episodes', index, 'durationKnown'],
       });
     }
   }
@@ -172,12 +194,32 @@ function validateDomainInvariants(
   }
 }
 
-export const vaultPayloadV1Schema = z
+export const vaultPayloadV1Schema = z.strictObject({
+  schemaVersion: z.literal(1),
+  episodes: z.array(periodEpisodeSchema),
+  logs: z.array(dailyLogSchema),
+  settings: vaultSettingsV1Schema,
+  createdAt: timestampSchema,
+  updatedAt: timestampSchema,
+});
+
+export const vaultPayloadV2Schema = z
+  .strictObject({
+    schemaVersion: z.literal(2),
+    episodes: z.array(periodEpisodeSchema),
+    logs: z.array(dailyLogSchema),
+    settings: vaultSettingsV2Schema,
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .superRefine(validateDomainInvariants);
+
+export const vaultPayloadV3Schema = z
   .strictObject({
     schemaVersion: z.literal(CURRENT_VAULT_SCHEMA_VERSION),
     episodes: z.array(periodEpisodeSchema),
     logs: z.array(dailyLogSchema),
-    settings: vaultSettingsV1Schema,
+    settings: vaultSettingsV3Schema,
     createdAt: timestampSchema,
     updatedAt: timestampSchema,
   })
@@ -221,6 +263,7 @@ export function createEmptyVaultPayload(nowIso: string): VaultPayload {
     episodes: [],
     logs: [],
     settings: {
+      onboardingCompleted: false,
       orangeEnabled: true,
       orangeDays: 5,
       forecastingPaused: false,
@@ -236,12 +279,45 @@ function migrateVersionZero(input: unknown): unknown {
 
   return {
     ...payload,
-    schemaVersion: CURRENT_VAULT_SCHEMA_VERSION,
+    schemaVersion: 1,
     settings: {
       ...payload.settings,
       autoLockDelay: '1-minute',
     },
   };
+}
+
+function migrateVersionOne(input: unknown): unknown {
+  const payload = vaultPayloadV1Schema.parse(input);
+
+  return {
+    ...payload,
+    schemaVersion: 2,
+    settings: {
+      ...payload.settings,
+      onboardingCompleted: false,
+    },
+  };
+}
+
+function migrateVersionTwo(input: unknown): unknown {
+  const payload = vaultPayloadV2Schema.parse(input);
+  const settings = { ...payload.settings };
+
+  if (
+    settings.typicalCycleLength !== undefined &&
+    !isValidTypicalCycleLength(settings.typicalCycleLength)
+  ) {
+    delete settings.typicalCycleLength;
+  }
+  if (
+    settings.typicalBleedDuration !== undefined &&
+    !isValidTypicalBleedDuration(settings.typicalBleedDuration)
+  ) {
+    delete settings.typicalBleedDuration;
+  }
+
+  return { ...payload, schemaVersion: 3, settings };
 }
 
 export function migrateVaultPayload(input: unknown): VaultPayload {
@@ -255,6 +331,14 @@ export function migrateVaultPayload(input: unknown): VaultPayload {
         candidate = migrateVersionZero(candidate);
         candidateVersion = 1;
         break;
+      case 1:
+        candidate = migrateVersionOne(candidate);
+        candidateVersion = 2;
+        break;
+      case 2:
+        candidate = migrateVersionTwo(candidate);
+        candidateVersion = 3;
+        break;
       default:
         throw new UnsupportedVaultSchemaVersionError(candidateVersion);
     }
@@ -264,7 +348,7 @@ export function migrateVaultPayload(input: unknown): VaultPayload {
     throw new UnsupportedVaultSchemaVersionError(candidateVersion);
   }
 
-  return vaultPayloadV1Schema.parse(candidate) as VaultPayload;
+  return vaultPayloadV3Schema.parse(candidate) as VaultPayload;
 }
 
 const encoder = new TextEncoder();
@@ -272,7 +356,7 @@ const decoder = new TextDecoder('utf-8', { fatal: true });
 
 export function encodeVaultPayload(payload: VaultPayload): Uint8Array {
   try {
-    const validatedPayload = vaultPayloadV1Schema.parse(payload);
+    const validatedPayload = vaultPayloadV3Schema.parse(payload);
     return encoder.encode(JSON.stringify(validatedPayload));
   } catch (error) {
     if (error instanceof InvalidVaultPayloadError) {

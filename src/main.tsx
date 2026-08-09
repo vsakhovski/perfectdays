@@ -16,6 +16,7 @@ import {
 } from './infrastructure/lifecycle/browser-auto-lock-adapters';
 import { createBrowserVaultInvalidationChannel } from './infrastructure/lifecycle/browser-vault-invalidation-channel';
 import { DexieVaultRecordStore } from './infrastructure/persistence/dexie-vault-record-store';
+import { browserJournalEnvironment } from './infrastructure/platform/browser-journal-environment';
 import {
   createEmptyVaultPayload,
   decodeVaultPayload,
@@ -89,6 +90,7 @@ createRoot(rootElement).render(
       createInitialVaultPayload={createInitialVaultPayload}
       nowIso={() => new Date().toISOString()}
       lifecycle={browserApplicationLifecycleSource}
+      journalEnvironment={browserJournalEnvironment}
       pinProtectionAvailable={pinProtectionAvailable}
       reloadPage={reloadPage}
       systemLanguageSource={browserSystemLanguageSource}

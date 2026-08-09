@@ -4,7 +4,7 @@
 
 A private, mobile-first menstrual journal that records bleeding and helps its user notice her own recurring wellbeing patterns. The product uses red, orange, and green calendar markers, but treats them as personal context rather than biological verdicts or judgments about competence.
 
-**Status:** Phase 1 secure local core implemented. The repository now contains the typed React application shell, light/dark themes, English/German localization, a versioned IndexedDB vault, optional PIN encryption, lock/reset flows, lifecycle-driven auto-lock, and automated browser coverage. Menstrual logging, calendar markers, and forecasting remain Phase 2 work.
+**Status:** Phase 2 first vertical slice implemented. The repository now contains the secure local core plus tracker onboarding, period and daily check-in logging, a localized monthly calendar, recorded and forecast markers, deterministic next-period estimates, tracking preferences, and reload-persistent IndexedDB storage. Insights, PWA installability, export/restore, and pilot calibration remain future work.
 
 ## Product goal
 
@@ -40,6 +40,8 @@ Markers may overlap. For example, a person can be menstruating and also report h
 | --- | --- | --- |
 | **Recorded red** | Bleeding explicitly logged by the user | Solid red background plus droplet icon and text label |
 | **Predicted red** | Estimated future menstruation | Pale or patterned red, clearly labeled “predicted” |
+| **Predicted start** | Central estimated start date | Dedicated start indicator and complete accessible label |
+| **Possible start** | Other dates in the estimated start range | Dashed outline rather than full predicted-red styling |
 | **Orange** | Optional pre-period check-in window | Orange border or badge, never a warning about competence |
 | **Green** | A day with an explicitly logged high-confidence score | Green badge or accent; retrospective only in the MVP |
 | **Neutral** | Nothing recorded or insufficient evidence | Normal calendar styling |
@@ -64,8 +66,9 @@ Language to avoid:
 ### 1. Onboarding
 
 - Explain local storage, PIN limitations, prediction uncertainty, and the product's non-medical scope in plain language.
-- Allow entry of known previous episode start/end dates; four starts provide three completed cycle lengths, while completed end dates provide duration history.
-- Ask for usual cycle length and typical bleeding duration as optional fallbacks. These values never override recorded history.
+- Allow entry of known previous episode start dates and optional end dates; four starts provide three completed cycle lengths, while only explicitly supplied ends provide duration history.
+- Treat a start-only historical observation as cycle-length evidence without inventing a bleeding duration or leaving an active period open.
+- Ask for usual cycle length and typical bleeding duration as optional fallbacks. These values never override recorded history and are bounded to 1-365 and 1-90 days respectively so invalid date arithmetic cannot be persisted.
 - Enable or disable the orange window and choose its length. Default: five days; allowed range: 1–14 days.
 - Use confidence as the initial green metric.
 - Offer an optional six-digit PIN and explain that, when enabled, forgetting it requires erasing the inaccessible encrypted local data.
@@ -106,7 +109,7 @@ Language to avoid:
 - Enable, disable, or change the local PIN.
 - Auto-lock timing: immediately, 1 minute, 5 minutes, or 15 minutes after backgrounding. Default: 1 minute.
 - Configure or disable the orange window.
-- Pause/reset forecasting without deleting recorded history.
+- Pause forecasting without deleting recorded history. Forecasts are derived, so there is no separate persisted forecast state to reset.
 - Export an encrypted backup and restore it later when PIN protection is enabled; restoring requires the PIN used when that backup was created.
 - Optional plaintext export only behind a prominent sensitivity warning.
 - Erase all application-controlled data after explicit confirmation.
@@ -120,8 +123,9 @@ Forecasting must remain deterministic, explainable, and separately testable from
 ### Cycle definitions
 
 - Calendar observations use local date-only values in `YYYY-MM-DD` form.
-- A menstrual episode has an explicit, user-editable start date and an inclusive end date. An episode without an end date is active.
-- The episode start is authoritative for cycle calculation and must be a non-spotting flow day.
+- A menstrual episode has an explicit start date and an inclusive end date. An episode without an end date is active. Arbitrary boundary editing is not yet exposed in the Phase 2 UI.
+- A start-only onboarding observation is normalized to a closed one-day episode with `durationKnown: false`; this lets it contribute a start without pretending its duration is known or leaving it active.
+- The episode start is authoritative for cycle calculation and must have a linked log that is not explicitly `none` or `spotting`; omitted intensity is allowed.
 - A cycle length is the number of calendar days between successive episode starts.
 - Spotting alone never creates an episode or starts a new cycle.
 - Episodes cannot overlap. Starting a new episode while another is active requires ending or correcting the active episode first.
@@ -130,18 +134,18 @@ Forecasting must remain deterministic, explainable, and separately testable from
 
 ### Initial next-period algorithm
 
-1. Take the latest 3–6 completed cycle lengths when available. A cycle length is complete as soon as the next episode start is known, even if that newer episode is still active.
+1. Take the latest up to six completed cycle lengths when available. A cycle length is complete as soon as the next episode start is known, even if that newer episode is still active.
 2. Use their median as the central estimated cycle length. For an even number of integer samples, average the two middle values and round `.5` upward to the next whole calendar day.
 3. Add that length to the latest recorded period start for the central estimated start date.
-4. Estimate bleeding duration separately using the same median rule on recent episodes with an end date. Use the optional usual duration only when no completed duration exists; otherwise leave predicted duration unknown.
+4. Estimate bleeding duration separately using the same median rule on up to six recent episodes with an end date and `durationKnown !== false`. Use the optional usual duration only when no known completed duration exists; otherwise leave predicted duration unknown.
 5. Show an estimated range rather than presenting the central date as certain.
 
 Initial uncertainty behavior:
 
-- **No completed cycle:** do not forecast unless the user supplied a usual cycle length. A fallback uses a ±4-day window and is labeled “rough.”
+- **No completed cycle:** do not forecast unless there is at least one recorded period start to anchor the estimate and the user supplied a usual cycle length. A fallback uses a ±4-day window and is labeled “rough.”
 - **One or two completed cycles:** label the result “rough” and show a window of at least ±3 days.
 - **Three to six completed cycles:** use the shortest and longest recent lengths to produce the initial earliest/latest bounds; the median remains the central estimate but is not assumed to be the midpoint. Apply a minimum ±2-day uncertainty floor around the central estimate even when the recorded cycles were identical, until pilot calibration supports a different floor.
-- **Highly variable history:** a recent length span greater than 10 days is “low” confidence. Show the textual range but suppress predicted-red and orange calendar coloring instead of creating false precision.
+- **Highly variable history:** a recent length span greater than 10 days is “low” confidence. Show the textual range but suppress all forecast calendar coloring—predicted red, predicted/possible-start indicators, and orange—instead of creating false precision.
 - **Late period:** do not silently move an exact forecast forward every day. Mark the estimate as uncertain and wait for a new record or user correction.
 
 For one or two completed lengths, the earliest/latest bounds are the union of the observed bounds and `centralStart ± 3 days`. For three to six, they are the union of the shortest/longest-derived bounds and `centralStart ± 2 days`.
@@ -159,7 +163,7 @@ Initial confidence labels:
 - Recorded red always overrides a forecast.
 - The central predicted episode is visually patterned or pale and explicitly announced as predicted. If predicted duration is unknown, only the central start receives predicted-red styling.
 - Possible start dates receive an outline/range indicator rather than full predicted-red styling, preventing the entire uncertainty window from looking like predicted bleeding.
-- A length span greater than 10 days suppresses both predicted-red styles; the textual range remains available.
+- A length span greater than 10 days suppresses predicted red, predicted/possible-start indicators, and orange; the textual range remains available.
 - Editing or deleting period history recalculates the prediction immediately.
 
 ### Orange window
@@ -190,6 +194,7 @@ type PeriodEpisode = {
   id: string;
   startDate: LocalDate;
   endDate?: LocalDate; // inclusive; absent while the episode is active
+  durationKnown?: boolean; // false only when an imported start had no supplied end
   createdAt: string;
   updatedAt: string;
 };
@@ -214,6 +219,7 @@ type AutoLockDelay = "immediate" | "1-minute" | "5-minutes" | "15-minutes";
 type UserSettings = {
   theme: ThemePreference;
   language: LanguagePreference;
+  onboardingCompleted: boolean;
   orangeEnabled: boolean;
   orangeDays: number;
   typicalCycleLength?: number;
@@ -224,7 +230,7 @@ type UserSettings = {
 };
 
 type VaultPayload = {
-  schemaVersion: number;
+  schemaVersion: number; // currently 3
   episodes: PeriodEpisode[];
   logs: DailyLog[];
   settings: Omit<UserSettings, "theme" | "language" | "pinEnabled">;
@@ -239,6 +245,11 @@ type Forecast = {
   predictedDuration?: number;
   completedCyclesUsed: number;
   confidence: "rough" | "low" | "medium";
+  recentCycleLengths: readonly number[];
+  recentCycleLengthSpan: number | null;
+  source: "recorded" | "typical";
+  isLate: boolean;
+  calendarMarkersSuppressed: boolean;
 };
 ```
 
@@ -246,10 +257,13 @@ Cycles, marker combinations, insights, and forecasts are derived. They are not p
 
 `pinEnabled` is derived from the active storage representation rather than duplicated inside the encrypted payload. This avoids contradictory security state. Theme and language are non-health UI preferences intentionally stored outside the health-data vault so the lock screen can use them before unlock.
 
+Schema version 2 adds `onboardingCompleted`. Migrating a version-1 vault sets it to `false`, so an existing local vault enters tracker setup without losing its journal or security settings. Version 3 bounds optional usual-cycle and bleeding-duration fallbacks to 365 and 90 days. Its migration removes only an out-of-range optional fallback while preserving observations and other settings, preventing a legacy extreme value from breaking forecast date arithmetic. Version-0 payloads migrate through every tested step. The optional `durationKnown` flag preserves the distinction between a supplied one-day duration and a start-only historical observation.
+
 Episode invariants:
 
 - There is at most one `DailyLog` per local date.
 - `startDate <= endDate` when an end exists.
+- `durationKnown` may appear only when an end exists. `false` marks a normalized start-only onboarding observation; an ended episode with the flag omitted is treated as having a known duration.
 - Episodes cannot overlap, and at most one episode may be active.
 - Every linked log date falls within its episode's inclusive bounds.
 - A log with `light`, `medium`, or `heavy` flow must reference the episode covering that date.
@@ -259,15 +273,17 @@ Episode invariants:
 - A start-date log must exist and cannot explicitly have `none` or `spotting` flow.
 - A spotting log does not require an episode and never creates one.
 - An episode is a user-controlled boundary. A linked `none`/spotting log or an entirely unlogged date within its range does not split it automatically.
-- Ending an episode records an inclusive `endDate`. Editing, splitting, merging, or deleting an episode revalidates its linked daily logs before forecasts are recalculated.
-- Completed bleeding duration is `endDate - startDate + 1` calendar days; daily flow intensity does not change that episode-boundary calculation.
+- Ending an episode records an inclusive `endDate`. Removing an episode revalidates its linked daily logs before forecasts are recalculated; arbitrary boundary editing, splitting, and merging remain future work.
+- A known completed bleeding duration is `endDate - startDate + 1` calendar days. Episodes with `durationKnown: false` are excluded, and daily flow intensity does not change the calculation.
 
 Action mapping:
 
-- **Start period** creates an episode plus its start-date log.
+- **Start period** creates an episode plus its start-date log. If `none` or `spotting` is selected, the action stays disabled with an explanation rather than silently discarding that value.
 - **Continue period** creates or updates a log linked to the active episode.
-- **End period** sets the active episode's inclusive end date.
-- Historical range entry creates the episode and linked period-day logs together.
+- **End period** sets the active episode's inclusive end date and creates or links that final day's log without overwriting an explicit flow value.
+- **Remove period** requires confirmation, then removes the episode and period-only facts while retaining unrelated daily check-in values.
+- Historical entry creates the episode and its linked start-day log. It does not infer a red log for every date inside a supplied range.
+- **Delete check-in** removes a normal day's log, but an episode-start log is protected until the episode itself is removed.
 
 ## PIN app lock and encrypted vault
 
@@ -348,12 +364,13 @@ A longer passphrase and platform passkey/biometric unlock may be added later, bu
 
 ```mermaid
 flowchart LR
-    UI[React UI] --> APP[Application services]
+    UI[React tracker UI] --> APP[Vault context and application services]
+    UI --> DOMAIN[Pure journal, forecast, and marker engines]
     UI --> I18N[Typed local catalogs]
-    APP --> DOMAIN[Cycle and forecast engine]
     APP --> VAULT[Vault service]
     VAULT --> CRYPTO[Web Crypto]
     VAULT --> DB[(IndexedDB)]
+    PLATFORM[Injected local date, time, and ID adapter] --> UI
     SW[Service worker] --> SHELL[Application shell only]
 ```
 
@@ -406,15 +423,16 @@ src/
     vault/                   Observable vault provider and UI-safe actions
   application/ports/         Interfaces owned by application policy
   application/vault/         Vault manager, PIN transitions, and auto-lock policy
-  domain/                    Pure models and deterministic date logic
-  features/                  UI grouped by workflow, including PIN and lock screens
-  i18n/                      Configuration, typed resources, locale resolution, and tests
+  domain/                    Pure models, journal mutations, onboarding, markers, forecasts, and date logic
+  features/                  Calendar, day detail, onboarding, settings, PIN, and lock workflows
+  i18n/                      Typed resources, locale resolution, localized date formatting, and tests
     locales/en.ts            Canonical English message catalog
     locales/de.ts            German message catalog
   infrastructure/
     cryptography/            Web Crypto adapter and PBKDF2 calibration policy
     lifecycle/               Auto-lock and cross-tab invalidation adapters
     persistence/             Dexie store, Zod schemas, codec, and migrations
+    platform/                Injected browser-local date, timestamp, and record-ID adapter
     preferences/             Non-sensitive theme and language stores
   shared/styles/             Global styles and light/dark design tokens
   test/                      Shared Vitest and Testing Library setup
@@ -442,7 +460,7 @@ app -> composition of all layers
 - ESLint rejects literal user-visible JSX text, while tests enforce translation key and interpolation-placeholder parity.
 - Directories are added when they contain a real implementation or contract; empty placeholder layers and generic `utils` folders are avoided.
 
-### Implemented foundation and secure core
+### Implemented foundation, secure core, and first tracker slice
 
 - A responsive, accessible React shell rendered in `StrictMode`.
 - System, light, and dark theme selection with local persistence.
@@ -453,7 +471,7 @@ app -> composition of all layers
 - Device locale resolution by supported base tag, including values such as `de-DE` and `de-AT`, and live re-resolution after a browser language change while Device language is selected.
 - CSS design tokens for both themes, reduced-motion handling, visible keyboard focus, and non-color marker accents.
 - A validated local-date type and timezone-independent date arithmetic with leap-year and boundary tests.
-- A strict version-1 logical payload schema, tested version-0 migration, domain-invariant validation, and rejection of unsupported future versions.
+- A strict version-3 logical payload schema, tested sequential version-0-to-1-to-2-to-3 migrations and safe removal of legacy out-of-range forecast fallbacks, domain-invariant validation, and rejection of unsupported future versions.
 - Dexie-backed immutable record staging and atomic compare-and-swap replacement that removes the prior representation in the same final IndexedDB transaction.
 - Optional six-digit PIN protection using calibrated PBKDF2-SHA-256, a random 256-bit data key, and AES-256-GCM with authenticated metadata and fresh IVs.
 - A complete in-memory Web Crypto preflight before PIN controls are offered; unsupported environments fail closed with distinct, non-destructive guidance.
@@ -466,19 +484,27 @@ app -> composition of all layers
 - Reset reporting that distinguishes failed deletion, fully completed reset, retained UI preferences, and deletion followed by failed empty-vault recreation.
 - Keyboard-focus management for PIN workflows and destructive disclosures, including explicit disclosure state and disarmed confirmations after collapse.
 - Strict TypeScript, type-aware ESLint, Prettier, Vitest, Testing Library, Playwright, and an automated axe accessibility smoke test.
+- Setup that imports optional historical starts/ends and bounded fallback values, validates dates and overlap, configures the orange window, and can be explicitly finished without history or invented observations.
+- Pure, separately tested journal mutations for starting, continuing, ending, and removing a period and for creating, editing, clearing, and deleting daily check-ins.
+- A localized six-week monthly calendar with recorded, predicted, possible-start, orange, retrospective-green, spotting, and neutral markers; a non-color legend; and keyboard navigation.
+- A modal daily editor for flow, confidence, tension, energy, pain, and private notes, with focus return and explicit confirmation for daily deletion and whole-period removal.
+- Deterministic forecast statistics, uncertainty ranges, late-estimate behavior, marker suppression for highly variable histories, and tracking preferences for fallbacks, orange, and forecast pause.
+- Vault-backed saves for tracker observations and preferences, with a real-browser test covering setup, period/check-in entry, and IndexedDB persistence across reloads in all configured Playwright projects.
 
-Not implemented yet: menstrual logging, calendar UI, cycle forecasting, insights, service worker/installability, or encrypted export/restore. The current persisted vault contains only the empty versioned payload until Phase 2 adds user-entered health records.
+Not implemented yet: richer multi-cycle insights, arbitrary episode-boundary editing/splitting/merging, service worker/installability, encrypted or plaintext export/restore, forecast backtesting/calibration, or public-beta clinical, legal, accessibility, and security review.
 
 ## Privacy and data lifecycle
 
 - Collect no real name, email, date of birth, contacts, precise location, advertising identifier, or unrelated device data.
 - Keep health data on the device by default.
+- Store episodes, daily logs, notes, onboarding state, and tracking preferences inside the versioned vault payload. Forecasts and marker combinations are derived rather than persisted as authoritative observations.
+- Be explicit that PIN-disabled mode persists those sensitive records as unprotected IndexedDB data; local-only storage is not the same as encryption.
 - Keep sensitive values out of URLs, console logs, error messages, crash reports, notification payloads, and cached responses.
 - Persist only non-sensitive coordination and UI state outside the vault: language under `perfect-days:language`, theme under `perfect-days:theme`, and an opaque cross-tab invalidation revision. None contains health data.
 - Keep every language catalog in the application bundle. Localization must not send copy, identifiers, or health data to an external service.
 - Make encrypted export the safe default.
 - Clearly warn that plaintext JSON or CSV exports can be read by anyone who obtains the file.
-- Make correction and deletion available from the UI.
+- Make daily check-in correction/deletion and whole-period removal available from the UI. Arbitrary period-boundary correction remains planned work and must not be implied by the current interface.
 - “Erase everything” transactionally removes the vault, wrapped key, salt, and every application-controlled item that could contain personal data, then attempts to remove theme/language preferences. If the browser refuses a preference removal or cannot recreate an empty vault, the UI reports that partial outcome instead of claiming full success. A static application shell, translation catalogs, and opaque coordination revision may remain because they contain no user data.
 - Use generic notifications and never show period status on the lock screen without explicit opt-in.
 - Do not claim that local-only storage or a PIN makes the application invulnerable.
@@ -498,6 +524,8 @@ This is a journal and reflection tool. It is not:
 
 Premenstrual symptoms vary between people and between cycles. ACOG recommends prospective daily symptom records over multiple cycles when evaluating a possible PMS pattern. That supports personalized observations, not a universal orange window.
 
+The implemented orange copy describes an optional personal check-in window and explicitly avoids predicting conflict or advising against decisions. Green reports only a retrospective confidence rating of 4 or 5. Forecasts are deterministic heuristics with visible ranges and confidence labels; implementation and unit coverage are not evidence of clinical accuracy.
+
 Before public beta, clinical copy should be reviewed and the app should gently direct users toward professional help for persistent unusual bleeding, very heavy or prolonged bleeding, bleeding between periods, severe symptoms, or pain that disrupts normal life. Urgent and mental-health help must be localized to the user's country rather than hard-coded to one emergency number.
 
 The interface must never diagnose from a single entry or turn safety information into alarming automated conclusions.
@@ -512,7 +540,7 @@ The interface must never diagnose from a single entry or turn safety information
 - Translation keys represent complete messages. Use interpolation, context, and locale-aware plural rules rather than concatenating fragments.
 - Format dates, month and weekday names, numbers, and quantities with the resolved language at the presentation boundary. Persisted `LocalDate` values and enum codes remain locale-neutral.
 - English and German are left-to-right, while layout continues to use logical CSS properties for future right-to-left locales.
-- Catalog tests require identical keys, non-empty values, and matching interpolation placeholders. Component and browser tests exercise visible and accessible behavior in both languages.
+- Catalog tests require identical keys, non-empty values, and matching interpolation placeholders. Localized browser smoke tests cover the English and German application shell; the Phase 2 persistence flow currently runs in English across every configured browser project.
 - Meet WCAG 2.2 AA contrast in light and dark themes.
 - Never communicate a state with color alone; use text, icons, patterns, and screen-reader descriptions.
 - Example announcement: “August 12, predicted period, medium confidence.”
@@ -567,21 +595,21 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Implement PIN setup, unlock, manual/automatic lock, PIN change, protection disable, and destructive reset.
 - [x] Test cryptographic round trips, fresh IVs, wrong-PIN behavior, Web Crypto preflight, corruption, locking, cross-tab invalidation, transaction failure, reset outcomes, and schema migration.
 
-### Phase 2 — First vertical slice
+### Phase 2 — First vertical slice (complete)
 
-- Onboarding with historical starts, orange setting, theme, language, and PIN.
-- Calendar with recorded red days and accessible legends.
-- Day editor for flow, spotting, confidence, tension, energy, pain, and notes.
-- Green badges for recorded confidence values of 4–5.
-- Minimal deterministic next-period calculation, predicted-red styling, and orange-window behavior.
-- Persistence across reloads and immediate recalculation after edits.
+- [x] Add tracker onboarding with optional historical starts/ends, bounded fallback estimates, orange configuration, and an explicit finish-without-history action; keep theme, language, and optional PIN controls available as app-wide settings.
+- [x] Add the localized monthly calendar with recorded and forecast states, today/selection distinctions, non-color semantics, and an accessible legend.
+- [x] Add period actions and a daily editor for flow, spotting, confidence, tension, energy, pain, and notes.
+- [x] Derive retrospective green badges only from recorded confidence values of 4–5.
+- [x] Implement and test cycle/duration medians, uncertainty and confidence rules, predicted/possible-start styling, orange behavior, variable-history suppression, and fixed late estimates.
+- [x] Persist tracker data through the versioned vault, recalculate derived forecasts after saves, and verify a setup-to-check-in reload flow against real IndexedDB in every Playwright project.
 
 ### Phase 3 — Forecast refinement and insights
 
-- Refine pure cycle grouping, duration, uncertainty, and confidence functions around the tested Phase 2 baseline.
-- Add complete explanations for predicted red, possible-start ranges, and orange states.
-- Insights for recent cycle length, duration, confidence, and retrospective green days.
-- Backtesting fixtures for regular, irregular, late, missing, and edited histories.
+- Add richer insights for recent cycle lengths, known bleeding durations, forecast confidence, and retrospective green days.
+- Add explicit UI for correcting arbitrary episode boundaries and, if user research supports it, splitting or merging episodes.
+- Build repeatable backtesting over held-out histories; the current scenario unit fixtures are not a calibrated backtesting system.
+- Refine uncertainty ranges and explanations only from pilot evidence while preserving the tested Phase 2 rules as the documented baseline.
 
 ### Phase 4 — PWA and hardening
 
@@ -604,15 +632,17 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 ### Functional
 
-- [ ] A user can create, edit, and delete periods and daily check-ins.
-- [ ] Spotting does not start a period automatically.
-- [ ] A useful bleeding entry takes at most two taps.
-- [ ] Forecasts update immediately after relevant edits.
-- [ ] Forecasts show a range, confidence, and number of cycles used.
-- [ ] Green is based only on an explicit qualifying check-in in the MVP.
-- [ ] Red, orange, and green can coexist without hiding recorded facts.
-- [ ] Data survives reload while the browser retains the origin's storage and remains available offline after installation under the same condition.
-- [ ] PIN-enabled encrypted backup/restore and application-level personal-data erasure work as documented.
+- [x] A user can start, continue, end, and remove periods and create, edit, clear, and delete eligible daily check-ins.
+- [ ] A user can directly correct arbitrary period boundaries or split and merge episodes.
+- [x] Spotting does not start a period automatically.
+- [x] Opening a day and using **Start period** records a useful minimum bleeding entry in two actions.
+- [x] Forecasts update from the saved payload immediately after relevant edits.
+- [x] Forecasts show a range, confidence, and number of cycle-length records used.
+- [x] Green is based only on an explicit qualifying check-in in the MVP.
+- [x] Recorded facts remain visible when markers overlap: recorded red supersedes conflicting forecast coloring, while green can coexist with red.
+- [x] Tracker setup and recorded check-ins survive reload while the browser retains the origin's IndexedDB storage.
+- [ ] The installed application remains available offline through a cached application shell.
+- [ ] PIN-enabled encrypted backup/restore works as documented.
 
 ### Theme, localization, and accessibility
 
@@ -623,11 +653,13 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Language changes update current visible/accessibility copy, document `lang`/`dir`, title, and description metadata without losing selector focus.
 - [x] English and German catalogs have exact key and interpolation-placeholder parity.
 - [x] The current lock and PIN-security screens expose no hard-coded user-visible copy.
-- [ ] Calendar dates, months, weekdays, numbers, and plural messages follow the resolved language while persisted domain values remain locale-neutral.
-- [ ] Every marker is understandable without color.
+- [x] Calendar dates, month and weekday names, week starts, and day numbers follow the resolved language while persisted domain values remain locale-neutral.
+- [ ] User-facing quantity messages use locale-aware plural rules in every supported language.
+- [x] Every implemented marker has a text/icon/pattern equivalent and is understandable without color alone.
 - [ ] Both themes meet WCAG 2.2 AA contrast.
 - [ ] Core flows work at 320 CSS pixels wide, with keyboard, large text, and a screen reader.
-- [ ] Calendar arrow-key navigation, month navigation, dialog focus return, and forced-colors states work as documented.
+- [x] Component tests cover roving calendar focus, arrow/week/month keyboard navigation, and day-dialog focus return.
+- [ ] Forced-colors states have completed browser and assistive-technology review.
 
 ### PIN and security
 
@@ -646,10 +678,10 @@ Initial browser targets for the prototype are the latest two major versions of C
 ### Date and forecast correctness
 
 - [ ] A local date never shifts after travel, timezone changes, or daylight-saving transitions.
-- [ ] Tests cover insufficient, regular, irregular, short, long, and missing histories.
-- [ ] Tests cover month/year boundaries, leap years, editing, deletion, spotting, and overlapping markers.
-- [ ] Actual bleeding overrides conflicting forecasts.
-- [ ] A late period does not cause the app to invent a moving exact date.
+- [x] Tests cover insufficient, regular, irregular, short, long, and start-only histories.
+- [x] Tests cover month/year boundaries, leap years, editing, deletion, spotting, and overlapping markers.
+- [x] Actual bleeding overrides conflicting forecasts.
+- [x] A late period does not cause the app to invent a moving exact date.
 
 ### Build quality
 
@@ -677,7 +709,7 @@ Verified on August 8, 2026:
 - Git `2.55.0.windows.3`
 - Git repository on `main`, tracking `origin/main`
 - PowerShell blocks the `npm.ps1` shim under the current execution policy; use `npm.cmd` and `npx.cmd` rather than changing machine-wide policy merely for this project.
-- The current baseline passes 101 Vitest tests and 28 Playwright tests across desktop Chromium/Firefox and mobile Chromium/WebKit.
+- The current baseline passes 229 Vitest tests and 32 Playwright tests across desktop Chromium/Firefox and mobile Chromium/WebKit.
 
 ### Local setup
 
@@ -702,12 +734,17 @@ Quality commands:
 | `npm.cmd run test:watch` | Run Vitest interactively while developing |
 | `npm.cmd run test:e2e` | Run Playwright across configured desktop and mobile projects |
 | `npm.cmd run build` | Type-check and create the production bundle in `dist/` |
+| `npm.cmd run preview` | Serve the existing production build from `dist/` locally |
 | `npm.cmd run verify` | Run formatting, linting, unit tests, and production build |
 | `npm.cmd run ci` | Run the complete verification and browser-test suite |
 
 The Playwright browser download is machine-local and is not stored in this repository. CI on Linux should install its browsers and operating-system dependencies with `npx playwright install --with-deps` before running `npm run ci`. Commit `package-lock.json`; use `npm ci` for reproducible CI and clean-machine installs.
 
-`npm.cmd test` includes catalog key/placeholder parity and language-resolution tests. Add a message to `src/i18n/locales/en.ts` first, then add the matching key and placeholders to every other locale; TypeScript and the test suite reject drift.
+Run `npm.cmd run build` before `npm.cmd run preview` whenever source files have changed. Preview serves the generated bundle; opening `dist/index.html` directly is not a reliable substitute for an HTTP server.
+
+`npm.cmd test` includes catalog key/placeholder parity and language resolution; schema-v3 migration and persistence boundaries; local-date and localized-date behavior; pure onboarding, journal, forecast, and marker rules; and calendar, onboarding, day-editor, settings, vault, and application component tests. The Playwright suite includes a real IndexedDB flow that finishes setup without history, starts a period, saves confidence and a private note, reloads, and verifies the persisted red/green record and check-in values.
+
+Add a message to `src/i18n/locales/en.ts` first, then add the matching key and placeholders to every other locale; TypeScript and the test suite reject drift.
 
 ## Decisions assumed unless changed
 

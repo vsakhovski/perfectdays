@@ -1,12 +1,17 @@
 import { useTranslation } from 'react-i18next';
 
+import { useVault } from '../../app/vault/use-vault';
 import { LanguageControl } from '../settings/LanguageControl';
 import { PinSecurityPanel } from '../settings/PinSecurityPanel';
 import { ThemeControl } from '../settings/ThemeControl';
+import { TrackerDashboard } from '../tracker/TrackerDashboard';
 import styles from './HomePage.module.css';
 
 export function HomePage() {
   const { t } = useTranslation();
+  const { snapshot } = useVault();
+  const setupPending =
+    snapshot.phase === 'unlocked' && !snapshot.payload.settings.onboardingCompleted;
   const foundationItems = [
     {
       key: 'local-first',
@@ -32,6 +37,9 @@ export function HomePage() {
         <h1>{t(($) => $.home.title)}</h1>
         <p className={styles['introduction']}>{t(($) => $.home.introduction)}</p>
       </header>
+
+      {setupPending ? <PinSecurityPanel /> : null}
+      <TrackerDashboard />
 
       <section className={styles['foundation']} aria-labelledby="foundation-title">
         <div>
@@ -60,7 +68,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <PinSecurityPanel />
+      {!setupPending ? <PinSecurityPanel /> : null}
 
       <footer className={styles['footer']}>{t(($) => $.home.footer)}</footer>
     </main>

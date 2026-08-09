@@ -48,7 +48,12 @@ function toEpochMilliseconds(value: LocalDate): number {
 }
 
 function formatDate(date: Date): LocalDate {
-  const year = String(date.getUTCFullYear()).padStart(4, '0');
+  const numericYear = date.getUTCFullYear();
+  if (Number.isNaN(date.getTime()) || numericYear < 0 || numericYear > 9999) {
+    throw new RangeError('Date arithmetic exceeded the supported local-date range.');
+  }
+
+  const year = String(numericYear).padStart(4, '0');
   const month = String(date.getUTCMonth() + 1).padStart(2, '0');
   const day = String(date.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}` as LocalDate;
@@ -78,4 +83,40 @@ export function addDays(value: LocalDate, amount: number): LocalDate {
 
 export function daysBetween(start: LocalDate, end: LocalDate): number {
   return (toEpochMilliseconds(end) - toEpochMilliseconds(start)) / MILLISECONDS_PER_DAY;
+}
+
+export function startOfMonth(value: LocalDate): LocalDate {
+  return asLocalDate(`${value.slice(0, 7)}-01`);
+}
+
+export function addMonths(value: LocalDate, amount: number): LocalDate {
+  if (!Number.isInteger(amount)) {
+    throw new RangeError('Month offset must be an integer.');
+  }
+
+  const target = new Date(toEpochMilliseconds(value));
+  const originalDay = target.getUTCDate();
+  target.setUTCDate(1);
+  target.setUTCMonth(target.getUTCMonth() + amount);
+
+  const lastDay = new Date(target);
+  lastDay.setUTCMonth(lastDay.getUTCMonth() + 1);
+  lastDay.setUTCDate(0);
+  target.setUTCDate(Math.min(originalDay, lastDay.getUTCDate()));
+  return formatDate(target);
+}
+
+export function dayOfWeek(value: LocalDate): number {
+  return new Date(toEpochMilliseconds(value)).getUTCDay();
+}
+
+export function calendarMonthGrid(value: LocalDate, weekStartsOn: 0 | 1): readonly LocalDate[] {
+  const first = startOfMonth(value);
+  const leadingDays = (dayOfWeek(first) - weekStartsOn + 7) % 7;
+  const gridStart = addDays(first, -leadingDays);
+  return Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
+}
+
+export function isSameMonth(left: LocalDate, right: LocalDate): boolean {
+  return left.slice(0, 7) === right.slice(0, 7);
 }

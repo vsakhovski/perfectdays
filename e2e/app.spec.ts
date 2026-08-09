@@ -29,6 +29,49 @@ test.describe('English application shell', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   });
 
+  test('persists onboarding and a recorded period check-in across reloads', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Finish without history' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Your recorded days and estimates' }),
+    ).toBeVisible();
+
+    const today = page.locator('button[aria-current="date"]');
+    await today.click();
+    const dialog = page.getByRole('dialog', { name: 'Daily check-in' });
+    await dialog.getByRole('radio', { name: 'Medium' }).check();
+    await dialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }).check();
+    await dialog.getByLabel('Private note').fill('A private browser test check-in.');
+    await dialog.getByRole('button', { name: /Start period/ }).click();
+    await expect(dialog.getByText('Period started.')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Save check-in' }).click();
+    await expect(dialog.getByText('Check-in saved.')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Close daily check-in' }).click();
+
+    await expect(today).toHaveAccessibleName(/Recorded period day/);
+    await expect(today).toHaveAccessibleName(/Higher confidence recorded/);
+
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: 'Your recorded days and estimates' }),
+    ).toBeVisible();
+    const persistedToday = page.locator('button[aria-current="date"]');
+    await expect(persistedToday).toHaveAccessibleName(/Recorded period day/);
+    await persistedToday.click();
+
+    const persistedDialog = page.getByRole('dialog', { name: 'Daily check-in' });
+    await expect(persistedDialog.getByRole('radio', { name: 'Medium' })).toBeChecked();
+    await expect(
+      persistedDialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }),
+    ).toBeChecked();
+    await expect(persistedDialog.getByLabel('Private note')).toHaveValue(
+      'A private browser test check-in.',
+    );
+
+    const accessibilityScan = await new AxeBuilder({ page }).analyze();
+    expect(accessibilityScan.violations).toEqual([]);
+  });
+
   test('opens the shared vault when two first-run tabs start together', async ({
     context,
     page,

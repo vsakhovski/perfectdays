@@ -35,7 +35,7 @@ const codec: VaultPayloadCodec = {
       typeof candidate !== 'object' ||
       candidate === null ||
       !('schemaVersion' in candidate) ||
-      candidate.schemaVersion !== 1
+      candidate.schemaVersion !== 3
     ) {
       throw new Error('invalid-payload');
     }
@@ -45,10 +45,11 @@ const codec: VaultPayloadCodec = {
 
 function payload(updatedAt = '2026-08-08T10:00:00.000Z'): VaultPayload {
   return {
-    schemaVersion: 1,
+    schemaVersion: 3,
     episodes: [],
     logs: [],
     settings: {
+      onboardingCompleted: false,
       orangeEnabled: true,
       orangeDays: 5,
       forecastingPaused: false,

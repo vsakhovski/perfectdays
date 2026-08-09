@@ -9,6 +9,8 @@ export interface PeriodEpisode {
   id: string;
   startDate: LocalDate;
   endDate?: LocalDate;
+  /** False only when historical duration was not supplied; omitted means known when ended. */
+  durationKnown?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -33,6 +35,7 @@ export type AutoLockDelay = 'immediate' | '1-minute' | '5-minutes' | '15-minutes
 export interface UserSettings {
   theme: ThemePreference;
   language: LanguagePreference;
+  onboardingCompleted: boolean;
   orangeEnabled: boolean;
   orangeDays: number;
   typicalCycleLength?: number;

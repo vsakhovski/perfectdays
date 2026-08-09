@@ -1,7 +1,8 @@
 import { createContext } from 'react';
 
 import type { VaultSnapshot } from '../../application/vault/vault-controller';
-import type { AutoLockDelay } from '../../domain/models';
+import type { JournalMutationContext } from '../../domain/journal';
+import type { AutoLockDelay, VaultPayload } from '../../domain/models';
 
 export type ResetNotice =
   | 'none'
@@ -10,6 +11,7 @@ export type ResetNotice =
   | 'data-erased-unavailable-preferences-retained';
 
 export interface VaultContextValue {
+  readonly journalEnvironment: JournalMutationContext;
   readonly pinProtectionAvailable: boolean;
   readonly snapshot: VaultSnapshot;
   readonly resetNotice: ResetNotice;
@@ -20,6 +22,7 @@ export interface VaultContextValue {
   readonly enablePin: (pin: string) => Promise<void>;
   readonly eraseEverything: () => Promise<void>;
   readonly lock: () => void;
+  readonly savePayload: (payload: VaultPayload) => Promise<void>;
   readonly unlock: (pin: string) => Promise<void>;
   readonly updateAutoLockDelay: (delay: AutoLockDelay) => Promise<void>;
 }

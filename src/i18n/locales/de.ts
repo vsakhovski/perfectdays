@@ -37,6 +37,203 @@ export const de = {
     },
     footer: 'Deine Daten bleiben standardmäßig auf diesem Gerät.',
   },
+  tracker: {
+    onboarding: {
+      title: 'Richte dein privates Tagebuch ein',
+      introduction:
+        'Trage nur ein, was du weißt. Frühere Daten verbessern Schätzungen; optionale Schätzwerte können später geändert werden.',
+      history: {
+        title: 'Frühere Perioden',
+        description:
+          'Startdaten bilden den Zyklusverlauf. Füge ein Enddatum nur hinzu, wenn du es kennst; ohne Enddatum wird keine Blutungsdauer geschätzt.',
+        empty: 'Noch keine frühere Periode hinzugefügt.',
+        startDate: 'Startdatum',
+        endDate: 'Enddatum (optional)',
+        add: 'Frühere Periode hinzufügen',
+        entryLabel: 'Frühere Periode {{position}}',
+        removeEntry: 'Frühere Periode {{position}} entfernen',
+      },
+      fallbacks: {
+        title: 'Optionale Ausgangsschätzungen',
+        description:
+          'Sie werden nur verwendet, solange nicht genügend aufgezeichnete Daten vorliegen. Aufzeichnungen haben immer Vorrang.',
+        cycleLength: 'Übliche Zykluslänge in Tagen',
+        cycleLengthDescription: 'Optional. Viele Zyklen Erwachsener schwanken von Monat zu Monat.',
+        bleedDuration: 'Übliche Blutungsdauer in Tagen',
+        bleedDurationDescription: 'Optional. Lass das Feld leer, wenn du unsicher bist.',
+      },
+      orange: {
+        title: 'Mögliches Check-in-Fenster vor der Periode',
+        description:
+          'Diese optionale Markierung lädt zu einem persönlichen Check-in ein. Sie sagt weder Konflikte voraus noch gibt sie Entscheidungen vor.',
+        enabled: 'Mögliches Check-in-Fenster vor der Periode anzeigen',
+        days: 'Tage vor der zentralen Schätzung',
+        daysDescription: 'Wähle 1 bis 14 Tage.',
+      },
+      validation: {
+        startRequired: 'Füge ein Startdatum hinzu oder entferne diese Zeile.',
+        endBeforeStart: 'Das Enddatum darf nicht vor dem Startdatum liegen.',
+        duplicateStart: 'Jede frühere Periode benötigt ein anderes Startdatum.',
+        overlappingHistory: 'Frühere Periodenzeiträume dürfen sich nicht überschneiden.',
+        positiveInteger: 'Gib eine ganze Zahl größer als null ein.',
+        cycleRange: 'Wähle eine ganze Zahl von 1 bis 365 Tagen.',
+        bleedRange: 'Wähle eine ganze Zahl von 1 bis 90 Tagen.',
+        orangeRange: 'Wähle eine ganze Zahl von 1 bis 14.',
+        futureDate: 'Zukünftige Daten können nicht zum Periodenverlauf hinzugefügt werden.',
+      },
+      actions: {
+        skip: 'Ohne Verlauf abschließen',
+        complete: 'Einrichtung abschließen',
+        completing: 'Einrichtung wird gespeichert…',
+      },
+      saveFailed:
+        'Die Einrichtung konnte nicht gespeichert werden. Dein bestehendes Tagebuch wurde nicht verändert.',
+    },
+    calendar: {
+      sectionLabel: 'Kalender',
+      title: 'Deine Aufzeichnungen und Schätzungen',
+      description:
+        'Aufzeichnungen sind flächig dargestellt. Schätzungen sind gemustert oder umrandet und können sich mit dem Verlauf ändern.',
+      navigationLabel: 'Monatsnavigation des Kalenders',
+      calendarLabel: 'Kalender für Menstruationsmuster',
+      previousMonth: 'Vorheriger Monat',
+      nextMonth: 'Nächster Monat',
+      today: 'Heute.',
+      selected: 'Ausgewählt.',
+      outsideMonth: 'Außerhalb des angezeigten Monats.',
+      future: 'Zukünftiges Datum; Check-ins sind nicht verfügbar.',
+      legendTitle: 'Legende der Kalendermarkierungen',
+      markers: {
+        recordedRed: 'Aufgezeichneter Periodentag.',
+        predictedRed: 'Geschätzter Periodentag.',
+        predictedStart: 'Zentrale Schätzung des Beginns.',
+        possibleStart: 'Möglicher Periodenbeginn.',
+        orange: 'Mögliches Check-in-Fenster vor der Periode.',
+        green: 'Höheres Selbstvertrauen aufgezeichnet.',
+        spotting: 'Schmierblutung aufgezeichnet.',
+        neutral: 'Keine Markierung aufgezeichnet.',
+      },
+      markerConfidence: {
+        predictedRed: 'Geschätzter Periodentag. Prognosesicherheit: {{confidence}}.',
+        possibleStart: 'Möglicher Periodenbeginn. Prognosesicherheit: {{confidence}}.',
+        orange: 'Mögliches Check-in-Fenster vor der Periode. Prognosesicherheit: {{confidence}}.',
+      },
+    },
+    forecast: {
+      title: 'Schätzung der nächsten Periode',
+      unavailable:
+        'Füge mindestens zwei Periodenstarts oder eine optionale übliche Zykluslänge hinzu, um eine Schätzung zu sehen.',
+      paused: 'Schätzungen sind pausiert. Aufzeichnungen bleiben sichtbar.',
+      range: 'Deine nächste Periode könnte zwischen {{range}} beginnen.',
+      central: 'Zentrale Schätzung: {{date}}.',
+      confidenceLabel: 'Verlässlichkeit: {{confidence}}.',
+      confidence: {
+        rough: 'grob',
+        low: 'niedrig',
+        medium: 'mittel',
+      },
+      basedOn: 'Basierend auf {{count}} abgeschlossenen Zyklusabständen.',
+      basedOn_one: 'Basierend auf {{count}} abgeschlossenen Zyklusabstand.',
+      basedOn_other: 'Basierend auf {{count}} abgeschlossenen Zyklusabständen.',
+      typicalSource: 'Diese grobe Schätzung verwendet deine optionale übliche Zykluslänge.',
+      duration: 'Geschätzte Blutungsdauer in Tagen: {{count}}.',
+      variable:
+        'Die letzten Zykluslängen schwanken stark. Deshalb werden Kalenderschätzungen ausgeblendet, der Textzeitraum bleibt aber sichtbar.',
+      late: 'Diese Schätzung liegt nun hinter ihrem ursprünglichen Zeitraum. Sie wurde nicht automatisch nach vorn verschoben.',
+    },
+    dayDetail: {
+      title: 'Täglicher Check-in',
+      close: 'Täglichen Check-in schließen',
+      quickActionsTitle: 'Periodenaktionen',
+      periodActions: {
+        start: {
+          label: 'Periode beginnen',
+          description: 'Eine Periode mit diesem Startdatum anlegen.',
+        },
+        continue: {
+          label: 'Periodentag eintragen',
+          description: 'Dieses Datum mit der aktiven Periode verknüpfen.',
+        },
+        end: {
+          label: 'Periode hier beenden',
+          description: 'Dieses Datum als einschließlich letzten Tag verwenden.',
+        },
+        remove: {
+          label: 'Diese Periode entfernen',
+          description: 'Die gesamte Periode entfernen und andere Check-in-Werte behalten.',
+        },
+      },
+      flowLegend: 'Blutungsstärke',
+      flowOptions: {
+        none: 'Keine',
+        spotting: 'Schmierblutung',
+        light: 'Leicht',
+        medium: 'Mittel',
+        heavy: 'Stark',
+      },
+      ratings: {
+        confidence: 'Selbstvertrauen',
+        tension: 'Anspannung',
+        energy: 'Energie',
+        pain: 'Schmerzen',
+        clear: 'Bewertung löschen',
+        option: '{{legend}}: {{rating}} von 5',
+      },
+      noteLabel: 'Private Notiz',
+      noteDescription: 'Optional. Wird nur in deinem lokalen Tagebuch gespeichert.',
+      save: 'Check-in speichern',
+      saving: 'Wird gespeichert…',
+      removePeriodConfirmation:
+        'Diese gesamte Periode entfernen? Check-in-Werte ohne Bezug dazu bleiben erhalten.',
+      confirmRemovePeriod: 'Periode entfernen',
+      cancelRemovePeriod: 'Periode behalten',
+      deleteEntry: 'Check-in löschen',
+      deleteConfirmation: 'Check-in-Werte für dieses Datum löschen?',
+      confirmDelete: 'Check-in löschen',
+      deleting: 'Wird gelöscht…',
+      cancelDelete: 'Abbrechen',
+      errors: {
+        future: 'Zukünftige Daten können keine aufgezeichneten Check-ins enthalten.',
+        startFlow:
+          'Wähle eine leichte, mittlere oder starke Blutung, bevor du eine Periode beginnst.',
+        historicalStart:
+          'Eine neue offene Periode kann nicht vor einer später aufgezeichneten Periode beginnen. Historische Grenzen können noch nicht bearbeitet werden.',
+        laterPeriodDays:
+          'Für diese Periode sind Tage nach diesem Datum eingetragen. Entferne diese Einträge, bevor du sie hier beendest.',
+        periodConflict:
+          'Diese Periodenänderung steht im Konflikt mit einer anderen Periode. Korrigiere zuerst die vorhandenen Daten.',
+        noActivePeriod: 'Es gibt keine aktive Periode zum Fortsetzen oder Beenden.',
+        startLog: 'Entferne die Periode, bevor du den Check-in ihres Starttags löschst.',
+        saveFailed:
+          'Die Änderung konnte nicht gespeichert werden. Dein bestehendes Tagebuch wurde nicht verändert.',
+      },
+      status: {
+        saved: 'Check-in gespeichert.',
+        deleted: 'Check-in gelöscht.',
+        started: 'Periode begonnen.',
+        continued: 'Periodentag eingetragen.',
+        ended: 'Periode beendet.',
+        removed: 'Periode entfernt.',
+      },
+    },
+    settings: {
+      sectionLabel: 'Tracking-Einstellungen',
+      title: 'Schätzungen und Check-in-Fenster',
+      description:
+        'Diese Einstellungen beeinflussen nur Schätzungen. Deine Aufzeichnungen werden nie verändert.',
+      typicalCycleLength: 'Übliche Zykluslänge in Tagen',
+      typicalBleedDuration: 'Übliche Blutungsdauer in Tagen',
+      orangeEnabled: 'Mögliche Check-in-Tage vor der Periode anzeigen',
+      orangeDays: 'Länge des Check-in-Fensters',
+      forecastingPaused: 'Schätzungen und geschätzte Kalendermarkierungen pausieren',
+      optionalNumber: 'Optionale ganze Zahl',
+      orangeRange: 'Wähle 1 bis 14 Tage.',
+      save: 'Tracking-Einstellungen speichern',
+      saving: 'Einstellungen werden gespeichert…',
+      saved: 'Tracking-Einstellungen gespeichert.',
+      failed: 'Die Tracking-Einstellungen konnten nicht gespeichert werden.',
+    },
+  },
   vault: {
     loading: {
       title: 'Dein privates Tagebuch wird geöffnet',

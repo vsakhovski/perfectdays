@@ -17,6 +17,7 @@ import {
   type AutoLockClock,
 } from '../../application/vault/auto-lock-controller';
 import { VaultManagerError } from '../../application/vault/vault-manager';
+import type { JournalMutationContext } from '../../domain/journal';
 import type { AutoLockDelay, VaultPayload } from '../../domain/models';
 import { synchronizeDocumentVaultState } from '../../i18n/synchronize-document';
 import { useLanguage } from '../i18n/use-language';
@@ -29,6 +30,7 @@ interface VaultProviderProps {
   controller: VaultController;
   createInitialPayload: () => VaultPayload;
   initializationFailed: boolean;
+  journalEnvironment: JournalMutationContext;
   nowIso: () => string;
   pinProtectionAvailable: boolean;
   reloadPage: () => void;
@@ -42,6 +44,7 @@ export function VaultProvider({
   controller,
   createInitialPayload,
   initializationFailed,
+  journalEnvironment,
   lifecycle,
   nowIso,
   pinProtectionAvailable,
@@ -190,6 +193,13 @@ export function VaultProvider({
     controller.lock();
     vaultInvalidationChannel.publish();
   }, [controller, vaultInvalidationChannel]);
+  const savePayload = useCallback(
+    async (payload: VaultPayload) => {
+      await controller.save(payload);
+      vaultInvalidationChannel.publish();
+    },
+    [controller, vaultInvalidationChannel],
+  );
 
   const updateAutoLockDelay = useCallback(
     async (delay: AutoLockDelay) => {
@@ -248,6 +258,7 @@ export function VaultProvider({
 
   const value = useMemo(
     () => ({
+      journalEnvironment,
       pinProtectionAvailable,
       snapshot,
       resetNotice,
@@ -258,10 +269,12 @@ export function VaultProvider({
       enablePin,
       eraseEverything,
       lock,
+      savePayload,
       unlock,
       updateAutoLockDelay,
     }),
     [
+      journalEnvironment,
       pinProtectionAvailable,
       snapshot,
       resetNotice,
@@ -272,6 +285,7 @@ export function VaultProvider({
       enablePin,
       eraseEverything,
       lock,
+      savePayload,
       unlock,
       updateAutoLockDelay,
     ],
