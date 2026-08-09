@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next';
 
 import { useVault } from '../../app/vault/use-vault';
+import { BackupAndRestoreSettings } from '../backup/BackupAndRestoreSettings';
 import { LanguageControl } from '../settings/LanguageControl';
-import { PinSecurityPanel } from '../settings/PinSecurityPanel';
+import { PIN_SETUP_TRIGGER_ID, PinSecurityPanel } from '../settings/PinSecurityPanel';
 import { ThemeControl } from '../settings/ThemeControl';
 import { TrackerDashboard } from '../tracker/TrackerDashboard';
 import styles from './HomePage.module.css';
@@ -10,6 +11,9 @@ import styles from './HomePage.module.css';
 export function HomePage() {
   const { t } = useTranslation();
   const { snapshot } = useVault();
+  const openPinSetup = () => {
+    document.querySelector<HTMLButtonElement>(`#${PIN_SETUP_TRIGGER_ID}`)?.click();
+  };
   const setupPending =
     snapshot.phase === 'unlocked' && !snapshot.payload.settings.onboardingCompleted;
   const foundationItems = [
@@ -67,6 +71,8 @@ export function HomePage() {
           <LanguageControl />
         </div>
       </section>
+
+      <BackupAndRestoreSettings onEnablePin={openPinSetup} />
 
       {!setupPending ? <PinSecurityPanel /> : null}
 

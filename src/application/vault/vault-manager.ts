@@ -1,4 +1,11 @@
+import { assertJournalInvariants } from '../../domain/journal';
 import type { VaultPayload } from '../../domain/models';
+import { VaultBackupCodecError } from '../backup/backup-json';
+import {
+  decodeEncryptedVaultBackup,
+  encodeEncryptedVaultBackup,
+} from '../backup/encrypted-vault-backup-codec';
+import { encodePlaintextVaultExport } from '../backup/plaintext-vault-export-codec';
 import type {
   EncryptedVaultEnvelope,
   VaultCryptography,
@@ -76,6 +83,7 @@ function byteArraysEqual(left: Uint8Array, right: Uint8Array): boolean {
 function envelopesEqual(left: EncryptedVaultEnvelope, right: EncryptedVaultEnvelope): boolean {
   return (
     left.formatVersion === right.formatVersion &&
+    (left.keyDerivation.algorithm as unknown) === right.keyDerivation.algorithm &&
     left.keyDerivation.iterations === right.keyDerivation.iterations &&
     byteArraysEqual(left.keyDerivation.salt, right.keyDerivation.salt) &&
     byteArraysEqual(left.wrappedDataKey, right.wrappedDataKey) &&
@@ -271,6 +279,98 @@ export class VaultManager implements VaultController {
     });
   }
 
+  async exportEncryptedBackup(): Promise<string> {
+    return this.exclusive(async () => {
+      this.requireProtectedPayload();
+      const record = this.requireEncryptedRecord();
+      this.requireSession();
+      await this.assertActiveRecordIsCurrent(record);
+      return encodeEncryptedVaultBackup(record.envelope);
+    });
+  }
+
+  async exportPlaintextBackup(): Promise<string> {
+    return this.exclusive(async () => {
+      const payload = this.requireUnlockedPayload();
+      const record = this.requireActiveRecord();
+      await this.assertActiveRecordIsCurrent(record);
+      const encoded = this.encodeAndValidate(payload);
+
+      try {
+        return encodePlaintextVaultExport(this.decodeVerifiedBytes(encoded));
+      } finally {
+        encoded.fill(0);
+      }
+    });
+  }
+
+  async restoreEncryptedBackup(backupJson: string, backupPin: string): Promise<void> {
+    await this.exclusive(async () => {
+      this.requirePin(backupPin);
+      this.requireUnlockedPayload();
+      const previousRecord = this.requireActiveRecord();
+      const previousSession = this.session;
+      await this.assertActiveRecordIsCurrent(previousRecord);
+      const backupEnvelope = decodeEncryptedVaultBackup(backupJson);
+      let preflightSession: VaultSession | null = null;
+      let protectionSession: VaultSession | null = null;
+      let verifiedSession: VaultSession | null = null;
+      let normalizedPayload: Uint8Array | null = null;
+
+      try {
+        const preflight = await this.unlockBackupForRestore(backupEnvelope, backupPin);
+        preflightSession = preflight.session;
+        normalizedPayload = this.encodeAndValidate(preflight.payload);
+        closeSession(preflightSession);
+        preflightSession = null;
+        const protectedCandidate = await this.cryptography.protect(normalizedPayload, backupPin);
+        protectionSession = protectedCandidate.session;
+
+        // Authentication and migration can be expensive. Recheck the CAS source
+        // immediately before the first persistent mutation.
+        await this.assertActiveRecordIsCurrent(previousRecord);
+        const activated = await this.stageEncrypted(
+          protectedCandidate.envelope,
+          previousRecord.id,
+          async (record) => {
+            const verified = await this.unlockForMigration(
+              record,
+              backupPin,
+              normalizedPayload ?? undefined,
+            );
+            verifiedSession = verified.session;
+            return verified;
+          },
+        );
+
+        this.activeRecord = activated.record;
+        this.session = activated.verified.session;
+        verifiedSession = null;
+        closeSession(previousSession);
+        this.failedUnlockAttempts = 0;
+        this.publish({
+          phase: 'unlocked',
+          pinEnabled: true,
+          payload: activated.verified.payload,
+        });
+      } catch (error) {
+        if (
+          error instanceof VaultBackupCodecError ||
+          error instanceof VaultManagerError ||
+          error instanceof VaultUnlockError
+        ) {
+          throw error;
+        }
+        throw verificationFailure();
+      } finally {
+        normalizedPayload?.fill(0);
+        closeSession(preflightSession);
+        closeSession(protectionSession);
+        closeSession(verifiedSession);
+      }
+    });
+  }
+
   async enablePin(pin: string): Promise<void> {
     await this.exclusive(async () => {
       this.requirePin(pin);
@@ -412,14 +512,14 @@ export class VaultManager implements VaultController {
     });
   }
 
-  private async exclusive(operation: () => Promise<void>): Promise<void> {
+  private async exclusive<Result>(operation: () => Promise<Result>): Promise<Result> {
     if (this.operationInProgress) {
       throw new VaultManagerError('operation-in-progress');
     }
 
     this.operationInProgress = true;
     try {
-      await operation();
+      return await operation();
     } finally {
       this.operationInProgress = false;
       if (this.lockRequested) {
@@ -522,6 +622,13 @@ export class VaultManager implements VaultController {
     return this.snapshot.payload;
   }
 
+  private requireUnlockedPayload(): VaultPayload {
+    if (this.snapshot.phase !== 'unlocked' || this.activeRecord === null) {
+      throw new VaultManagerError('invalid-state');
+    }
+    return this.snapshot.payload;
+  }
+
   private closeCurrentSession(): void {
     closeSession(this.session);
     this.session = null;
@@ -560,13 +667,26 @@ export class VaultManager implements VaultController {
       };
     } catch {
       closeSession(unlocked?.session ?? null);
-      const retryAfterMs = this.nextUnlockDelay();
-      try {
-        await this.sleeper.wait(retryAfterMs);
-      } catch {
-        // Delay adapter failures must not reveal or replace the generic unlock result.
-      }
-      throw new VaultUnlockError(retryAfterMs);
+      return await this.rejectUnlock();
+    } finally {
+      unlocked?.plaintext.fill(0);
+    }
+  }
+
+  private async unlockBackupForRestore(
+    envelope: EncryptedVaultEnvelope,
+    pin: string,
+  ): Promise<{ readonly payload: VaultPayload; readonly session: VaultSession }> {
+    let unlocked: VaultUnlockResult | null = null;
+
+    try {
+      unlocked = await this.cryptography.unlock(envelope, pin);
+      const decoded = this.codec.decode(unlocked.plaintext);
+      assertJournalInvariants({ episodes: decoded.episodes, logs: decoded.logs });
+      return { payload: decoded, session: unlocked.session };
+    } catch {
+      closeSession(unlocked?.session ?? null);
+      return await this.rejectUnlock();
     } finally {
       unlocked?.plaintext.fill(0);
     }
@@ -588,6 +708,7 @@ export class VaultManager implements VaultController {
         throw verificationFailure();
       }
       const decoded = this.codec.decode(unlocked.plaintext);
+      assertJournalInvariants({ episodes: decoded.episodes, logs: decoded.logs });
       return {
         payload: decoded,
         session: unlocked.session,
@@ -604,6 +725,16 @@ export class VaultManager implements VaultController {
     const index = Math.min(this.failedUnlockAttempts, UNLOCK_RETRY_DELAYS_MS.length - 1);
     this.failedUnlockAttempts += 1;
     return UNLOCK_RETRY_DELAYS_MS[index] ?? UNLOCK_RETRY_DELAYS_MS.at(-1) ?? 30_000;
+  }
+
+  private async rejectUnlock(): Promise<never> {
+    const retryAfterMs = this.nextUnlockDelay();
+    try {
+      await this.sleeper.wait(retryAfterMs);
+    } catch {
+      // Delay adapter failures must not reveal or replace the generic unlock result.
+    }
+    throw new VaultUnlockError(retryAfterMs);
   }
 
   private async stageUnprotected(

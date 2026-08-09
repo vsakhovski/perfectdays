@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { LanguageStore } from '../application/ports/language-store';
 import type { SystemLanguageSource } from '../application/ports/system-language-source';
 import type { ThemeStore } from '../application/ports/theme-store';
+import type { TextFileDownload } from '../application/ports/text-file-downloader';
 import type { VaultInvalidationChannel } from '../application/ports/vault-invalidation-channel';
 import type {
   ApplicationLifecycleSource,
@@ -169,6 +170,7 @@ async function renderApp({
   const themeStore = createThemeStore(themePreference, preferenceClearSucceeds);
   const vaultInvalidation = createTestVaultInvalidationChannel();
   const reloadPage = vi.fn();
+  const downloadedFiles: TextFileDownload[] = [];
 
   const result = render(
     <AppProviders
@@ -183,6 +185,11 @@ async function renderApp({
       reloadPage={reloadPage}
       systemLanguageSource={systemLanguagesController.source}
       themeStore={themeStore}
+      textFileDownloader={{
+        download: (file) => {
+          downloadedFiles.push(file);
+        },
+      }}
       vaultController={vaultController}
       vaultInitializationFailed={vaultInitializationFailed}
       vaultInvalidationChannel={vaultInvalidation.channel}
@@ -199,6 +206,7 @@ async function renderApp({
     vaultController,
     vaultInvalidation,
     reloadPage,
+    downloadedFiles,
   };
 }
 
@@ -344,7 +352,7 @@ describe('App', () => {
         name: /Saturday, August 8, 2026.*Recorded period day.*Higher confidence recorded/i,
       }),
     ).toBeVisible();
-  });
+  }, 10_000);
 
   it('imports start-only history without inventing durations and derives a forecast range', async () => {
     const user = userEvent.setup();
@@ -597,6 +605,128 @@ describe('App', () => {
     await waitFor(() => {
       expect(document.documentElement).toHaveAttribute('data-theme', 'dark');
     });
+  });
+
+  it('opens PIN setup from the encrypted-backup requirement', async () => {
+    const user = userEvent.setup();
+    await renderApp();
+
+    await user.click(screen.getByRole('button', { name: 'Set up PIN protection' }));
+
+    expect(screen.getByLabelText('New PIN')).toHaveFocus();
+    expect(screen.getByRole('heading', { name: 'Set up a six-digit PIN' })).toBeVisible();
+  });
+
+  it('downloads encrypted and explicitly confirmed readable exports through the file boundary', async () => {
+    const user = userEvent.setup();
+    const { downloadedFiles, vaultController } = await renderApp({ vaultPinEnabled: true });
+
+    await user.click(screen.getByRole('button', { name: 'Download encrypted backup' }));
+    await waitFor(() => {
+      expect(downloadedFiles).toHaveLength(1);
+    });
+    expect(vaultController.calls.exportEncryptedBackup).toBe(1);
+    expect(downloadedFiles[0]).toMatchObject({
+      fileName: 'private-journal-encrypted-backup-2026-08-08.json',
+      mimeType: 'application/json',
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Review readable-export warning' }));
+    await user.click(
+      screen.getByRole('checkbox', {
+        name: 'I understand that this export is not encrypted and contains readable sensitive data.',
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Export readable data' }));
+    await waitFor(() => {
+      expect(downloadedFiles).toHaveLength(2);
+    });
+    expect(vaultController.calls.exportPlaintextBackup).toBe(1);
+    expect(downloadedFiles[1]).toMatchObject({
+      fileName: 'private-journal-unencrypted-export-2026-08-08.json',
+      mimeType: 'application/json',
+    });
+  });
+
+  it('restores readable-export focus after async work without stealing later focus', async () => {
+    const user = userEvent.setup();
+    const { vaultController } = await renderApp({ vaultPinEnabled: true });
+    let finishFirstExport: ((contents: string) => void) | undefined;
+    let finishSecondExport: ((contents: string) => void) | undefined;
+    const firstExport = new Promise<string>((resolve) => {
+      finishFirstExport = resolve;
+    });
+    const secondExport = new Promise<string>((resolve) => {
+      finishSecondExport = resolve;
+    });
+    vi.spyOn(vaultController, 'exportPlaintextBackup')
+      .mockReturnValueOnce(firstExport)
+      .mockReturnValueOnce(secondExport);
+    const reviewWarning = 'Review readable-export warning';
+    const confirmation =
+      'I understand that this export is not encrypted and contains readable sensitive data.';
+
+    await user.click(screen.getByRole('button', { name: reviewWarning }));
+    await user.click(screen.getByRole('checkbox', { name: confirmation }));
+    await user.click(screen.getByRole('button', { name: 'Export readable data' }));
+
+    const disabledTrigger = screen.getByRole('button', { name: reviewWarning });
+    expect(disabledTrigger).toBeDisabled();
+    expect(disabledTrigger).not.toHaveFocus();
+    await act(async () => {
+      finishFirstExport?.('{"kind":"perfect-days/plaintext-export"}');
+      await firstExport;
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: reviewWarning })).toBeEnabled();
+      expect(screen.getByRole('button', { name: reviewWarning })).toHaveFocus();
+    });
+
+    await user.click(screen.getByRole('button', { name: reviewWarning }));
+    await user.click(screen.getByRole('checkbox', { name: confirmation }));
+    await user.click(screen.getByRole('button', { name: 'Export readable data' }));
+    const darkTheme = screen.getByRole('radio', { name: 'Dark' });
+    darkTheme.focus();
+    await act(async () => {
+      finishSecondExport?.('{"kind":"perfect-days/plaintext-export"}');
+      await secondExport;
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: reviewWarning })).toBeEnabled();
+    });
+    expect(darkTheme).toHaveFocus();
+  });
+
+  it('reads, restores, and publishes an encrypted backup without retaining the submitted form PIN', async () => {
+    const user = userEvent.setup();
+    const { vaultController, vaultInvalidation } = await renderApp();
+    const backupJson =
+      '{"kind":"perfect-days/encrypted-vault-backup","formatVersion":1,"envelope":{}}';
+    const backupFile = new File([backupJson], 'private-journal-backup.json', {
+      type: 'application/json',
+    });
+
+    await user.upload(screen.getByLabelText('Encrypted JSON backup'), backupFile);
+    await user.type(screen.getByLabelText('Backup PIN'), '246810');
+    await user.click(
+      screen.getByRole('checkbox', {
+        name: 'I understand that a verified restore replaces my current local journal.',
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Verify and replace current journal' }));
+
+    await waitFor(() => {
+      expect(vaultController.calls.restoreEncryptedBackup).toEqual([
+        { backupJson, backupPin: '246810' },
+      ]);
+    });
+    expect(vaultInvalidation.publish).toHaveBeenCalledOnce();
+    expect(screen.getByLabelText('Backup PIN')).toHaveValue('');
+    expect(
+      screen.getByText(
+        'The encrypted backup was restored. This journal is now protected by the backup PIN.',
+      ),
+    ).toBeVisible();
   });
 
   it('validates and enables a six-digit PIN from the security panel', async () => {

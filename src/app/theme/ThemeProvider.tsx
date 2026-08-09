@@ -17,7 +17,6 @@ function resolveTheme(preference: ThemePreference, prefersDark: boolean): Resolv
 
 function applyTheme(theme: ResolvedTheme): void {
   document.documentElement.dataset['theme'] = theme;
-  document.documentElement.style.colorScheme = theme;
   document
     .querySelector<HTMLMetaElement>('#app-theme-color')
     ?.setAttribute('content', theme === 'dark' ? '#171316' : '#fbf8f7');

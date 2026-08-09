@@ -19,6 +19,8 @@ interface PinFormProps {
   onSuccess: () => void;
 }
 
+export const PIN_SETUP_TRIGGER_ID = 'pin-setup-trigger';
+
 function FormErrorMessage({ error }: { error: FormError }) {
   const { t } = useTranslation();
   if (error === null) {
@@ -566,6 +568,7 @@ export function PinSecurityPanel() {
             ) : pinProtectionAvailable ? (
               <button
                 className={formStyles['primaryButton']}
+                id={PIN_SETUP_TRIGGER_ID}
                 onClick={() => {
                   open('setup');
                 }}

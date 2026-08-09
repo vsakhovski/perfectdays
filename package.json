@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "generate:pwa-icons": "node pwa/generate-icons.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint . --max-warnings 0",
@@ -17,11 +18,12 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "test": "vitest run",
+    "test:pwa": "node --test pwa/*.test.mjs",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "verify": "npm run format:check && npm run lint && npm test && npm run build",
+    "verify": "npm run format:check && npm run lint && npm test && npm run build && npm run test:pwa",
     "ci": "npm run verify && npm run test:e2e"
   },
   "dependencies": {
@@ -56,6 +58,7 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.66.0",
     "vite": "^8.2.0",
+    "vite-plugin-pwa": "^1.3.0",
     "vitest": "^4.1.10"
   }
 }

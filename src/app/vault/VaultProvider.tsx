@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { VaultController } from '../../application/vault/vault-controller';
 import type { VaultInvalidationChannel } from '../../application/ports/vault-invalidation-channel';
+import type { TextFileDownloader } from '../../application/ports/text-file-downloader';
 import {
   AutoLockController,
   type ApplicationLifecycleSource,
@@ -35,7 +36,12 @@ interface VaultProviderProps {
   pinProtectionAvailable: boolean;
   reloadPage: () => void;
   resetPreferences: () => boolean;
+  textFileDownloader: TextFileDownloader;
   vaultInvalidationChannel: VaultInvalidationChannel;
+}
+
+function fileDateStamp(nowIso: string): string {
+  return /^\d{4}-\d{2}-\d{2}/u.exec(nowIso)?.[0] ?? 'undated';
 }
 
 export function VaultProvider({
@@ -50,6 +56,7 @@ export function VaultProvider({
   pinProtectionAvailable,
   reloadPage,
   resetPreferences,
+  textFileDownloader,
   vaultInvalidationChannel,
 }: VaultProviderProps) {
   const { i18n } = useTranslation();
@@ -200,6 +207,39 @@ export function VaultProvider({
     },
     [controller, vaultInvalidationChannel],
   );
+  const downloadEncryptedBackup = useCallback(async () => {
+    const contents = await controller.exportEncryptedBackup();
+    textFileDownloader.download({
+      contents,
+      fileName: `private-journal-encrypted-backup-${fileDateStamp(nowIso())}.json`,
+      mimeType: 'application/json',
+    });
+  }, [controller, nowIso, textFileDownloader]);
+  const downloadPlaintextExport = useCallback(async () => {
+    const contents = await controller.exportPlaintextBackup();
+    textFileDownloader.download({
+      contents,
+      fileName: `private-journal-unencrypted-export-${fileDateStamp(nowIso())}.json`,
+      mimeType: 'application/json',
+    });
+  }, [controller, nowIso, textFileDownloader]);
+  const restoreEncryptedBackup = useCallback(
+    async (backupJson: string, backupPin: string) => {
+      try {
+        await controller.restoreEncryptedBackup(backupJson, backupPin);
+        vaultInvalidationChannel.publish();
+      } catch (error) {
+        if (error instanceof VaultManagerError && error.code === 'stale-state') {
+          setSynchronizing(true);
+          reloadPage();
+        } else if (error instanceof VaultManagerError && error.code === 'storage-failed') {
+          setUnavailable(true);
+        }
+        throw error;
+      }
+    },
+    [controller, reloadPage, vaultInvalidationChannel],
+  );
 
   const updateAutoLockDelay = useCallback(
     async (delay: AutoLockDelay) => {
@@ -266,10 +306,13 @@ export function VaultProvider({
       unavailable,
       changePin,
       disablePin,
+      downloadEncryptedBackup,
+      downloadPlaintextExport,
       enablePin,
       eraseEverything,
       lock,
       savePayload,
+      restoreEncryptedBackup,
       unlock,
       updateAutoLockDelay,
     }),
@@ -282,10 +325,13 @@ export function VaultProvider({
       unavailable,
       changePin,
       disablePin,
+      downloadEncryptedBackup,
+      downloadPlaintextExport,
       enablePin,
       eraseEverything,
       lock,
       savePayload,
+      restoreEncryptedBackup,
       unlock,
       updateAutoLockDelay,
     ],

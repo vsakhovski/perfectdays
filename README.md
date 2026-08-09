@@ -4,7 +4,7 @@
 
 A private, mobile-first menstrual journal that records bleeding and helps its user notice her own recurring wellbeing patterns. The product uses red, orange, and green calendar markers, but treats them as personal context rather than biological verdicts or judgments about competence.
 
-**Status:** Phase 3 engineering slice implemented. Alongside the secure local core and Phase 2 tracker flow, the app now presents recent cycle, known bleeding-duration, retrospective green-day, and forecast-context insights; exposes a localized history editor for correcting one episode's boundaries; and includes a developer-facing walk-forward evaluator for held-out forecast histories. The tested Phase 2 forecast rules remain unchanged: the evaluator is engineering evidence, not clinical validation or range calibration. Episode splitting/merging, PWA installability, export/restore, and evidence-driven pilot calibration remain future work.
+**Status:** Phase 4 engineering slice implemented. The secure local tracker, insights, and history-correction flows now include an installable offline application shell; versioned encrypted backup and crash-safe restore; an explicitly warned readable export; localized backup controls; browser/PWA theme integration; restrictive preview and static-host security policies; and automated offline, reflow, export/restore/erasure, and sensitive-data leakage checks. Episode splitting/merging, evidence-driven forecast calibration, final naming, and public-beta clinical, legal, security, and assistive-technology review remain future work.
 
 ## Product goal
 
@@ -349,6 +349,11 @@ A longer passphrase and platform passkey/biometric unlock may be added later, bu
 - Restoring that backup requires the PIN that was active when the backup was created. Changing the live app PIN does not change old backup files.
 - After restoring, the user may change the PIN normally.
 - With PIN protection disabled, the app asks the user to enable a PIN before creating an encrypted backup. A plaintext export remains possible only after an explicit sensitivity warning.
+- Backup files use a strict, versioned JSON wrapper and canonical base64 for binary envelope fields. The current parser rejects documents larger than 32 MiB before parsing.
+- Restore authenticates and decodes the backup, migrates and validates the logical payload and journal relationships, then protects it again with the current calibrated KDF policy, a fresh salt and data key, and fresh wrapping/payload IVs. It rereads and authenticates the staged candidate before atomically replacing the active record. A wrong PIN, malformed file, corrupt ciphertext, failed reread, or stale active pointer leaves the current vault unchanged.
+- A restored vault is protected by the backup PIN. Restore works from either an unlocked protected or unlocked unprotected local vault, making recovery onto a fresh installation possible.
+- The optional readable JSON export has a versioned machine warning code, while the localized UI provides the prominent human warning. There is deliberately no readable-import path.
+- Downloaded files are controlled by the user and cannot be removed by the app's **Erase everything** action.
 
 ## Light and dark themes
 
@@ -387,6 +392,7 @@ Foundation stack:
 - Dexie for IndexedDB access
 - Zod validation and explicit persisted-schema migration
 - Browser Web Crypto for PIN-protected encryption
+- vite-plugin-pwa/Workbox for a generated static application-shell precache
 
 Secure local core:
 
@@ -397,7 +403,7 @@ Secure local core:
 - PIN-free mode intentionally stores the versioned payload as unprotected IndexedDB data and says so in the UI.
 - PIN unlock revalidates the authoritative active record before and after decryption so an obsolete tab cannot unlock a replaced record.
 
-A Vite-compatible PWA plugin remains deferred until the logging and calendar flow works. Keeping unused production dependencies out of the current implementation reduces supply-chain surface.
+The production build now generates a manifest, registration script, and service worker. Workbox precaches only local build assets matched by the explicit static-shell patterns; runtime caching is empty, API-like navigation is excluded from the fallback, and the service worker never opens the health-data IndexedDB database. New workers explicitly activate and claim clients; open pages still need a reload before assuming that their already-loaded application code changed. Development mode does not register a service worker, so offline behavior is verified against the production preview. Install metadata contains only the provisional product name and no locale-specific descriptive prose; all in-app messages remain in the English and German catalogs.
 
 Architecture constraints:
 
@@ -417,30 +423,34 @@ Architecture constraints:
 ### Repository structure
 
 ```text
-e2e/                         Playwright browser and accessibility smoke tests
+e2e/                         Playwright browser, offline, leakage, and accessibility tests
+pwa/                         Dependency-free icon generator and built-artifact policy tests
+public/                      Neutral icons, external theme bootstrap, and static-host headers
 src/
   app/                       Composition and cross-cutting React providers
     i18n/                    Language preference context and document synchronization
     vault/                   Observable vault provider and UI-safe actions
   application/ports/         Interfaces owned by application policy
+  application/backup/        Versioned encrypted-backup and readable-export codecs
   application/vault/         Vault manager, PIN transitions, and auto-lock policy
   domain/                    Pure models, journal mutations, onboarding, markers, forecasts, insights, backtesting, and date logic
-  features/                  Calendar, day detail, history correction, insights, onboarding, settings, PIN, and lock workflows
+  features/                  Tracker, history, insights, backup/restore, settings, PIN, and lock workflows
   i18n/                      Typed resources, locale resolution, localized date formatting, and tests
     locales/en.ts            Canonical English message catalog
     locales/de.ts            German message catalog
   infrastructure/
     cryptography/            Web Crypto adapter and PBKDF2 calibration policy
     lifecycle/               Auto-lock and cross-tab invalidation adapters
+    files/                   Short-lived browser download adapter
     persistence/             Dexie store, Zod schemas, codec, and migrations
     platform/                Injected browser-local date, timestamp, and record-ID adapter
     preferences/             Non-sensitive theme and language stores
   shared/styles/             Global styles and light/dark design tokens
   test/                      Shared Vitest and Testing Library setup
-index.html                   App entry and pre-render theme initialization
+index.html                   CSP-compatible app entry; pre-render theme code lives in public/theme-init.js
 eslint.config.mjs            Typed linting and dependency-boundary rules
 playwright.config.ts         Desktop and mobile browser projects
-vite.config.ts               Production and development bundling
+vite.config.ts               Bundling, PWA generation, and production-preview security headers
 vitest.config.ts             Unit and component test configuration
 ```
 
@@ -461,7 +471,7 @@ app -> composition of all layers
 - ESLint rejects literal user-visible JSX text, while tests enforce translation key and interpolation-placeholder parity.
 - Directories are added when they contain a real implementation or contract; empty placeholder layers and generic `utils` folders are avoided.
 
-### Implemented foundation, secure core, and Phase 3 engineering slice
+### Implemented foundation, secure core, and Phase 4 engineering slice
 
 - A responsive, accessible React shell rendered in `StrictMode`.
 - System, light, and dark theme selection with local persistence.
@@ -494,8 +504,15 @@ app -> composition of all layers
 - A localized, accessible period-history list and modal correction editor for changing one episode's start, explicit known/unknown/active end state, and start-day flow without weakening journal invariants, converting start-only history into invented durations, or silently deleting unrelated daily observations.
 - A pure expanding-window backtest evaluator that holds out each later episode start in turn and reports per-sample signed and absolute start error, range inclusion, training-history variability band, skipped targets, aggregate median absolute error, empirical range coverage, and the same aggregate metrics segmented by variability for developer evaluation only.
 - Vault-backed saves for tracker observations and preferences, with a real-browser test covering setup, period/check-in entry, and IndexedDB persistence across reloads in all configured Playwright projects.
+- A localized backup/restore panel that gates encrypted export on PIN protection, routes directly to PIN setup, requires a two-step confirmation for readable export, validates restore file type/size/PIN/consent, clears submitted secrets, and reports generic non-destructive failures.
+- Strict encrypted-backup and readable-export codecs plus manager operations that require an unlocked/current vault, keep cryptographic material outside React, and preserve the old vault on every tested authentication, validation, persistence, or compare-and-swap failure.
+- A neutral installable manifest with the provisional product name, no locale-specific descriptive prose, 192- and 512-pixel maskable-capable icons, dynamic light/dark browser theme color, and an external pre-render theme bootstrap compatible with the production Content Security Policy.
+- A generated, auto-updating service worker with nine current static precache entries, no runtime cache rules, no external assets, and an offline navigation fallback limited to the application shell.
+- CSP, framing, MIME-sniffing, referrer, cross-origin, and browser-capability headers mirrored in Vite preview and a documented `_headers` deployment artifact; the deployed host must still be checked because static-host header-file support varies.
+- Production-browser checks for service-worker control and offline reload, retained IndexedDB observations, encrypted backup across a later live-PIN change, restored-PIN lock behavior, encrypted-vault erasure, 320-pixel dark/German reflow, keyboard focus, axe semantics, and absence of runtime secrets from URLs, localStorage, Cache Storage, network requests, and backup ciphertext.
+- Dependency and source audits showing no advertising, analytics, hosted resources, or application health-data network path; `npm audit` currently reports no known dependency vulnerabilities.
 
-Not implemented yet: episode splitting/merging, service worker/installability, encrypted or plaintext export/restore, evidence-based forecast-range refinement or calibration from pilot data, or public-beta clinical, legal, accessibility, and security review. The backtest evaluator is not exposed as a user-facing accuracy score and does not establish clinical accuracy.
+Not implemented yet: episode splitting/merging, evidence-based forecast-range refinement or calibration from pilot data, final product-name clearance, deployment-specific header verification, or public-beta clinical, legal, manual assistive-technology, and independent security review. The backtest evaluator is not exposed as a user-facing accuracy score and does not establish clinical accuracy.
 
 ## Privacy and data lifecycle
 
@@ -616,14 +633,15 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Build a repeatable, pure walk-forward evaluator that forecasts held-out episode starts from strictly earlier history and reports sample errors and empirical range coverage overall and by training-history variability.
 - [ ] Refine uncertainty ranges or describe calibrated coverage only from pilot evidence. The tested Phase 2 rules remain the documented baseline, and the developer evaluator alone is not calibration or clinical validation.
 
-### Phase 4 — PWA and hardening
+### Phase 4 — PWA and hardening (engineering slice complete)
 
-- Offline application shell and installability.
-- Encrypted export/restore and warned plaintext export.
-- Theme integration with browser/PWA chrome.
-- Accessibility, responsive-layout, keyboard, and screen-reader review.
-- Security headers, network-request audit, and sensitive-data leakage checks.
-- Full export, restore, and erasure verification.
+- [x] Generate an installable manifest, neutral raster icons, registration script, and static-only offline application shell.
+- [x] Add strict encrypted export/restore and a separately confirmed readable export.
+- [x] Integrate light/dark startup state with browser and installed-app theme chrome.
+- [x] Automate narrow responsive layout, dark-theme contrast/semantics, keyboard focus, and English/German accessibility smoke checks; retain manual screen-reader and forced-colors review for public-beta readiness.
+- [x] Add preview/static-host security policies plus dependency, network-request, cache, URL, localStorage, and encrypted-file leakage checks.
+- [x] Verify encrypted export, old-backup PIN independence, restore, offline persistence, and encrypted-vault erasure in a production Chromium browser.
+- [x] Verify that readable downloads complete in Firefox and mobile WebKit as well as Chromium.
 
 ### Phase 5 — Pilot and public-beta readiness
 
@@ -648,8 +666,8 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Green is based only on an explicit qualifying check-in in the MVP.
 - [x] Recorded facts remain visible when markers overlap: recorded red supersedes conflicting forecast coloring, while green can coexist with red.
 - [x] Tracker setup and recorded check-ins survive reload while the browser retains the origin's IndexedDB storage.
-- [ ] The installed application remains available offline through a cached application shell.
-- [ ] PIN-enabled encrypted backup/restore works as documented.
+- [x] The installed application remains available offline through a cached application shell.
+- [x] PIN-enabled encrypted backup/restore works as documented.
 
 ### Theme, localization, and accessibility
 
@@ -666,6 +684,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [ ] Both themes meet WCAG 2.2 AA contrast.
 - [ ] Core flows work at 320 CSS pixels wide, with keyboard, large text, and a screen reader.
 - [x] Component tests cover roving calendar focus, arrow/week/month keyboard navigation, and day-dialog focus return.
+- [x] The long German backup warning reflows without horizontal overflow at 320 CSS pixels in dark mode, retains keyboard focus, and passes the automated axe scan.
 - [ ] Forced-colors states have completed browser and assistive-technology review.
 
 ### PIN and security
@@ -680,7 +699,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] PIN and reset changes invalidate other open tabs, including after a frozen/BFCache page returns; unlock also rejects an obsolete active record.
 - [x] Missing secure-cryptography support is distinguished from an incorrect PIN and cannot silently downgrade encrypted data.
 - [x] Reset removes the vault and key material after explicit confirmation, attempts to clear outside-vault preferences, creates a new empty payload when storage permits, and reports any partial outcome truthfully.
-- [ ] No health data appears in logs, URLs, notifications, service-worker caches, or network requests.
+- [x] No health data appears in application logs, URLs, notifications, service-worker caches, or network requests in the implemented flows and automated synthetic-data checks.
 
 ### Date and forecast correctness
 
@@ -697,8 +716,8 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Persisted schema migrations are tested.
 - [x] Translation catalog parity, locale resolution, storage failure, component switching, and localized browser smoke tests are automated.
 - [x] Pure insight derivation, held-out backtesting, invariant-preserving boundary correction, and the insight/history components have automated tests.
-- [ ] The application works with the network disabled after installation while its origin storage and application-shell cache remain available.
-- [ ] Dependencies and production assets introduce no advertising or tracking behavior.
+- [x] The application works with the network disabled after installation while its origin storage and application-shell cache remain available.
+- [x] Dependencies and production assets introduce no advertising or tracking behavior in the dependency and built-asset audits.
 
 ## Validation targets
 
@@ -718,7 +737,7 @@ Verified on August 9, 2026:
 - Git `2.55.0.windows.3`
 - Git repository on `main`, tracking `origin/main`
 - PowerShell blocks the `npm.ps1` shim under the current execution policy; use `npm.cmd` and `npx.cmd` rather than changing machine-wide policy merely for this project.
-- The current baseline passes 282 Vitest tests and 36 Playwright tests across desktop Chromium/Firefox and mobile Chromium/WebKit.
+- The Phase 4 baseline includes 320 Vitest tests, four production-PWA artifact tests, and 48 passing Playwright cases across desktop Chromium/Firefox and mobile Chromium/WebKit; eight engine-specific cases are intentionally skipped outside their applicable projects.
 
 ### Local setup
 
@@ -740,8 +759,10 @@ Quality commands:
 | `npm.cmd run lint` | Run type-aware linting and architecture rules |
 | `npm.cmd run typecheck` | Run strict TypeScript checks without emitting files |
 | `npm.cmd test` | Run Vitest unit and component tests once |
+| `npm.cmd run test:pwa` | Check the already-built manifest, icons, service worker, and security-policy artifacts |
 | `npm.cmd run test:watch` | Run Vitest interactively while developing |
 | `npm.cmd run test:e2e` | Run Playwright across configured desktop and mobile projects |
+| `npm.cmd run generate:pwa-icons` | Rebuild the neutral 192/512 PNG icons from the dependency-free source script |
 | `npm.cmd run build` | Type-check and create the production bundle in `dist/` |
 | `npm.cmd run preview` | Serve the existing production build from `dist/` locally |
 | `npm.cmd run verify` | Run formatting, linting, unit tests, and production build |
@@ -758,7 +779,9 @@ npm.cmd run test:e2e
 
 Run `npm.cmd run build` before `npm.cmd run preview` whenever source files have changed. Preview serves the generated bundle; opening `dist/index.html` directly is not a reliable substitute for an HTTP server.
 
-`npm.cmd test` includes catalog key/placeholder parity and language resolution; schema-v3 migration and persistence boundaries; local-date and localized-date behavior; pure onboarding, journal, forecast, insight, marker, and walk-forward backtest rules; invariant-preserving single-episode correction; and calendar, onboarding, day-editor, insights, history, settings, vault, and application component tests. The Playwright suite includes real IndexedDB flows that persist a red/green check-in and that correct a period boundary, retain unrelated check-in values, and verify the correction after reload.
+The service worker is generated only for a production build. To inspect installability or offline behavior manually, run `npm.cmd run build`, start `npm.cmd run preview`, load the app once while online, and then use the browser's installed-app/offline tools. Vite preview applies the security headers from `vite.config.ts`; `public/_headers` is a deployment artifact for compatible static hosts such as Cloudflare Pages or Netlify. Other hosts need equivalent explicit configuration, and every deployed HTTPS response must be verified rather than assuming the file was honored.
+
+`npm.cmd test` includes catalog key/placeholder parity and language resolution; schema-v3 migration and persistence boundaries; local-date and localized-date behavior; pure onboarding, journal, forecast, insight, marker, and walk-forward backtest rules; invariant-preserving single-episode correction; strict backup codecs and crash-safe restore; and calendar, onboarding, day-editor, insights, history, backup, settings, vault, and application component tests. `npm.cmd run verify` builds before checking the generated PWA artifacts. The Playwright setup builds and serves the production bundle when its selected port is free, then covers real IndexedDB journal/correction flows, narrow dark/German reflow and keyboard semantics, generated-service-worker offline reload, encrypted backup across a live-PIN change, restore under the original backup PIN, destructive erasure, and synthetic-secret leakage surfaces.
 
 Add a message to `src/i18n/locales/en.ts` first, then add the matching key and placeholders to every other locale; TypeScript and the test suite reject drift.
 
@@ -808,6 +831,9 @@ Privacy and data protection:
 Technical foundations:
 
 - [Vite documentation](https://vite.dev/guide/)
+- [Vite PWA plugin guide](https://vite-pwa-org.netlify.app/guide/)
+- [MDN: Making PWAs installable](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable)
+- [MDN: Content-Security-Policy `worker-src`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/worker-src)
 - [react-i18next documentation](https://react.i18next.com/latest)
 - [i18next TypeScript documentation](https://www.i18next.com/overview/typescript)
 - [Dexie React tutorial](https://dexie.org/docs/Tutorial/React)

@@ -5,6 +5,7 @@ import { I18nextProvider } from 'react-i18next';
 import type { LanguageStore } from '../application/ports/language-store';
 import type { SystemLanguageSource } from '../application/ports/system-language-source';
 import type { ThemeStore } from '../application/ports/theme-store';
+import type { TextFileDownloader } from '../application/ports/text-file-downloader';
 import type { VaultInvalidationChannel } from '../application/ports/vault-invalidation-channel';
 import type { VaultController } from '../application/vault/vault-controller';
 import type {
@@ -25,6 +26,7 @@ interface AppProvidersProps {
   languageStore: LanguageStore;
   systemLanguageSource: SystemLanguageSource;
   themeStore: ThemeStore;
+  textFileDownloader: TextFileDownloader;
   vaultController: VaultController;
   createInitialVaultPayload: () => VaultPayload;
   vaultInitializationFailed: boolean;
@@ -47,6 +49,7 @@ type AppVaultProviderProps = Pick<
   | 'nowIso'
   | 'pinProtectionAvailable'
   | 'reloadPage'
+  | 'textFileDownloader'
   | 'vaultController'
   | 'vaultInitializationFailed'
   | 'vaultInvalidationChannel'
@@ -61,6 +64,7 @@ function AppVaultProvider({
   nowIso,
   pinProtectionAvailable,
   reloadPage,
+  textFileDownloader,
   vaultController,
   vaultInitializationFailed,
   vaultInvalidationChannel,
@@ -95,6 +99,7 @@ function AppVaultProvider({
       pinProtectionAvailable={pinProtectionAvailable}
       reloadPage={reloadPage}
       resetPreferences={resetPreferences}
+      textFileDownloader={textFileDownloader}
       vaultInvalidationChannel={vaultInvalidationChannel}
     >
       {children}
@@ -108,6 +113,7 @@ export function AppProviders({
   languageStore,
   systemLanguageSource,
   themeStore,
+  textFileDownloader,
   autoLockClock,
   lifecycle,
   journalEnvironment,
@@ -135,6 +141,7 @@ export function AppProviders({
             nowIso={nowIso}
             pinProtectionAvailable={pinProtectionAvailable}
             reloadPage={reloadPage}
+            textFileDownloader={textFileDownloader}
             vaultController={vaultController}
             vaultInitializationFailed={vaultInitializationFailed}
             vaultInvalidationChannel={vaultInvalidationChannel}

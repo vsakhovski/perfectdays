@@ -17,6 +17,7 @@ import {
 import { createBrowserVaultInvalidationChannel } from './infrastructure/lifecycle/browser-vault-invalidation-channel';
 import { DexieVaultRecordStore } from './infrastructure/persistence/dexie-vault-record-store';
 import { browserJournalEnvironment } from './infrastructure/platform/browser-journal-environment';
+import { browserTextFileDownloader } from './infrastructure/files/browser-text-file-downloader';
 import {
   createEmptyVaultPayload,
   decodeVaultPayload,
@@ -95,6 +96,7 @@ createRoot(rootElement).render(
       reloadPage={reloadPage}
       systemLanguageSource={browserSystemLanguageSource}
       themeStore={browserThemeStore}
+      textFileDownloader={browserTextFileDownloader}
       vaultController={vaultController}
       vaultInitializationFailed={false}
       vaultInvalidationChannel={vaultInvalidationChannel}

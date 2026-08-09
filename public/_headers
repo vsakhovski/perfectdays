@@ -1,0 +1,31 @@
+# Cloudflare Pages and Netlify parse this file at deploy time.
+# Vite preview serves the file but does not apply its route-specific cache/MIME rules;
+# preview.headers mirrors the security headers, and the deployed origin must be verified.
+
+/*
+  Content-Security-Policy: default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; frame-src 'none'; form-action 'self'; script-src 'self'; script-src-attr 'none'; style-src 'self'; style-src-attr 'none'; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; media-src 'none'; worker-src 'self'
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  Permissions-Policy: camera=(), display-capture=(), geolocation=(), microphone=(), payment=(), publickey-credentials-get=(), usb=()
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/registerSW.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/manifest.webmanifest
+  Cache-Control: public, max-age=0, must-revalidate
+  Content-Type: application/manifest+json; charset=utf-8
+
+/theme-init.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

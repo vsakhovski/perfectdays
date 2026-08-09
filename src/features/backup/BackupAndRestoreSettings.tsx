@@ -1,0 +1,185 @@
+import { useCallback, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { useVault } from '../../app/vault/use-vault';
+import {
+  BackupAndRestorePanel,
+  type BackupAndRestoreCopy,
+  type BackupOperation,
+  type RestoreEncryptedBackupRequest,
+} from './BackupAndRestorePanel';
+
+type Feedback =
+  | {
+      readonly kind: 'error';
+      readonly code: 'encryptedFailed' | 'plaintextFailed' | 'restoreFailed';
+    }
+  | {
+      readonly kind: 'status';
+      readonly code: 'encryptedDownloaded' | 'plaintextDownloaded' | 'restored';
+    }
+  | null;
+
+export interface BackupAndRestoreSettingsProps {
+  readonly onEnablePin: () => void;
+}
+
+export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettingsProps) {
+  const { t } = useTranslation();
+  const {
+    downloadEncryptedBackup,
+    downloadPlaintextExport,
+    pinProtectionAvailable,
+    restoreEncryptedBackup,
+    snapshot,
+  } = useVault();
+  const activeOperation = useRef<BackupOperation | undefined>(undefined);
+  const [busyOperation, setBusyOperation] = useState<BackupOperation>();
+  const [feedback, setFeedback] = useState<Feedback>(null);
+
+  const copy: BackupAndRestoreCopy = {
+    sectionLabel: t(($) => $.vault.backup.sectionLabel),
+    title: t(($) => $.vault.backup.title),
+    description: t(($) => $.vault.backup.description),
+    locked: t(($) => $.vault.backup.locked),
+    cryptoUnavailable: t(($) => $.vault.backup.cryptoUnavailable),
+    encrypted: {
+      title: t(($) => $.vault.backup.encrypted.title),
+      description: t(($) => $.vault.backup.encrypted.description),
+      action: t(($) => $.vault.backup.encrypted.action),
+      working: t(($) => $.vault.backup.encrypted.working),
+      pinRequired: t(($) => $.vault.backup.encrypted.pinRequired),
+      enablePin: t(($) => $.vault.backup.encrypted.enablePin),
+      enablingPin: t(($) => $.vault.backup.encrypted.enablingPin),
+    },
+    plaintext: {
+      title: t(($) => $.vault.backup.plaintext.title),
+      description: t(($) => $.vault.backup.plaintext.description),
+      reviewWarning: t(($) => $.vault.backup.plaintext.reviewWarning),
+      warningTitle: t(($) => $.vault.backup.plaintext.warningTitle),
+      warning: t(($) => $.vault.backup.plaintext.warning),
+      confirmation: t(($) => $.vault.backup.plaintext.confirmation),
+      action: t(($) => $.vault.backup.plaintext.action),
+      working: t(($) => $.vault.backup.plaintext.working),
+      cancel: t(($) => $.vault.backup.plaintext.cancel),
+    },
+    restore: {
+      title: t(($) => $.vault.backup.restore.title),
+      description: t(($) => $.vault.backup.restore.description),
+      warningTitle: t(($) => $.vault.backup.restore.warningTitle),
+      warning: t(($) => $.vault.backup.restore.warning),
+      fileLabel: t(($) => $.vault.backup.restore.fileLabel),
+      chooseFile: t(($) => $.vault.backup.restore.chooseFile),
+      noFileSelected: t(($) => $.vault.backup.restore.noFileSelected),
+      selectedFile: (fileName) => t(($) => $.vault.backup.restore.selectedFile, { fileName }),
+      pinLabel: t(($) => $.vault.backup.restore.pinLabel),
+      pinHint: t(($) => $.vault.backup.restore.pinHint),
+      confirmation: t(($) => $.vault.backup.restore.confirmation),
+      action: t(($) => $.vault.backup.restore.action),
+      working: t(($) => $.vault.backup.restore.working),
+      clear: t(($) => $.vault.backup.restore.clear),
+      validation: {
+        fileRequired: t(($) => $.vault.backup.restore.validation.fileRequired),
+        jsonRequired: t(($) => $.vault.backup.restore.validation.jsonRequired),
+        fileTooLarge: (maximumBytes) =>
+          t(($) => $.vault.backup.restore.validation.fileTooLarge, {
+            maximumMegabytes: Math.floor(maximumBytes / (1024 * 1024)),
+          }),
+        pinRequired: t(($) => $.vault.backup.restore.validation.pinRequired),
+        pinInvalid: t(($) => $.vault.backup.restore.validation.pinInvalid),
+        confirmationRequired: t(($) => $.vault.backup.restore.validation.confirmationRequired),
+      },
+    },
+  };
+
+  const runOperation = useCallback(
+    async (
+      operation: BackupOperation,
+      action: () => Promise<void>,
+      successCode: Extract<Feedback, { kind: 'status' }>['code'],
+      errorCode: Extract<Feedback, { kind: 'error' }>['code'],
+    ) => {
+      if (activeOperation.current !== undefined) return;
+
+      activeOperation.current = operation;
+      setBusyOperation(operation);
+      setFeedback(null);
+      try {
+        await action();
+        setFeedback({ kind: 'status', code: successCode });
+      } catch {
+        setFeedback({ kind: 'error', code: errorCode });
+      } finally {
+        activeOperation.current = undefined;
+        setBusyOperation(undefined);
+      }
+    },
+    [],
+  );
+
+  const requestEncryptedBackup = () => {
+    void runOperation(
+      'encrypted-backup',
+      downloadEncryptedBackup,
+      'encryptedDownloaded',
+      'encryptedFailed',
+    );
+  };
+  const requestPlaintextExport = () => {
+    void runOperation(
+      'plaintext-export',
+      downloadPlaintextExport,
+      'plaintextDownloaded',
+      'plaintextFailed',
+    );
+  };
+  const requestRestore = ({ file, backupPin }: RestoreEncryptedBackupRequest) => {
+    void runOperation(
+      'encrypted-restore',
+      async () => {
+        const backupJson = await file.text();
+        await restoreEncryptedBackup(backupJson, backupPin);
+      },
+      'restored',
+      'restoreFailed',
+    );
+  };
+
+  const feedbackMessage =
+    feedback === null
+      ? undefined
+      : feedback.code === 'encryptedDownloaded'
+        ? t(($) => $.vault.backup.feedback.encryptedDownloaded)
+        : feedback.code === 'plaintextDownloaded'
+          ? t(($) => $.vault.backup.feedback.plaintextDownloaded)
+          : feedback.code === 'restored'
+            ? t(($) => $.vault.backup.feedback.restored)
+            : feedback.code === 'encryptedFailed'
+              ? t(($) => $.vault.backup.feedback.encryptedFailed)
+              : feedback.code === 'plaintextFailed'
+                ? t(($) => $.vault.backup.feedback.plaintextFailed)
+                : t(($) => $.vault.backup.feedback.restoreFailed);
+
+  return (
+    <BackupAndRestorePanel
+      {...(busyOperation === undefined ? {} : { busyOperation })}
+      copy={copy}
+      enablePin={() => {
+        setFeedback(null);
+        onEnablePin();
+      }}
+      {...(feedback?.kind === 'error' && feedbackMessage !== undefined
+        ? { errorMessage: feedbackMessage }
+        : {})}
+      pinEnabled={snapshot.pinEnabled}
+      pinProtectionAvailable={pinProtectionAvailable}
+      requestEncryptedBackup={requestEncryptedBackup}
+      requestPlaintextExport={requestPlaintextExport}
+      restoreEncryptedBackup={requestRestore}
+      {...(feedback?.kind === 'status' && feedbackMessage !== undefined
+        ? { statusMessage: feedbackMessage }
+        : {})}
+      vaultUnlocked={snapshot.phase === 'unlocked'}
+    />
+  );
+}

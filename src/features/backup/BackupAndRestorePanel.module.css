@@ -1,0 +1,269 @@
+.panel,
+.heading,
+.cardGrid,
+.card,
+.cardHeader,
+.pinRequired,
+.warningFlow,
+.restoreForm,
+.field,
+.warning {
+  display: grid;
+  gap: 1rem;
+}
+
+.panel {
+  margin-block-start: clamp(2.5rem, 8vw, 5rem);
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.heading h2,
+.heading p,
+.cardHeader h3,
+.cardHeader p,
+.pinRequired p,
+.warning h4,
+.warning p,
+.lockedNotice,
+.muted,
+.panelError,
+.status {
+  margin: 0;
+}
+
+.heading h2 {
+  font-size: clamp(1.4rem, 4vw, 1.9rem);
+  letter-spacing: -0.025em;
+}
+
+.heading > p:last-child,
+.cardHeader p,
+.muted,
+.fieldHint,
+.fileName,
+.status {
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+.eyebrow {
+  color: var(--color-accent);
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.cardGrid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  align-items: start;
+}
+
+.card {
+  min-inline-size: 0;
+  padding: clamp(1rem, 3vw, 1.35rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  background: var(--color-surface-subtle);
+}
+
+.cardHeader {
+  gap: 0.45rem;
+}
+
+.cardHeader h3 {
+  font-size: 1.15rem;
+}
+
+.cardHeader p,
+.confirmation span,
+.warning p,
+.fileName,
+.lockedNotice,
+.muted {
+  overflow-wrap: anywhere;
+}
+
+.lockedNotice,
+.warning {
+  padding: 0.85rem;
+  border: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-background);
+  line-height: 1.5;
+}
+
+.warning {
+  gap: 0.35rem;
+}
+
+.warning h4 {
+  font-size: 1rem;
+}
+
+.field {
+  gap: 0.35rem;
+  min-inline-size: 0;
+}
+
+.fieldLabel {
+  font-weight: 750;
+}
+
+.fieldHint,
+.fileName,
+.fieldError {
+  font-size: 0.86rem;
+}
+
+.field > input {
+  inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.field > input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+  box-shadow: inset 0 0 0 1px var(--color-danger);
+}
+
+.filePicker {
+  position: relative;
+  justify-self: start;
+  cursor: pointer;
+}
+
+.filePicker input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.filePicker span,
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  display: inline-grid;
+  place-items: center;
+  min-block-size: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 750;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.primaryButton {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.secondaryButton,
+.filePicker span {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.dangerButton {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-on-danger, white);
+}
+
+.confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  min-block-size: 2.75rem;
+  cursor: pointer;
+}
+
+.confirmation input {
+  flex: 0 0 auto;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin-block-start: 0.1rem;
+  accent-color: var(--color-accent);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.fieldError,
+.panelError {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.panelError,
+.status {
+  padding: 0.8rem;
+  border-radius: var(--radius-small);
+  background: var(--color-background);
+}
+
+.filePicker input:focus-visible + span,
+.field > input:focus-visible,
+.confirmation input:focus-visible,
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.dangerButton:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.filePicker input:disabled + span,
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.dangerButton:disabled,
+.confirmation input:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+@media (max-width: 32rem) {
+  .actions,
+  .actions > button,
+  .card > button,
+  .pinRequired > button,
+  .restoreForm > button,
+  .filePicker,
+  .filePicker span {
+    inline-size: 100%;
+  }
+}
+
+@media (forced-colors: active) {
+  .panel,
+  .card,
+  .lockedNotice,
+  .warning,
+  .field > input,
+  .filePicker span,
+  .primaryButton,
+  .secondaryButton,
+  .dangerButton {
+    border: 1px solid CanvasText;
+  }
+
+  .field > input[aria-invalid='true'] {
+    border: 3px solid Mark;
+    box-shadow: none;
+  }
+}

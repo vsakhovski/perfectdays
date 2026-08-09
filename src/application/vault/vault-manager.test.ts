@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
+import { asLocalDate } from '../../domain/local-date';
 import type { VaultPayload } from '../../domain/models';
+import { VaultBackupCodecError } from '../backup/backup-json';
+import {
+  decodeEncryptedVaultBackup,
+  encodeEncryptedVaultBackup,
+} from '../backup/encrypted-vault-backup-codec';
+import {
+  PLAINTEXT_VAULT_EXPORT_FORMAT_VERSION,
+  PLAINTEXT_VAULT_EXPORT_KIND,
+  PLAINTEXT_VAULT_EXPORT_WARNING_CODE,
+} from '../backup/plaintext-vault-export-codec';
 import type {
   EncryptedVaultEnvelope,
   VaultCryptography,
@@ -98,6 +109,7 @@ class FakeVaultRecordStore implements VaultRecordStore {
   corruptNextStagedRead = false;
   failNextActivation = false;
   failNextReplacement = false;
+  stageCalls = 0;
 
   seed(record: PersistedVaultRecord): VaultRecordId {
     const id = `record-${String(this.nextId)}`;
@@ -124,6 +136,7 @@ class FakeVaultRecordStore implements VaultRecordStore {
   }
 
   stage(record: PersistedVaultRecord): Promise<VaultRecordId> {
+    this.stageCalls += 1;
     const id = `record-${String(this.nextId)}`;
     this.nextId += 1;
     this.records.set(id, { id, ...clonePersisted(record) });
@@ -255,12 +268,15 @@ class FakeVaultSession implements VaultSession {
 }
 
 class FakeVaultCryptography implements VaultCryptography {
+  readonly currentProtectionIterations = 600_000;
+
   private readonly pinsBySalt = new Map<number, string>();
   private nextSalt = 1;
   private nextDataKey = 17;
   private nextIv = 1;
 
   readonly sessions: FakeVaultSession[] = [];
+  unlockCallCount = 0;
   lastProtectInput: Uint8Array | null = null;
   lastSealInput: Uint8Array | null = null;
   lastUnlockedPlaintext: Uint8Array | null = null;
@@ -268,16 +284,27 @@ class FakeVaultCryptography implements VaultCryptography {
   onSealStarted: (() => void) | null = null;
 
   protect(plaintext: Uint8Array, pin: string): Promise<VaultProtectionResult> {
+    return this.protectWithIterations(plaintext, pin, this.currentProtectionIterations);
+  }
+
+  protectWithIterations(
+    plaintext: Uint8Array,
+    pin: string,
+    iterations: number,
+  ): Promise<VaultProtectionResult> {
     this.lastProtectInput = plaintext;
     const salt = this.nextSalt;
     this.nextSalt += 1;
     this.pinsBySalt.set(salt, pin);
     const dataKey = this.nextDataKey;
     this.nextDataKey += 1;
-    return Promise.resolve(this.result(this.createEnvelope(plaintext, salt, dataKey), plaintext));
+    return Promise.resolve(
+      this.result(this.createEnvelope(plaintext, salt, dataKey, iterations), plaintext),
+    );
   }
 
   unlock(envelope: EncryptedVaultEnvelope, pin: string): Promise<VaultUnlockResult> {
+    this.unlockCallCount += 1;
     const salt = envelope.keyDerivation.salt[0];
     const dataKey = envelope.wrappedDataKey[0];
     if (
@@ -293,6 +320,7 @@ class FakeVaultCryptography implements VaultCryptography {
     this.lastUnlockedPlaintext = plaintext;
     const expectedChecksum = plaintext.reduce((sum, value) => (sum + value) % 256, 0);
     if (envelope.payloadIv[1] !== expectedChecksum) {
+      plaintext.fill(0);
       throw new Error('authentication-failed');
     }
 
@@ -307,7 +335,10 @@ class FakeVaultCryptography implements VaultCryptography {
     if (salt === undefined || dataKey === undefined) {
       throw new Error('invalid-envelope');
     }
-    return this.result(this.createEnvelope(plaintext, salt, dataKey), plaintext);
+    return this.result(
+      this.createEnvelope(plaintext, salt, dataKey, envelope.keyDerivation.iterations),
+      plaintext,
+    );
   }
 
   finishSeal(candidate: VaultProtectionResult): Promise<VaultProtectionResult> {
@@ -327,7 +358,10 @@ class FakeVaultCryptography implements VaultCryptography {
     const salt = this.nextSalt;
     this.nextSalt += 1;
     this.pinsBySalt.set(salt, newPin);
-    return this.result(this.createEnvelope(plaintext, salt, dataKey), plaintext);
+    return this.result(
+      this.createEnvelope(plaintext, salt, dataKey, this.currentProtectionIterations),
+      plaintext,
+    );
   }
 
   private result(envelope: EncryptedVaultEnvelope, plaintext: Uint8Array): VaultProtectionResult {
@@ -347,6 +381,7 @@ class FakeVaultCryptography implements VaultCryptography {
     plaintext: Uint8Array,
     salt: number,
     dataKey: number,
+    iterations: number,
   ): EncryptedVaultEnvelope {
     const checksum = plaintext.reduce((sum, value) => (sum + value) % 256, 0);
     const iv = this.nextIv;
@@ -355,7 +390,7 @@ class FakeVaultCryptography implements VaultCryptography {
       formatVersion: 1,
       keyDerivation: {
         algorithm: 'PBKDF2-SHA-256',
-        iterations: 1,
+        iterations,
         salt: new Uint8Array([salt]),
       },
       wrappedDataKey: new Uint8Array([dataKey]),
@@ -386,7 +421,7 @@ interface Harness {
   readonly manager: VaultManager;
 }
 
-function harness(): Harness {
+function harness(payloadCodec: VaultPayloadCodec = codec): Harness {
   const store = new FakeVaultRecordStore();
   const cryptography = new FakeVaultCryptography();
   const sleeper = new RecordingSleeper();
@@ -394,7 +429,7 @@ function harness(): Harness {
     store,
     cryptography,
     sleeper,
-    manager: new VaultManager({ store, cryptography, codec, sleeper }),
+    manager: new VaultManager({ store, cryptography, codec: payloadCodec, sleeper }),
   };
 }
 
@@ -409,6 +444,12 @@ async function seedEncrypted(
     representation: 'encrypted',
     envelope: protectedRecord.envelope,
   });
+}
+
+async function backupJson(target: Harness, value: VaultPayload, pin = '654321'): Promise<string> {
+  const protectedRecord = await target.cryptography.protect(codec.encode(value), pin);
+  protectedRecord.session.close();
+  return encodeEncryptedVaultBackup(cloneEnvelope(protectedRecord.envelope));
 }
 
 describe('VaultManager', () => {
@@ -754,6 +795,325 @@ describe('VaultManager', () => {
     expect(target.store.activeRecord()?.representation).toBe('unprotected');
     expect(target.manager.getSnapshot().pinEnabled).toBe(false);
     expect(target.store.recordCount()).toBe(1);
+  });
+
+  it('exports encrypted backups only from an encrypted, unlocked, current vault', async () => {
+    const target = harness();
+    await seedEncrypted(target, payload(), '123456');
+    await target.manager.load();
+
+    await expect(target.manager.exportEncryptedBackup()).rejects.toMatchObject({
+      code: 'invalid-state',
+    });
+    await target.manager.unlock('123456');
+
+    const exported = decodeEncryptedVaultBackup(await target.manager.exportEncryptedBackup());
+    const active = target.store.activeRecord();
+    expect(active?.representation).toBe('encrypted');
+    if (active?.representation !== 'encrypted') {
+      throw new Error('expected-encrypted-record');
+    }
+    expect(exported).toEqual(active.envelope);
+    expect(target.store.stageCalls).toBe(0);
+
+    const unprotected = harness();
+    unprotected.store.seed({ representation: 'unprotected', payload: codec.encode(payload()) });
+    await unprotected.manager.load();
+    await expect(unprotected.manager.exportEncryptedBackup()).rejects.toMatchObject({
+      code: 'invalid-state',
+    });
+  });
+
+  it('exports a deterministic, warned, versioned plaintext document only while unlocked', async () => {
+    const target = harness();
+    const value = payload();
+    target.store.seed({ representation: 'unprotected', payload: codec.encode(value) });
+    await target.manager.load();
+
+    const first = await target.manager.exportPlaintextBackup();
+    const second = await target.manager.exportPlaintextBackup();
+    expect(first).toBe(second);
+    expect(JSON.parse(first)).toEqual({
+      kind: PLAINTEXT_VAULT_EXPORT_KIND,
+      formatVersion: PLAINTEXT_VAULT_EXPORT_FORMAT_VERSION,
+      warningCode: PLAINTEXT_VAULT_EXPORT_WARNING_CODE,
+      payload: value,
+    });
+    expect(target.store.stageCalls).toBe(0);
+
+    const locked = harness();
+    await seedEncrypted(locked, value);
+    await locked.manager.load();
+    await expect(locked.manager.exportPlaintextBackup()).rejects.toMatchObject({
+      code: 'invalid-state',
+    });
+    await locked.manager.unlock('123456');
+    expect(JSON.parse(await locked.manager.exportPlaintextBackup())).toMatchObject({
+      warningCode: PLAINTEXT_VAULT_EXPORT_WARNING_CODE,
+      payload: value,
+    });
+  });
+
+  it('restores a verified backup with a fresh envelope and adopts its PIN and session', async () => {
+    const target = harness();
+    const restored = payload('2026-08-08T15:00:00.000Z');
+    const backup = await backupJson(target, restored, '654321');
+    const sourceEnvelope = decodeEncryptedVaultBackup(backup);
+    await seedEncrypted(target, payload(), '123456');
+    await target.manager.load();
+    await target.manager.unlock('123456');
+    const previousSession = target.cryptography.sessions.at(-1);
+    const sessionCountBeforeRestore = target.cryptography.sessions.length;
+
+    await target.manager.restoreEncryptedBackup(backup, '654321');
+
+    const active = target.store.activeRecord();
+    expect(active?.representation).toBe('encrypted');
+    if (active?.representation !== 'encrypted') {
+      throw new Error('expected-encrypted-record');
+    }
+    expect(active.envelope.payloadIv).not.toEqual(sourceEnvelope.payloadIv);
+    expect(target.store.recordCount()).toBe(1);
+    expect(target.manager.getSnapshot()).toEqual({
+      phase: 'unlocked',
+      pinEnabled: true,
+      payload: restored,
+    });
+    expect(previousSession?.closed).toBe(true);
+    expect(
+      target.cryptography.sessions
+        .slice(sessionCountBeforeRestore)
+        .map((session) => session.closed),
+    ).toEqual([true, true, false]);
+    expect(target.cryptography.lastProtectInput?.every((value) => value === 0)).toBe(true);
+    expect(target.cryptography.lastUnlockedPlaintext?.every((value) => value === 0)).toBe(true);
+
+    target.manager.lock();
+    await expect(target.manager.unlock('123456')).rejects.toBeInstanceOf(VaultUnlockError);
+    await target.manager.unlock('654321');
+    expect(target.manager.getSnapshot().payload).toEqual(restored);
+  });
+
+  it('reprotects a legacy backup with the current KDF policy and fresh key material', async () => {
+    const target = harness();
+    const restored = payload('2026-08-08T15:30:00.000Z');
+    const legacyBytes = codec.encode(restored);
+    const legacyProtection = await target.cryptography.protectWithIterations(
+      legacyBytes,
+      '654321',
+      1,
+    );
+    legacyProtection.session.close();
+    legacyBytes.fill(0);
+    const sourceEnvelope = cloneEnvelope(legacyProtection.envelope);
+    const backup = encodeEncryptedVaultBackup(sourceEnvelope);
+    await seedEncrypted(target, payload(), '123456');
+    await target.manager.load();
+    await target.manager.unlock('123456');
+
+    await target.manager.restoreEncryptedBackup(backup, '654321');
+
+    const active = target.store.activeRecord();
+    if (active?.representation !== 'encrypted') {
+      throw new Error('expected-encrypted-record');
+    }
+    expect(sourceEnvelope.keyDerivation.iterations).toBe(1);
+    expect(active.envelope.keyDerivation.iterations).toBe(
+      target.cryptography.currentProtectionIterations,
+    );
+    expect(active.envelope.keyDerivation.salt).not.toEqual(sourceEnvelope.keyDerivation.salt);
+    expect(active.envelope.wrappedDataKey).not.toEqual(sourceEnvelope.wrappedDataKey);
+    expect(active.envelope.wrappedDataKeyIv).not.toEqual(sourceEnvelope.wrappedDataKeyIv);
+    expect(active.envelope.payloadIv).not.toEqual(sourceEnvelope.payloadIv);
+    expect(target.manager.getSnapshot().payload).toEqual(restored);
+
+    target.manager.lock();
+    await target.manager.unlock('654321');
+    expect(target.manager.getSnapshot().payload).toEqual(restored);
+  });
+
+  it('rejects malformed wrappers before staging and never includes backup contents in errors', async () => {
+    const target = harness();
+    const originalId = target.store.seed({
+      representation: 'unprotected',
+      payload: codec.encode(payload()),
+    });
+    await target.manager.load();
+    const malformed = '{"kind":"secret-content"}';
+
+    const error = await target.manager
+      .restoreEncryptedBackup(malformed, '654321')
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(VaultBackupCodecError);
+    expect(error).toMatchObject({ code: 'invalid-backup', message: 'invalid-backup' });
+    expect(String(error)).not.toContain('secret-content');
+    expect(String(error)).not.toContain('654321');
+    expect(target.store.activeRecord()?.id).toBe(originalId);
+    expect(target.store.stageCalls).toBe(0);
+    expect(target.cryptography.unlockCallCount).toBe(0);
+  });
+
+  it('makes a wrong backup PIN and authenticated-envelope corruption indistinguishable', async () => {
+    const wrongPin = harness();
+    const backup = await backupJson(wrongPin, payload('2026-08-08T15:00:00.000Z'));
+    const wrongPinOriginal = wrongPin.store.seed({
+      representation: 'unprotected',
+      payload: codec.encode(payload()),
+    });
+    await wrongPin.manager.load();
+
+    const wrongPinError = await wrongPin.manager
+      .restoreEncryptedBackup(backup, '111111')
+      .catch((error: unknown) => error);
+    expect(wrongPinError).toBeInstanceOf(VaultUnlockError);
+    expect(wrongPinError).toMatchObject({ code: 'unlock-failed', retryAfterMs: 0 });
+    expect(wrongPin.store.activeRecord()?.id).toBe(wrongPinOriginal);
+    expect(wrongPin.store.stageCalls).toBe(0);
+
+    const corrupted = harness();
+    const corruptedEnvelope = decodeEncryptedVaultBackup(
+      await backupJson(corrupted, payload('2026-08-08T16:00:00.000Z')),
+    );
+    corruptedEnvelope.payloadCiphertext[0] = (corruptedEnvelope.payloadCiphertext[0] ?? 0) ^ 1;
+    const corruptedBackup = encodeEncryptedVaultBackup(corruptedEnvelope);
+    const corruptedOriginal = corrupted.store.seed({
+      representation: 'unprotected',
+      payload: codec.encode(payload()),
+    });
+    await corrupted.manager.load();
+
+    const corruptedError = await corrupted.manager
+      .restoreEncryptedBackup(corruptedBackup, '654321')
+      .catch((error: unknown) => error);
+    expect(corruptedError).toBeInstanceOf(VaultUnlockError);
+    expect(corruptedError).toMatchObject({ code: 'unlock-failed', retryAfterMs: 0 });
+    expect(corrupted.store.activeRecord()?.id).toBe(corruptedOriginal);
+    expect(corrupted.store.stageCalls).toBe(0);
+    expect(corrupted.cryptography.lastUnlockedPlaintext?.every((value) => value === 0)).toBe(true);
+  });
+
+  it('rejects authenticated backups with invalid journal relationships before staging', async () => {
+    const target = harness();
+    const invalidJournal: VaultPayload = {
+      ...payload('2026-08-08T17:00:00.000Z'),
+      episodes: [
+        {
+          id: 'episode-without-start-log',
+          startDate: asLocalDate('2026-08-01'),
+          endDate: asLocalDate('2026-08-03'),
+          createdAt: '2026-08-01T09:00:00.000Z',
+          updatedAt: '2026-08-03T09:00:00.000Z',
+        },
+      ],
+    };
+    const backup = await backupJson(target, invalidJournal);
+    const originalId = target.store.seed({
+      representation: 'unprotected',
+      payload: codec.encode(payload()),
+    });
+    await target.manager.load();
+
+    await expect(target.manager.restoreEncryptedBackup(backup, '654321')).rejects.toMatchObject({
+      code: 'unlock-failed',
+      retryAfterMs: 0,
+    });
+    expect(target.store.activeRecord()?.id).toBe(originalId);
+    expect(target.store.stageCalls).toBe(0);
+    expect(target.cryptography.lastUnlockedPlaintext?.every((value) => value === 0)).toBe(true);
+  });
+
+  it('preserves the original and closes candidate sessions on reread or CAS failure', async () => {
+    for (const failure of ['reread', 'replacement'] as const) {
+      const target = harness();
+      const backup = await backupJson(target, payload('2026-08-08T18:00:00.000Z'));
+      const originalId = await seedEncrypted(target, payload(), '123456');
+      await target.manager.load();
+      await target.manager.unlock('123456');
+      const previousSession = target.cryptography.sessions.at(-1);
+      const sessionCountBeforeRestore = target.cryptography.sessions.length;
+      if (failure === 'reread') {
+        target.store.corruptNextStagedRead = true;
+      } else {
+        target.store.failNextReplacement = true;
+      }
+
+      await expect(target.manager.restoreEncryptedBackup(backup, '654321')).rejects.toMatchObject({
+        code: failure === 'reread' ? 'verification-failed' : 'storage-failed',
+      });
+
+      expect(target.store.activeRecord()?.id).toBe(originalId);
+      expect(target.store.recordCount()).toBe(1);
+      expect(target.manager.getSnapshot().payload).toEqual(payload());
+      expect(previousSession?.closed).toBe(false);
+      expect(
+        target.cryptography.sessions
+          .slice(sessionCountBeforeRestore)
+          .every((session) => session.closed),
+      ).toBe(true);
+    }
+  });
+
+  it('migrates an old payload and reprotects the current schema before activation', async () => {
+    const migratingCodec: VaultPayloadCodec = {
+      encode(value) {
+        return codec.encode(value);
+      },
+      decode(bytes) {
+        const candidate = JSON.parse(textDecoder.decode(bytes)) as Record<string, unknown>;
+        if (candidate['schemaVersion'] === 2) {
+          return {
+            ...candidate,
+            schemaVersion: 3,
+            settings: {
+              ...(candidate['settings'] as VaultPayload['settings']),
+              onboardingCompleted: false,
+            },
+          } as unknown as VaultPayload;
+        }
+        return codec.decode(bytes);
+      },
+    };
+    const target = harness(migratingCodec);
+    const current = payload('2026-08-08T19:00:00.000Z');
+    const oldPayload = {
+      ...current,
+      schemaVersion: 2,
+      settings: {
+        orangeEnabled: current.settings.orangeEnabled,
+        orangeDays: current.settings.orangeDays,
+        forecastingPaused: current.settings.forecastingPaused,
+        autoLockDelay: current.settings.autoLockDelay,
+      },
+    };
+    const oldBytes = textEncoder.encode(JSON.stringify(oldPayload));
+    const protectedBackup = await target.cryptography.protect(oldBytes, '654321');
+    protectedBackup.session.close();
+    oldBytes.fill(0);
+    const backup = encodeEncryptedVaultBackup(cloneEnvelope(protectedBackup.envelope));
+    target.store.seed({ representation: 'unprotected', payload: codec.encode(payload()) });
+    await target.manager.load();
+
+    await target.manager.restoreEncryptedBackup(backup, '654321');
+
+    expect(target.manager.getSnapshot().payload).toMatchObject({
+      schemaVersion: 3,
+      settings: { onboardingCompleted: false },
+    });
+    const active = target.store.activeRecord();
+    if (active?.representation !== 'encrypted') {
+      throw new Error('expected-encrypted-record');
+    }
+    const unlocked = await target.cryptography.unlock(active.envelope, '654321');
+    try {
+      expect(JSON.parse(textDecoder.decode(unlocked.plaintext))).toMatchObject({
+        schemaVersion: 3,
+        settings: { onboardingCompleted: false },
+      });
+    } finally {
+      unlocked.plaintext.fill(0);
+      unlocked.session.close();
+    }
   });
 
   it('destructively resets an encrypted locked vault without requiring its PIN', async () => {

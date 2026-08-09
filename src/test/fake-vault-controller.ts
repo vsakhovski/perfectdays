@@ -6,6 +6,9 @@ export class FakeVaultController implements VaultController {
     changePin: [] as { currentPin: string; newPin: string }[],
     disablePin: [] as string[],
     enablePin: [] as string[],
+    exportEncryptedBackup: 0,
+    exportPlaintextBackup: 0,
+    restoreEncryptedBackup: [] as { backupJson: string; backupPin: string }[],
     unlock: [] as string[],
   };
 
@@ -69,6 +72,26 @@ export class FakeVaultController implements VaultController {
       pinEnabled: this.snapshot.pinEnabled,
       payload,
     });
+    return Promise.resolve();
+  }
+
+  exportEncryptedBackup(): Promise<string> {
+    this.calls.exportEncryptedBackup += 1;
+    return Promise.resolve(
+      '{"kind":"perfect-days/encrypted-vault-backup","formatVersion":1,"envelope":{}}',
+    );
+  }
+
+  exportPlaintextBackup(): Promise<string> {
+    this.calls.exportPlaintextBackup += 1;
+    return Promise.resolve(
+      '{"kind":"perfect-days/plaintext-export","formatVersion":1,"payload":{}}',
+    );
+  }
+
+  restoreEncryptedBackup(backupJson: string, backupPin: string): Promise<void> {
+    this.calls.restoreEncryptedBackup.push({ backupJson, backupPin });
+    this.publish({ phase: 'unlocked', pinEnabled: true, payload: this.requirePayload() });
     return Promise.resolve();
   }
 

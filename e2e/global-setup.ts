@@ -1,4 +1,4 @@
-import { createServer } from 'vite';
+import { build, preview } from 'vite';
 
 import { getE2EBaseUrl, getE2EPort } from './runtime-config';
 
@@ -20,16 +20,15 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     return () => Promise.resolve();
   }
 
-  const server = await createServer({
+  await build({ logLevel: 'error' });
+  const server = await preview({
     logLevel: 'error',
-    server: {
+    preview: {
       host: E2E_HOST,
       port: E2E_PORT,
       strictPort: true,
     },
   });
-
-  await server.listen();
 
   return async () => {
     await server.close();

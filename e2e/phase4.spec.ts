@@ -1,0 +1,361 @@
+import { randomInt, randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+
+import { expect, test, type Page } from '@playwright/test';
+
+interface RequestRecord {
+  readonly url: string;
+  readonly body: string;
+}
+
+interface CachedResponseRecord {
+  readonly url: string;
+  readonly body: string;
+}
+
+function createRuntimePin(excluded?: string): string {
+  let pin: string;
+  do {
+    pin = String(randomInt(100_000, 1_000_000));
+  } while (pin === excluded);
+  return pin;
+}
+
+function containsAnySecret(values: readonly string[], secrets: readonly string[]): boolean {
+  const tokens = secrets.flatMap((secret) => [secret, encodeURIComponent(secret)]);
+  return values.some((value) => tokens.some((token) => value.includes(token)));
+}
+
+function capturePostLoadRequests(page: Page): RequestRecord[] {
+  const records: RequestRecord[] = [];
+  page.on('request', (request) => {
+    records.push({ url: request.url(), body: request.postData() ?? '' });
+  });
+  return records;
+}
+
+async function readCachedResponses(page: Page): Promise<readonly CachedResponseRecord[]> {
+  return page.evaluate<readonly CachedResponseRecord[]>(`(async () => {
+    const records = [];
+    for (const cacheName of await window.caches.keys()) {
+      const cache = await window.caches.open(cacheName);
+      for (const response of await cache.matchAll()) {
+        let body;
+        try {
+          body = await response.clone().text();
+        } catch {
+          body = '';
+        }
+        records.push({ url: response.url, body });
+      }
+    }
+    return records;
+  })()`);
+}
+
+async function assertSecretsAbsentFromBrowserSurfaces(
+  page: Page,
+  requests: readonly RequestRecord[],
+  secrets: readonly string[],
+): Promise<void> {
+  const localStorageValues = await page.evaluate<string[]>('Object.values(window.localStorage)');
+  const cachedResponses = await readCachedResponses(page);
+  const surfaces = [
+    page.url(),
+    ...localStorageValues,
+    ...cachedResponses.flatMap(({ url, body }) => [url, body]),
+    ...requests.flatMap(({ url, body }) => [url, body]),
+  ];
+
+  expect(containsAnySecret(surfaces, secrets)).toBe(false);
+}
+
+async function ensureGeneratedServiceWorkerControls(page: Page): Promise<void> {
+  await page.evaluate<undefined>('navigator.serviceWorker.ready.then(() => undefined)');
+
+  if (!(await page.evaluate<boolean>('navigator.serviceWorker.controller !== null'))) {
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(
+      page.getByRole('heading', { name: /your patterns, in your hands/i }),
+    ).toBeVisible();
+  }
+
+  await page.waitForFunction('navigator.serviceWorker.controller !== null');
+  const controller = await page.evaluate<{ scriptUrl: string; state: string }>(
+    `({
+      scriptUrl: navigator.serviceWorker.controller?.scriptURL ?? '',
+      state: navigator.serviceWorker.controller?.state ?? '',
+    })`,
+  );
+  expect(new URL(controller.scriptUrl).pathname).toBe('/sw.js');
+  expect(controller.state).toBe('activated');
+}
+
+async function finishOnboarding(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Finish without history' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Your recorded days and estimates' }),
+  ).toBeVisible();
+}
+
+async function recordToday(page: Page, note: string): Promise<void> {
+  await page.locator('button[aria-current="date"]').click();
+  const dialog = page.getByRole('dialog', { name: 'Daily check-in' });
+  await dialog.getByRole('radio', { name: 'Medium' }).check();
+  await dialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }).check();
+  await dialog.getByLabel('Private note').fill(note);
+  await dialog.getByRole('button', { name: /Start period/ }).click();
+  await expect(dialog.getByText('Period started.')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Save check-in' }).click();
+  await expect(dialog.getByText('Check-in saved.')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Close daily check-in' }).click();
+}
+
+async function updateTodayNote(page: Page, note: string): Promise<void> {
+  await page.locator('button[aria-current="date"]').click();
+  const dialog = page.getByRole('dialog', { name: 'Daily check-in' });
+  await dialog.getByLabel('Private note').fill(note);
+  await dialog.getByRole('button', { name: 'Save check-in' }).click();
+  await expect(dialog.getByText('Check-in saved.')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Close daily check-in' }).click();
+}
+
+test.describe('Phase 4 production boundaries', () => {
+  test.use({ acceptDownloads: true, locale: 'en-US', serviceWorkers: 'allow' });
+
+  test.beforeEach(({ browserName }) => {
+    test.skip(browserName !== 'chromium', 'Service-worker installation is verified in Chromium.');
+  });
+
+  test('reloads offline under the generated service worker and retains an IndexedDB check-in', async ({
+    context,
+    page,
+  }) => {
+    test.slow();
+    const privateNote = `phase4-offline-note-${randomUUID()}`;
+
+    const initialResponse = await page.goto('/');
+    expect(initialResponse).not.toBeNull();
+    const responseHeaders = initialResponse?.headers() ?? {};
+    expect(responseHeaders['content-security-policy']).toContain("default-src 'self'");
+    expect(responseHeaders['x-content-type-options']).toBe('nosniff');
+    expect(responseHeaders['referrer-policy']).toBe('no-referrer');
+    await expect(
+      page.getByRole('heading', { name: /your patterns, in your hands/i }),
+    ).toBeVisible();
+    await ensureGeneratedServiceWorkerControls(page);
+    const requests = capturePostLoadRequests(page);
+    await finishOnboarding(page);
+    await recordToday(page, privateNote);
+
+    await context.setOffline(true);
+    try {
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(
+        page.getByRole('heading', { name: 'Your recorded days and estimates' }),
+      ).toBeVisible();
+      expect(await page.evaluate<boolean>('navigator.serviceWorker.controller !== null')).toBe(
+        true,
+      );
+
+      const today = page.locator('button[aria-current="date"]');
+      await expect(today).toHaveAccessibleName(/Recorded period day/);
+      await today.click();
+      await expect(
+        page.getByRole('dialog', { name: 'Daily check-in' }).getByLabel('Private note'),
+      ).toHaveValue(privateNote);
+
+      await assertSecretsAbsentFromBrowserSurfaces(page, requests, [privateNote]);
+    } finally {
+      await context.setOffline(false);
+    }
+  });
+
+  test('round-trips an encrypted backup across a live-PIN change without leaking runtime secrets', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(180_000);
+    const originalPin = createRuntimePin();
+    const changedPin = createRuntimePin(originalPin);
+    const originalNote = `phase4-original-note-${randomUUID()}`;
+    const mutatedNote = `phase4-mutated-note-${randomUUID()}`;
+    const secrets = [originalPin, changedPin, originalNote, mutatedNote];
+
+    await page.goto('/');
+    await expect(
+      page.getByRole('heading', { name: /your patterns, in your hands/i }),
+    ).toBeVisible();
+    await ensureGeneratedServiceWorkerControls(page);
+    const requests = capturePostLoadRequests(page);
+    await finishOnboarding(page);
+    await recordToday(page, originalNote);
+
+    await page.getByRole('button', { name: 'Set up a PIN', exact: true }).click();
+    await page.getByLabel('New PIN', { exact: true }).fill(originalPin);
+    await page.getByLabel('Confirm new PIN', { exact: true }).fill(originalPin);
+    await page.getByRole('button', { name: 'Enable PIN protection' }).click();
+    await expect(page.getByText('PIN protection is now on.')).toBeVisible();
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download encrypted backup' }).click();
+    const download = await downloadPromise;
+    const backupPath = testInfo.outputPath('encrypted-round-trip.json');
+    await download.saveAs(backupPath);
+    await expect(page.getByText('The encrypted backup download has started.')).toBeVisible();
+    const backupContents = await readFile(backupPath, 'utf8');
+    expect(containsAnySecret([backupContents], secrets)).toBe(false);
+
+    await page.getByRole('button', { name: 'Change PIN', exact: true }).click();
+    await page.getByLabel('Current PIN').fill(originalPin);
+    await page.getByLabel('New PIN', { exact: true }).fill(changedPin);
+    await page.getByLabel('Confirm new PIN', { exact: true }).fill(changedPin);
+    await page.getByRole('button', { name: 'Change PIN', exact: true }).click();
+    await expect(page.getByText('The PIN was changed.')).toBeVisible();
+    await updateTodayNote(page, mutatedNote);
+
+    await page.getByLabel('Encrypted JSON backup').setInputFiles(backupPath);
+    await page.getByLabel('Backup PIN').fill(originalPin);
+    await page
+      .getByRole('checkbox', {
+        name: 'I understand that a verified restore replaces my current local journal.',
+      })
+      .check();
+    await page.getByRole('button', { name: 'Verify and replace current journal' }).click();
+    await expect(
+      page.getByText(
+        'The encrypted backup was restored. This journal is now protected by the backup PIN.',
+      ),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Lock now' }).click();
+    await expect(page.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
+    await page.getByLabel('PIN').fill(changedPin);
+    await page.getByRole('button', { name: 'Unlock' }).click();
+    await expect(page.getByRole('alert')).toContainText('could not be unlocked');
+    await page.getByLabel('PIN').fill(originalPin);
+    await page.getByRole('button', { name: 'Unlock' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Your recorded days and estimates' }),
+    ).toBeVisible();
+
+    await page.locator('button[aria-current="date"]').click();
+    const restoredNote = page
+      .getByRole('dialog', { name: 'Daily check-in' })
+      .getByLabel('Private note');
+    await expect(restoredNote).toHaveValue(originalNote);
+    await expect(restoredNote).not.toHaveValue(mutatedNote);
+
+    await assertSecretsAbsentFromBrowserSurfaces(page, requests, secrets);
+  });
+
+  test('erases encrypted journal records while retaining only the static offline shell', async ({
+    page,
+  }) => {
+    test.slow();
+    const pin = createRuntimePin();
+    const privateNote = `phase4-erasure-note-${randomUUID()}`;
+
+    await page.goto('/');
+    await expect(
+      page.getByRole('heading', { name: /your patterns, in your hands/i }),
+    ).toBeVisible();
+    await ensureGeneratedServiceWorkerControls(page);
+    const requests = capturePostLoadRequests(page);
+    await finishOnboarding(page);
+    await recordToday(page, privateNote);
+
+    await page.getByRole('button', { name: 'Set up a PIN', exact: true }).click();
+    await page.getByLabel('New PIN', { exact: true }).fill(pin);
+    await page.getByLabel('Confirm new PIN', { exact: true }).fill(pin);
+    await page.getByRole('button', { name: 'Enable PIN protection' }).click();
+    await expect(page.getByText('PIN protection is now on.')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Erase everything' }).click();
+    await page.getByRole('checkbox', { name: 'I understand that this cannot be undone.' }).check();
+    await page.getByRole('button', { name: 'Erase everything' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Set up your private journal' })).toBeVisible();
+
+    const persistedRecords = await page.evaluate<
+      readonly { readonly representation: string; readonly payloadText: string }[]
+    >(`(async () => {
+      const database = await new Promise((resolve, reject) => {
+        const request = indexedDB.open('perfect-days-vault');
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+      });
+      try {
+        const records = await new Promise((resolve, reject) => {
+          const request = database.transaction('vaultRecords', 'readonly')
+            .objectStore('vaultRecords').getAll();
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => resolve(request.result);
+        });
+        return records.map((record) => ({
+          representation: record.representation,
+          payloadText: record.representation === 'unprotected'
+            ? new TextDecoder().decode(record.payload)
+            : '',
+        }));
+      } finally {
+        database.close();
+      }
+    })()`);
+
+    expect(persistedRecords).toHaveLength(1);
+    expect(persistedRecords[0]?.representation).toBe('unprotected');
+    const replacementPayload = JSON.parse(persistedRecords[0]?.payloadText ?? '{}') as {
+      readonly episodes?: unknown[];
+      readonly logs?: unknown[];
+      readonly settings?: { readonly onboardingCompleted?: boolean };
+    };
+    expect(replacementPayload.episodes).toEqual([]);
+    expect(replacementPayload.logs).toEqual([]);
+    expect(replacementPayload.settings?.onboardingCompleted).toBe(false);
+
+    const cacheNames = await page.evaluate<string[]>('window.caches.keys()');
+    expect(cacheNames.length).toBeGreaterThan(0);
+    await assertSecretsAbsentFromBrowserSurfaces(page, requests, [pin, privateNote]);
+  });
+});
+
+test.describe('Phase 4 download portability', () => {
+  test.use({ acceptDownloads: true, locale: 'en-US', serviceWorkers: 'block' });
+
+  test.beforeEach(({ browserName }) => {
+    test.skip(browserName === 'chromium', 'This focused case covers Firefox and WebKit.');
+  });
+
+  test('completes a real readable-export download in non-Chromium engines', async ({
+    page,
+  }, testInfo) => {
+    await page.goto('/');
+    await expect(
+      page.getByRole('heading', { name: /your patterns, in your hands/i }),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Review readable-export warning' }).click();
+    await page
+      .getByRole('checkbox', {
+        name: 'I understand that this export is not encrypted and contains readable sensitive data.',
+      })
+      .check();
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export readable data' }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(
+      /^private-journal-unencrypted-export-\d{4}-\d{2}-\d{2}\.json$/,
+    );
+
+    const exportPath = testInfo.outputPath('readable-export.json');
+    await download.saveAs(exportPath);
+    const exportContents = await readFile(exportPath, 'utf8');
+    expect(JSON.parse(exportContents)).toMatchObject({
+      kind: 'perfect-days/plaintext-export',
+      formatVersion: 1,
+      warningCode: 'unencrypted-sensitive-health-data',
+    });
+    await expect(page.getByText('The readable export download has started.')).toBeVisible();
+  });
+});

@@ -412,6 +412,79 @@ export const de = {
       },
       preferences: 'Einstellungen auf dem Sperrbildschirm',
     },
+    backup: {
+      sectionLabel: 'Datenübertragung',
+      title: 'Tagebuch sichern oder wiederherstellen',
+      description:
+        'Verschlüsselte Sicherungen bleiben durch ihre Sicherungs-PIN geschützt. Heruntergeladene Dateien liegen außerhalb dieser App und werden durch „Alles löschen“ nicht entfernt.',
+      locked:
+        'Entsperre den lokalen Datentresor, bevor du Sicherungs- oder Wiederherstellungsfunktionen verwendest.',
+      cryptoUnavailable:
+        'Verschlüsselte Sicherung und Wiederherstellung sind nicht verfügbar, weil die sichere Browser-Verschlüsselung fehlt.',
+      encrypted: {
+        title: 'Verschlüsselte Sicherung',
+        description:
+          'Lade eine übertragbare verschlüsselte Kopie herunter. Sie bleibt durch die jetzt verwendete PIN geschützt, auch wenn du die App-PIN später änderst.',
+        action: 'Verschlüsselte Sicherung herunterladen',
+        working: 'Verschlüsselte Sicherung wird vorbereitet…',
+        pinRequired: 'Aktiviere den PIN-Schutz, bevor du eine verschlüsselte Sicherung erstellst.',
+        enablePin: 'PIN-Schutz einrichten',
+        enablingPin: 'PIN-Einrichtung wird geöffnet…',
+      },
+      plaintext: {
+        title: 'Lesbarer Export',
+        description:
+          'Eine lesbare JSON-Kopie ist nur nach einem gesonderten Datenschutzhinweis verfügbar.',
+        reviewWarning: 'Warnung zum lesbaren Export prüfen',
+        warningTitle: 'Diese Datei enthält lesbare sensible Daten',
+        warning:
+          'Jede Person mit Zugriff auf diese unverschlüsselte Datei kann alle Periodendaten, Bewertungen und privaten Notizen darin lesen. Bewahre und teile sie mit größter Sorgfalt.',
+        confirmation:
+          'Ich verstehe, dass dieser Export nicht verschlüsselt ist und lesbare sensible Daten enthält.',
+        action: 'Lesbare Daten exportieren',
+        working: 'Lesbarer Export wird vorbereitet…',
+        cancel: 'Lesbaren Export abbrechen',
+      },
+      restore: {
+        title: 'Verschlüsselte Sicherung wiederherstellen',
+        description:
+          'Wähle eine verschlüsselte JSON-Sicherung und gib die sechsstellige PIN ein, mit der diese Datei geschützt wurde.',
+        warningTitle: 'Eine bestätigte Wiederherstellung ersetzt dieses Tagebuch',
+        warning:
+          'Datei und PIN werden geprüft, bevor sich etwas ändert. Eine erfolgreiche Wiederherstellung ersetzt dieses Tagebuch und verwendet die Sicherungs-PIN als Sperre. Darstellung und Sprache bleiben unverändert.',
+        fileLabel: 'Verschlüsselte JSON-Sicherung',
+        chooseFile: 'Sicherungsdatei auswählen',
+        noFileSelected: 'Keine Sicherungsdatei ausgewählt.',
+        selectedFile: 'Ausgewählte Sicherung: {{fileName}}',
+        pinLabel: 'Sicherungs-PIN',
+        pinHint: 'Gib die sechsstellige PIN ein, die beim Erstellen dieser Sicherung galt.',
+        confirmation:
+          'Ich verstehe, dass eine bestätigte Wiederherstellung mein aktuelles lokales Tagebuch ersetzt.',
+        action: 'Prüfen und aktuelles Tagebuch ersetzen',
+        working: 'Verschlüsselte Sicherung wird geprüft…',
+        clear: 'Wiederherstellungsformular leeren',
+        validation: {
+          fileRequired: 'Wähle eine verschlüsselte JSON-Sicherung aus.',
+          jsonRequired: 'Wähle eine Datei, deren Name auf .json endet.',
+          fileTooLarge: 'Wähle eine Sicherung mit höchstens {{maximumMegabytes}} MB.',
+          pinRequired: 'Gib die Sicherungs-PIN ein.',
+          pinInvalid: 'Gib genau sechs Ziffern ein.',
+          confirmationRequired: 'Bestätige, dass das aktuelle Tagebuch ersetzt wird.',
+        },
+      },
+      feedback: {
+        encryptedDownloaded: 'Der Download der verschlüsselten Sicherung wurde gestartet.',
+        plaintextDownloaded: 'Der Download des lesbaren Exports wurde gestartet.',
+        restored:
+          'Die verschlüsselte Sicherung wurde wiederhergestellt. Dieses Tagebuch ist jetzt durch die Sicherungs-PIN geschützt.',
+        encryptedFailed:
+          'Die verschlüsselte Sicherung konnte nicht erstellt werden. Dein Tagebuch wurde nicht verändert.',
+        plaintextFailed:
+          'Der lesbare Export konnte nicht erstellt werden. Dein Tagebuch wurde nicht verändert.',
+        restoreFailed:
+          'Die Sicherung konnte nicht wiederhergestellt werden. Prüfe Datei und Sicherungs-PIN. Dein aktuelles Tagebuch wurde nicht verändert.',
+      },
+    },
     security: {
       eyebrow: 'Datenschutz',
       title: 'PIN-Sperre und lokaler Datentresor',

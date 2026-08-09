@@ -400,6 +400,74 @@ export const en = {
       },
       preferences: 'Lock-screen preferences',
     },
+    backup: {
+      sectionLabel: 'Data portability',
+      title: 'Back up or restore your journal',
+      description:
+        'Encrypted backups stay protected by their backup PIN. Downloaded files are outside this app and are not removed by Erase everything.',
+      locked: 'Unlock the local vault before using backup or restore tools.',
+      cryptoUnavailable:
+        'Encrypted backup and restore are unavailable because secure browser cryptography is not available.',
+      encrypted: {
+        title: 'Encrypted backup',
+        description:
+          'Download a portable encrypted copy. It stays protected by the PIN in use now, even if you change the app PIN later.',
+        action: 'Download encrypted backup',
+        working: 'Preparing encrypted backup…',
+        pinRequired: 'Turn on PIN protection before creating an encrypted backup.',
+        enablePin: 'Set up PIN protection',
+        enablingPin: 'Opening PIN setup…',
+      },
+      plaintext: {
+        title: 'Readable export',
+        description: 'A readable JSON copy is available only after a separate privacy warning.',
+        reviewWarning: 'Review readable-export warning',
+        warningTitle: 'This file contains readable sensitive data',
+        warning:
+          'Anyone who gets this unencrypted file can read every period date, rating, and private note in it. Store and share it with great care.',
+        confirmation:
+          'I understand that this export is not encrypted and contains readable sensitive data.',
+        action: 'Export readable data',
+        working: 'Preparing readable export…',
+        cancel: 'Cancel readable export',
+      },
+      restore: {
+        title: 'Restore encrypted backup',
+        description:
+          'Choose an encrypted JSON backup and enter the six-digit PIN that protected that file.',
+        warningTitle: 'A verified restore replaces this journal',
+        warning:
+          'The file and its PIN are verified before anything changes. A successful restore replaces this journal and uses the backup PIN for its lock. Appearance and language stay unchanged.',
+        fileLabel: 'Encrypted JSON backup',
+        chooseFile: 'Choose backup file',
+        noFileSelected: 'No backup file selected.',
+        selectedFile: 'Selected backup: {{fileName}}',
+        pinLabel: 'Backup PIN',
+        pinHint: 'Enter the six-digit PIN used when this backup was created.',
+        confirmation: 'I understand that a verified restore replaces my current local journal.',
+        action: 'Verify and replace current journal',
+        working: 'Verifying encrypted backup…',
+        clear: 'Clear restore form',
+        validation: {
+          fileRequired: 'Choose an encrypted JSON backup.',
+          jsonRequired: 'Choose a file whose name ends in .json.',
+          fileTooLarge: 'Choose a backup no larger than {{maximumMegabytes}} MB.',
+          pinRequired: 'Enter the backup PIN.',
+          pinInvalid: 'Enter exactly six digits.',
+          confirmationRequired: 'Confirm that the current journal will be replaced.',
+        },
+      },
+      feedback: {
+        encryptedDownloaded: 'The encrypted backup download has started.',
+        plaintextDownloaded: 'The readable export download has started.',
+        restored:
+          'The encrypted backup was restored. This journal is now protected by the backup PIN.',
+        encryptedFailed: 'The encrypted backup could not be created. Your journal was not changed.',
+        plaintextFailed: 'The readable export could not be created. Your journal was not changed.',
+        restoreFailed:
+          'The backup could not be restored. Check the file and backup PIN. Your current journal was not changed.',
+      },
+    },
     security: {
       eyebrow: 'Privacy',
       title: 'PIN lock and local vault',

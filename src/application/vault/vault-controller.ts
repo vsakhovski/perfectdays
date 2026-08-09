@@ -30,6 +30,9 @@ export interface VaultController {
   readonly unlock: (pin: string) => Promise<void>;
   readonly lock: () => void;
   readonly save: (payload: VaultPayload) => Promise<void>;
+  readonly exportEncryptedBackup: () => Promise<string>;
+  readonly exportPlaintextBackup: () => Promise<string>;
+  readonly restoreEncryptedBackup: (backupJson: string, backupPin: string) => Promise<void>;
   readonly enablePin: (pin: string) => Promise<void>;
   readonly disablePin: (currentPin: string) => Promise<void>;
   readonly changePin: (currentPin: string, newPin: string) => Promise<void>;

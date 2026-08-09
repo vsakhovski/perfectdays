@@ -316,3 +316,42 @@ test.describe('device language detection', () => {
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
   });
 });
+
+test.describe('narrow dark German shell', () => {
+  test.use({
+    colorScheme: 'dark',
+    locale: 'de-DE',
+    viewport: { width: 320, height: 800 },
+  });
+
+  test('reflows long backup warnings and preserves keyboard focus and semantics', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      globalThis.localStorage.setItem('perfect-days:theme', 'dark');
+    });
+    await page.goto('/');
+
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(
+      page.getByRole('heading', { name: 'Tagebuch sichern oder wiederherstellen' }),
+    ).toBeVisible();
+
+    const warningTrigger = page.getByRole('button', {
+      name: 'Warnung zum lesbaren Export prüfen',
+    });
+    await warningTrigger.focus();
+    await warningTrigger.press('Enter');
+    await expect(
+      page.getByRole('checkbox', {
+        name: /dieser Export nicht verschlüsselt ist und lesbare sensible Daten enthält/i,
+      }),
+    ).toBeFocused();
+
+    const hasNoHorizontalOverflow = await page.evaluate<boolean>(
+      'document.documentElement.scrollWidth <= document.documentElement.clientWidth',
+    );
+    expect(hasNoHorizontalOverflow).toBe(true);
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  });
+});

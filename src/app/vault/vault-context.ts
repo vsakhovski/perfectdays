@@ -19,10 +19,13 @@ export interface VaultContextValue {
   readonly unavailable: boolean;
   readonly changePin: (currentPin: string, newPin: string) => Promise<void>;
   readonly disablePin: (currentPin: string) => Promise<void>;
+  readonly downloadEncryptedBackup: () => Promise<void>;
+  readonly downloadPlaintextExport: () => Promise<void>;
   readonly enablePin: (pin: string) => Promise<void>;
   readonly eraseEverything: () => Promise<void>;
   readonly lock: () => void;
   readonly savePayload: (payload: VaultPayload) => Promise<void>;
+  readonly restoreEncryptedBackup: (backupJson: string, backupPin: string) => Promise<void>;
   readonly unlock: (pin: string) => Promise<void>;
   readonly updateAutoLockDelay: (delay: AutoLockDelay) => Promise<void>;
 }
