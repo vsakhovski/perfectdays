@@ -4,7 +4,7 @@
 
 A private, mobile-first menstrual journal that records bleeding and helps its user notice her own recurring wellbeing patterns. The product uses red, orange, and green calendar markers, but treats them as personal context rather than biological verdicts or judgments about competence.
 
-**Status:** Phase 4 engineering slice implemented. The secure local tracker, insights, and history-correction flows now include an installable offline application shell; versioned encrypted backup and crash-safe restore; an explicitly warned readable export; localized backup controls; browser/PWA theme integration; restrictive preview and static-host security policies; and automated offline, reflow, export/restore/erasure, and sensitive-data leakage checks. Episode splitting/merging, evidence-driven forecast calibration, final naming, and public-beta clinical, legal, security, and assistive-technology review remain future work.
+**Status:** Phase 4 engineering slice implemented. The secure local tracker, insights, and history-correction flows now include an installable offline application shell; versioned encrypted backup and crash-safe restore; an explicitly warned readable export; localized backup controls; browser/PWA theme integration; restrictive preview and static-host security policies; and automated offline, reflow, export/restore/erasure, and sensitive-data leakage checks. A calendar-first mobile interaction redesign is specified below as Phase 5 but is not yet implemented. Episode splitting/merging, evidence-driven forecast calibration, final naming, and public-beta clinical, legal, security, and assistive-technology review also remain future work.
 
 ## Product goal
 
@@ -31,21 +31,36 @@ The product promise is **“patterns, not prescriptions.”** It must not tell s
 6. **The user remains in charge.** Suggestions invite a check-in; they do not direct behavior.
 7. **Accessibility is part of the MVP.** Color is never the only way information is communicated.
 8. **Every message is translatable.** User-visible copy, accessible names, errors, empty states, confirmations, and notification text come from keyed per-language resources rather than being embedded in components.
+9. **Frequent actions stay close.** The calendar and today's check-in take priority over retrospective analysis and administrative controls.
 
 ## Calendar markers
 
-Markers may overlap. For example, a person can be menstruating and also report high confidence.
+Markers may overlap. For example, a person can be menstruating and also report high confidence. The table describes the target Phase 5 presentation; the marker meanings and precedence already exist, while the continuous bands, amber treatment, and revised palette are planned.
 
-| Marker | Meaning | MVP presentation |
+| Marker | Meaning | Planned mobile presentation |
 | --- | --- | --- |
-| **Recorded red** | Bleeding explicitly logged by the user | Solid red background plus droplet icon and text label |
-| **Predicted red** | Estimated future menstruation | Pale or patterned red, clearly labeled “predicted” |
-| **Predicted start** | Central estimated start date | Dedicated start indicator and complete accessible label |
-| **Possible start** | Other dates in the estimated start range | Dashed outline rather than full predicted-red styling |
-| **Orange** | Optional pre-period check-in window | Orange border or badge, never a warning about competence |
+| **Recorded red** | Bleeding explicitly logged by the user | Continuous solid red band with rounded range ends, plus droplet icon and text label |
+| **Predicted red** | Estimated future menstruation | Continuous pale striped red band, clearly labeled “predicted” |
+| **Predicted start** | Central estimated start date | Dedicated outlined or dotted start indicator and complete accessible label |
+| **Possible start** | Other dates in the estimated start range | Dashed or outlined range treatment rather than a solid fill |
+| **Orange** | Optional pre-period check-in window | Thin golden-amber bar at the top of the cell, never a warning about competence |
 | **Green** | A day with an explicitly logged high-confidence score | Green badge or accent; retrospective only in the MVP |
+| **Today** | The current local date | Strong blue ring around the day number, heavier number weight, and a complete accessible “Today” label |
 | **Neutral** | Nothing recorded or insufficient evidence | Normal calendar styling |
 | **Spotting** | Spotting that does not start a cycle by itself | Separate dot/icon rather than recorded-red styling |
+
+Recorded observations take precedence over conflicting forecast visuals. An early recorded period removes forecast and amber styling for that date; green may coexist as a separate badge. Today, selection, and keyboard focus remain three independent states: today uses the number ring, selection uses the cell treatment, and keyboard focus uses an outer focus outline.
+
+Candidate Phase 5 marker tokens:
+
+| Role | Light theme | Dark theme |
+| --- | --- | --- |
+| Recorded/predicted red | `#b92e49` | `#ff5f7d` |
+| Check-in amber | `#9a5b00` | `#f7c948` |
+| Retrospective green | `#35765a` | `#85c8a8` |
+| Today/focus blue | `#1c6ea4` | `#8fd2ff` |
+
+These colors intentionally separate dark-mode red from amber more strongly than the current palette. They remain candidates until text contrast, non-text boundary contrast, overlap states, and forced-colors behavior have been verified in both themes. Icons, patterns, placement, and accessible descriptions remain authoritative when color cannot be perceived.
 
 Example language:
 
@@ -75,46 +90,176 @@ Language to avoid:
 - Choose **System**, **Light**, or **Dark** appearance. Default: System.
 - Choose **Device language**, **English**, or **Deutsch**. Default: Device language; unsupported device languages fall back to English.
 
-### 2. Calendar and home
+### 2. Calendar as the default destination
 
-- Mobile-first monthly calendar with today clearly identified.
-- Recorded bleeding, predicted bleeding, spotting, orange, green, and neutral states.
-- Recorded and predicted states must remain unmistakably different.
-- A legend that explains every color, icon, and pattern.
-- A compact next-period estimate showing its range, confidence, and number of completed cycles used.
-- Selecting a date opens its day-detail editor.
+- Open the current local month after completed onboarding, reload, or unlock.
+- Provide visible previous-month, next-month, and **Today** controls directly above the grid.
+- Keep today clearly identified independently of the selected date and keyboard focus.
+- Show recorded bleeding, predicted bleeding, spotting, orange, green, and neutral states.
+- Keep recorded and predicted states unmistakably different.
+- Put a compact essential legend immediately below the grid and the complete marker guide behind a disclosure.
+- Put the next-period estimate below the calendar and legend, showing its range, confidence, and number of completed cycles used.
+- Selecting today or a past date opens its day details; future dates remain read-only forecast views.
 
-### 3. Today and day detail
+### 3. Check-in and day detail
 
+- Keep a prominent **Check in today** or **Edit today's check-in** action above the bottom navigation on every primary destination. It is an action, not a navigation tab, and always targets today regardless of the viewed month or selected date.
 - Start, continue, end, edit, or remove menstruation.
 - Record flow as `none`, `spotting`, `light`, `medium`, or `heavy`.
 - Record confidence, tension, energy, and pain on consistent 1–5 scales.
 - Add an optional private note.
-- Save a useful minimum entry in no more than two taps.
+- Open today's check-in in one tap and complete a basic entry as open, choose flow, and **Save and done**.
+- Keep ratings compact and optional, place the note and less common details behind progressive disclosure, and never preselect an unknown observation.
+- Commit a period action and its daily observations as one logical payload mutation and one durable vault save.
 - Recalculate forecasts immediately after relevant history changes.
 
-### 4. Insights
+### 4. Contextual insights and history
 
 - Recent cycle lengths and bleeding durations.
 - Next-period range and confidence.
 - Number of completed cycles behind an estimate.
 - Retrospective high-confidence days.
-- Neutral, observational wording with sample sizes and counterexamples where useful.
-- No causal claims and no universal phase advice.
+- Keep forecast context behind **Why this estimate?** below the calendar and keep period history and correction contextually reachable from Calendar rather than making **Patterns** a primary destination.
+- Use neutral, observational wording with sample sizes and counterexamples where useful.
+- Make no causal claims and give no universal phase advice.
 
-### 5. Settings and privacy
+### 5. Privacy
+
+- Show protection and storage status in plain language.
+- Keep **Lock now** readily available and group auto-lock and PIN controls in this destination.
+- Enable, disable, or change the local PIN.
+- Auto-lock timing: immediately, 1 minute, 5 minutes, or 15 minutes after backgrounding. Default: 1 minute.
+- Export an encrypted backup and restore it later when PIN protection is enabled; restoring requires the PIN used when that backup was created.
+- Offer readable export only behind a prominent sensitivity warning; do not imply that readable import exists.
+- Nest **Erase everything** inside a collapsed danger area and require explicit confirmation.
+- Explain what is stored, what is not collected, and the limitations of browser storage.
+
+### 6. Settings
 
 - System, light, and dark theme selection.
 - Device-language, English, and German language selection.
-- Enable, disable, or change the local PIN.
-- Auto-lock timing: immediately, 1 minute, 5 minutes, or 15 minutes after backgrounding. Default: 1 minute.
 - Configure or disable the orange window.
+- Configure bounded cycle and bleeding-duration fallbacks.
 - Pause forecasting without deleting recorded history. Forecasts are derived, so there is no separate persisted forecast state to reset.
-- Export an encrypted backup and restore it later when PIN protection is enabled; restoring requires the PIN used when that backup was created.
-- Optional plaintext export only behind a prominent sensitivity warning.
-- Erase all application-controlled data after explicit confirmation.
-- Explain what is stored, what is not collected, and the limitations of browser storage.
+- Keep About, non-medical limitations, and other infrequent product information here rather than in the daily journey.
 - Optional generic reminder copy such as “Daily check-in?” if notifications are included.
+
+## Planned calendar-first mobile experience
+
+This section is the implementation specification for Phase 5. It replaces the current long unlocked scrolling composition, but does not change the existing domain, forecast, vault, privacy, or clinical rules. Until Phase 5 is complete, the implemented Phase 4 interface remains the product baseline.
+
+### Primary information architecture
+
+| Surface | Responsibility |
+| --- | --- |
+| **Calendar** | Default destination; current month, recorded observations, predictions, forecast summary, day access, and contextual history |
+| **Privacy** | Lock, PIN, auto-lock, encrypted backup and restore, warned readable export, storage explanation, and nested erasure controls |
+| **Settings** | Tracking and forecast preferences, orange-window configuration, appearance, language, and About/non-medical information |
+| **Check in today** | Persistent primary action above the navigation; opens or edits today's entry and is not a destination |
+
+There is no separate **Today** or **Patterns** bottom destination. Their useful content is redistributed: today's work begins through the persistent action, forecast reasoning appears below the calendar, and recent patterns plus period history remain available through contextual secondary screens.
+
+Only one primary screen is mounted and presented at a time; the app no longer reads as a sequence of large dashboard cards. The unlocked shell uses a compact top bar, `min-block-size: 100dvh`, a mobile content width of about `32rem` even when centered on desktop, and safe-area-aware bottom chrome. The action dock sits immediately above the three-destination navigation, whose icon-and-text controls retain 44 × 44 CSS-pixel targets. Secondary settings and explanations open as focused sub-screens instead of expanding the daily surface indefinitely.
+
+The initial implementation uses a closed, typed in-memory destination state rather than a router. Calendar is restored as the default whenever the unlocked shell mounts. The active destination, selected date, editor draft, ratings, notes, marker states, and episode identifiers are not persisted in URLs, browser history, `localStorage`, or `sessionStorage`. Locking unmounts the shell and discards navigation state and unsaved drafts. Browser Back support may later store symbolic screen depth only, never health values.
+
+### Calendar screen structure
+
+The mobile screen follows this order:
+
+```text
+┌─────────────────────────────────┐
+│ Calendar                  Lock  │
+│ ‹        August 2026        ›   │
+│                    [ Today ]    │
+│ Mon  Tue  Wed  Thu  Fri  Sat Sun│
+│          monthly date grid      │
+│ Recorded · Predicted · Today    │
+│                                 │
+│ Next period                     │
+│ May start 18–21 August          │
+│ Medium confidence · 4 cycles    │
+│ Why this estimate?              │
+│                                 │
+│       [ Check in today ]        │
+│ Calendar   Privacy   Settings   │
+└─────────────────────────────────┘
+```
+
+- Previous and next controls move exactly one calendar month and stay adjacent to the localized month and year.
+- **Today** returns to the current local month, selects today, and moves the calendar's roving focus to it.
+- The semantic six-week grid retains localized weekday headers and complete accessible descriptions for every date.
+- Recorded periods form solid red bands across adjacent cells with rounded range ends. Predicted periods use visibly striped bands. Possible starts retain a dashed/outlined treatment, and the optional check-in window uses a thin amber top bar.
+- The essential legend shows **Recorded**, **Predicted**, and **Today** directly below the grid. A **Marker guide** disclosure explains spotting, possible start, amber, green, overlaps, icons, and patterns.
+- Bottom content receives enough safe-area and action-bar padding that neither the check-in dock nor navigation covers a date, explanation, or control.
+
+Tapping a date opens a compact day sheet with the date, recorded observations, and forecast status. Today and past days offer **Edit this day**; future days are inspectable but read-only. The global **Check in today** action remains the fastest route to today's task even while another month or date is displayed.
+
+### Prediction below the calendar
+
+The forecast summary is textual and precedes retrospective detail. Its primary line is a range, not the central estimate, for example:
+
+> **Next period**
+>
+> May start 18–21 August
+>
+> Medium confidence · based on four completed cycles
+
+**Why this estimate?** reveals the source, recent cycle lengths, variability, central estimate, and other context without competing with the range. If the estimate falls in another month, **Show predicted month** moves the calendar without recalculating or changing it.
+
+The component has explicit states:
+
+| State | Calendar and summary behavior |
+| --- | --- |
+| Active period | Lead with the recorded fact; do not present a competing next-start headline |
+| Available estimate | Show localized range, confidence, and completed-cycle count |
+| Insufficient history | Explain what is missing and offer the relevant next action without inventing a date |
+| Forecast paused | Say that forecasting is paused and keep recorded history visible |
+| Highly variable history | Keep the honest textual range but suppress predicted-period, possible-start, and amber calendar coloring |
+| Late estimate | Keep the original fixed range and explain that it has passed; do not move the date forward each day |
+
+Orange remains an optional invitation to check in, never advice about conflict or competence. Green remains a retrospective badge based only on a recorded confidence score of 4 or 5 and is never forecast into the future.
+
+### Daily check-in flow
+
+On a small screen, check-in is a focused full-screen task. On wider screens it may be a centered modal sheet. The bottom navigation is hidden while editing, and the editor uses this order:
+
+1. Date and current period state.
+2. Flow: `none`, `spotting`, `light`, `medium`, or `heavy`.
+3. Optional compact 1–5 controls for confidence, tension, energy, and pain.
+4. **Add note or details** progressive disclosure.
+5. A sticky bottom bar with **Cancel** and **Save and done**, above the software keyboard and device safe area.
+
+No unknown value is preselected. A successful durable save closes the editor, returns focus meaningfully, and updates the calendar immediately. If today's entry exists, the persistent action changes to **Edit today's check-in**. Delete and whole-period removal remain visually secondary and explicitly confirmed.
+
+When no episode is active, choosing `light`, `medium`, or `heavy` presents the explicit combined action **Start period and save**. Spotting never starts a period. During an active episode, bleeding can be continued and saved through the same operation. Ending the episode remains a separate explicit choice and is never inferred from **No bleeding**. The application orchestrator creates one next payload and performs one vault save for the period transition plus daily observations; it must not issue two writes derived from the same stale snapshot.
+
+### Planned component boundaries
+
+The existing pure domain and secure local core remain unchanged. The UI composition is split along tasks:
+
+```text
+features/
+  shell/       MobileAppShell, ScreenHeader, BottomNavigation, BottomActionDock
+  calendar/    CalendarScreen and the existing monthly grid
+  check-in/    CheckInScreen and shared check-in controller
+  forecast/    ForecastExplanationScreen
+  history/     PeriodHistoryScreen and existing correction workflow
+  privacy/     PrivacyScreen for PIN, backup/restore, storage, and erasure
+  settings/    SettingsScreen for tracking, appearance, language, and About
+```
+
+`useTrackerViewModel` derives today, the displayed month, markers, and forecast presentation from the current payload. A journal-command orchestrator owns atomic check-in and period mutations. Feature screens consume these presentation and command boundaries rather than importing persistence or Web Crypto. The current DOM-id/query-selector bridge from backup controls to PIN setup is replaced with typed in-memory screen navigation.
+
+### Delivery sequence
+
+1. Add characterization tests for existing forecast and journal behavior, then add keyed English and German copy for every new screen and state.
+2. Introduce the mobile shell, Calendar/Privacy/Settings navigation, safe-area layout, and persistent check-in action while initially relocating existing features without changing their behavior.
+3. Extract the tracker view model and journal commands from the current dashboard orchestration.
+4. Make Calendar the default, implement the revised markers and legend, and place the prediction summary below the grid.
+5. Build the shared atomic check-in flow and connect it from both the persistent action and calendar day details.
+6. Move forecast explanation, insights, history/correction, privacy, and settings into their contextual destinations and remove the legacy long unlocked composition.
+7. Update browser, accessibility, privacy-leakage, offline, backup/restore, and usability tests before marking the redesign complete.
 
 ## Forecasting rules
 
@@ -364,6 +509,7 @@ A longer passphrase and platform passkey/biometric unlock may be added later, bu
 - Apply the saved theme before React renders to avoid a light/dark startup flash.
 - Update PWA/browser theme colors for both modes.
 - Test every marker and interaction state in both themes.
+- In Phase 5, evaluate the candidate red, amber, green, and today/focus tokens documented under **Calendar markers**; do not mark the palette complete until its text, component-boundary, overlap, and forced-colors behavior has passed review.
 - Meet WCAG 2.2 AA contrast requirements without changing the meaning of recorded or predicted markers.
 
 ## Architecture
@@ -512,7 +658,9 @@ app -> composition of all layers
 - Production-browser checks for service-worker control and offline reload, retained IndexedDB observations, encrypted backup across a later live-PIN change, restored-PIN lock behavior, encrypted-vault erasure, 320-pixel dark/German reflow, keyboard focus, axe semantics, and absence of runtime secrets from URLs, localStorage, Cache Storage, network requests, and backup ciphertext.
 - Dependency and source audits showing no advertising, analytics, hosted resources, or application health-data network path; `npm audit` currently reports no known dependency vulnerabilities.
 
-Not implemented yet: episode splitting/merging, evidence-based forecast-range refinement or calibration from pilot data, final product-name clearance, deployment-specific header verification, or public-beta clinical, legal, manual assistive-technology, and independent security review. The backtest evaluator is not exposed as a user-facing accuracy score and does not establish clinical accuracy.
+The implemented unlocked experience still composes its tracker, insights, history, preferences, privacy, and backup controls in one responsive scrolling surface. The three-destination Calendar/Privacy/Settings shell, persistent check-in dock, reordered forecast summary, continuous calendar bands, and revised marker palette are proposed Phase 5 work, not current behavior.
+
+Also not implemented yet: episode splitting/merging, evidence-based forecast-range refinement or calibration from pilot data, final product-name clearance, deployment-specific header verification, or public-beta clinical, legal, manual assistive-technology, and independent security review. The backtest evaluator is not exposed as a user-facing accuracy score and does not establish clinical accuracy.
 
 ## Privacy and data lifecycle
 
@@ -577,10 +725,14 @@ Calendar-specific behavior:
 
 - Represent the month as a semantic grid/table with weekday headers and a complete accessible name for every date cell.
 - Include recorded/predicted status, marker type, and confidence in the date control's accessible description.
+- Give previous month, next month, **Today**, every bottom destination, and the persistent check-in action localized accessible names and touch targets of at least 44 × 44 CSS pixels.
+- Keep **Today** behavior distinct from date selection and keyboard focus: the control returns to the current local month and exposes/focuses today, while the cell uses separate number-ring, selection, and focus-outline treatments.
 - Use one predictable keyboard-entry point for the grid; arrow keys move by day/week and Page Up/Page Down move by month without trapping focus.
+- Announce or otherwise make a month change perceivable without turning the whole application into a live region.
 - Move focus into the day-detail dialog when it opens and return focus to the originating date when it closes.
 - Preserve today, selected-day, focus, recorded, and predicted distinctions in forced-colors/high-contrast mode.
 - Do not make pointer hover the only way to reveal a forecast explanation.
+- Keep fixed bottom controls above device safe-area insets and the software keyboard, and reserve enough content padding that they never hide calendar or dialog content.
 
 Initial browser targets for the prototype are the latest two major versions of Chrome/Edge on desktop and Android, and Safari on macOS and iOS. Firefox should receive the complete web experience, while installability may vary by platform. The supported matrix must be re-confirmed before public beta.
 
@@ -643,7 +795,16 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Verify encrypted export, old-backup PIN independence, restore, offline persistence, and encrypted-vault erasure in a production Chromium browser.
 - [x] Verify that readable downloads complete in Firefox and mobile WebKit as well as Chromium.
 
-### Phase 5 — Pilot and public-beta readiness
+### Phase 5 — Calendar-first mobile interaction redesign (planned)
+
+- [ ] Replace the long unlocked scrolling composition with a Calendar/Privacy/Settings shell whose default destination is Calendar.
+- [ ] Add the persistent **Check in today** action separately from navigation and implement the focused, atomic **Save and done** flow.
+- [ ] Add visible month navigation and **Today**, revised recorded/predicted bands and amber marker, a compact legend, and the forecast summary below the calendar.
+- [ ] Keep forecast reasoning, recent patterns, and history/correction contextually reachable without a **Patterns** bottom destination.
+- [ ] Move PIN, auto-lock, backup/restore, readable export, storage explanation, and confirmed erasure into Privacy; move tracking, appearance, language, and About into Settings.
+- [ ] Add all new English and German copy, component/unit coverage, mobile browser flows, privacy-leakage assertions, and manual accessibility/usability validation.
+
+### Phase 6 — Pilot and public-beta readiness
 
 - Pilot privately over multiple real cycles.
 - Test terminology and forecast comprehension with menstruating users.
@@ -668,6 +829,28 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Tracker setup and recorded check-ins survive reload while the browser retains the origin's IndexedDB storage.
 - [x] The installed application remains available offline through a cached application shell.
 - [x] PIN-enabled encrypted backup/restore works as documented.
+
+### Planned mobile interaction redesign
+
+- [ ] Calendar is the default destination after completed onboarding, reload, and unlock, and it opens the current local month.
+- [ ] Bottom navigation contains exactly **Calendar**, **Privacy**, and **Settings**, exposes the current destination semantically, and resets to Calendar when the unlocked shell remounts.
+- [ ] **Check in today** is visually and semantically separate from navigation, is reachable in one tap from every primary destination, and always opens today regardless of the displayed month or selected date.
+- [ ] Previous and next controls move one month; **Today** returns to the current local month, selects today, and places roving calendar focus on it.
+- [ ] Today remains visibly and semantically distinct from selection, keyboard focus, recorded periods, predictions, amber, green, and spotting in normal and forced-colors modes.
+- [ ] Recorded periods use continuous solid red bands, predicted periods use visibly striped bands, possible starts use outlined treatment, and the check-in window uses a thin amber top bar.
+- [ ] Recorded observations override conflicting forecasts, while green can coexist as a retrospective badge and spotting remains distinct; every overlap is understandable without color.
+- [ ] The localized forecast summary follows the calendar and legend and leads with a range, confidence, and completed-cycle count; **Why this estimate?** reveals secondary detail.
+- [ ] Insufficient-history, paused, active, late, and highly-variable states use honest localized text; highly variable history retains text while suppressing forecast and amber calendar coloring.
+- [ ] Forecast context, recent cycle lengths, known durations, retrospective high-confidence days, and period history/correction remain contextually reachable without a **Patterns** destination.
+- [ ] A basic today entry can be opened, given a flow value, and durably saved and closed in three taps; ratings remain optional and unknown values are not preselected.
+- [ ] Starting or continuing a period and recording the day's observations use one logical payload mutation and one vault save; spotting never starts a period and `none` never implicitly ends one.
+- [ ] Future dates are read-only, successful saves update Calendar immediately, and canceling or locking discards unsaved drafts.
+- [ ] Privacy contains PIN, auto-lock, encrypted backup/restore, warned readable export, storage explanation, and explicitly confirmed erasure without implying a readable-import path.
+- [ ] Settings contains tracking and forecast preferences, appearance, language, and non-medical product information.
+- [ ] Fixed bottom controls do not obscure content at 320 CSS pixels, large text, browser zoom, with an open software keyboard, or across device safe-area insets.
+- [ ] Month, **Today**, navigation, check-in, and sticky action controls have localized accessible names and targets of at least 44 × 44 CSS pixels.
+- [ ] Both themes meet applicable WCAG 2.2 AA text contrast and 3:1 non-text/component contrast with the proposed marker palette before those tokens are accepted.
+- [ ] Navigation and check-in flows place no selected date, observation, draft, note, rating, marker state, or episode identifier in URLs, history state, Web Storage, caches, logs, or network requests.
 
 ### Theme, localization, and accessibility
 
@@ -723,6 +906,11 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 - At least 90% of usability-test participants should distinguish recorded from predicted days without coaching.
 - Users should understand that orange is a check-in suggestion, not a judgment about competence.
+- The next-period range should be visible immediately below the default calendar with no navigation or disclosure required.
+- Today's check-in should open in one tap from every primary destination; a basic flow-only entry should take no more than three taps and should be completed in under 15 seconds in moderated usability testing.
+- Editing today's existing entry should be reachable in no more than two taps.
+- No primary screen or check-in state should present more than one dominant primary action.
+- Participants should find period history, forecast reasoning, backup/restore, and erasure without mistaking any of them for daily navigation.
 - The developer-facing evaluator now reports per-sample signed/absolute start-date error and range inclusion plus aggregate median absolute error and empirical range coverage, segmented by the variability of the training history. Interpretation against pilot data remains validation work.
 - An intended 80% prediction interval should cover approximately 80% of held-out starts before it is described that way in the UI.
 - Deletion should leave no application-controlled copy recoverable through normal product behavior.
@@ -798,9 +986,15 @@ Add a message to `src/i18n/locales/en.ts` first, then add the matching key and p
 - Five-day default orange window
 - Confidence as the initial green metric
 - Retrospective green markers only
+- Calendar as the default destination after onboarding, reload, and unlock
+- Bottom navigation limited to Calendar, Privacy, and Settings
+- A persistent **Check in today** action above, and semantically separate from, bottom navigation
+- Forecast summary directly below the calendar; details and retrospective patterns remain contextual rather than a primary destination
+- In-memory UI navigation with no health values or drafts placed in URLs, browser history, or Web Storage
+- The Phase 5 marker palette starts from the documented red, amber, green, and blue candidates and remains subject to contrast and assistive-technology validation
 - No backend, partner access, fertility features, or analytics
 
-These defaults are sufficient to begin implementation. Final naming, visual identity, supported launch jurisdictions, native packaging, and advanced personalization do not block the prototype.
+These decisions are the baseline for the next implementation slice. Final naming, visual identity beyond the candidate marker tokens, supported launch jurisdictions, native packaging, and advanced personalization do not block the prototype.
 
 ## Naming status
 
