@@ -42,9 +42,27 @@
 }
 
 .navigationButton:focus-visible,
+.todayButton:focus-visible,
+.markerGuide summary:focus-visible,
 .dayButton:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;
+}
+
+.todayButton {
+  justify-self: end;
+  min-block-size: 2.75rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: var(--color-surface-subtle);
+  color: var(--color-text);
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.todayButton:hover {
+  border-color: var(--color-focus);
 }
 
 .tableScroller {
@@ -54,7 +72,7 @@
 .calendarTable {
   inline-size: 100%;
   min-inline-size: 18rem;
-  border-spacing: 0.2rem;
+  border-spacing: 0 0.2rem;
   table-layout: fixed;
 }
 
@@ -108,11 +126,32 @@
 }
 
 .dayButton[data-predicted-red='true'] {
+  border-color: color-mix(in srgb, var(--color-marker-red) 45%, var(--color-border));
   background: repeating-linear-gradient(
     135deg,
     color-mix(in srgb, var(--color-marker-red) 17%, var(--color-surface)) 0 0.35rem,
     var(--color-surface) 0.35rem 0.7rem
   );
+}
+
+.dayButton[data-recorded-before='true'],
+.dayButton[data-predicted-before='true'] {
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+}
+
+.dayButton[data-recorded-after='true'],
+.dayButton[data-predicted-after='true'] {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.dayButton[data-predicted-before='true'] {
+  border-inline-start-color: transparent;
+}
+
+.dayButton[data-predicted-after='true'] {
+  border-inline-end-color: transparent;
 }
 
 .dayButton[data-recorded-red='true'] {
@@ -128,17 +167,23 @@
 
 .dayButton[data-orange='true']::after {
   position: absolute;
-  inset: 0.18rem;
-  z-index: -1;
-  border: 2px solid var(--color-marker-orange);
-  border-radius: 0.5rem;
+  inset-block-start: 0.18rem;
+  inset-inline: 0.22rem;
+  z-index: 0;
+  block-size: 0.22rem;
+  border-radius: 999px;
+  background: var(--color-marker-orange);
   content: '';
   pointer-events: none;
 }
 
 .dayButton[data-today='true'] .dayNumber {
-  text-decoration: underline 0.18rem var(--color-focus);
-  text-underline-offset: 0.2rem;
+  border: 2px solid var(--color-focus);
+  border-radius: 999px;
+  box-shadow:
+    0 0 0 2px var(--color-surface),
+    0 0 0 4px var(--color-focus);
+  font-weight: 900;
 }
 
 .dayButton[data-selected='true'] {
@@ -227,6 +272,10 @@
   color: var(--color-text-muted);
 }
 
+.marker-today {
+  color: var(--color-focus);
+}
+
 .legend {
   display: grid;
   gap: 0.55rem;
@@ -246,6 +295,24 @@
   padding: 0;
   margin: 0;
   list-style: none;
+}
+
+.markerGuide {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.markerGuide summary {
+  inline-size: fit-content;
+  min-block-size: 2.75rem;
+  padding-block: 0.7rem;
+  color: var(--color-accent);
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.markerGuide[open] ul {
+  padding-block-start: 0.5rem;
 }
 
 .legend li {
@@ -280,6 +347,38 @@
   }
 }
 
+@media (max-width: 22rem) {
+  .calendar {
+    gap: 0.7rem;
+    padding-block: 0.7rem;
+    padding-inline: 0;
+  }
+
+  .calendarHeader,
+  .legend {
+    margin-inline: 0.5rem;
+  }
+
+  .todayButton {
+    margin-inline-end: 0.5rem;
+  }
+
+  .calendarTable {
+    min-inline-size: 0;
+    border-spacing: 0 0.12rem;
+  }
+
+  .dayButton {
+    min-block-size: 3rem;
+    padding: 0.16rem;
+    border-radius: 0.45rem;
+  }
+
+  .dayMarkers {
+    gap: 0;
+  }
+}
+
 @media (forced-colors: active) {
   .dayButton[data-recorded-red='true'] {
     border: 3px double CanvasText;
@@ -299,8 +398,12 @@
   }
 
   .dayButton[data-orange='true']::after {
-    border-style: double;
-    border-color: CanvasText;
+    block-size: 0.3rem;
+    background: CanvasText;
+  }
+
+  .dayButton[data-today='true'] .dayNumber {
+    border-color: Highlight;
   }
 
   .dayButton[data-selected='true'] {

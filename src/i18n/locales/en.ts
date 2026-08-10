@@ -344,6 +344,160 @@ export const en = {
       failed: 'The tracking preferences could not be saved.',
     },
   },
+  mobile: {
+    shell: {
+      navigation: {
+        label: 'Primary navigation',
+        calendar: 'Calendar',
+        privacy: 'Privacy',
+        settings: 'Settings',
+      },
+      actions: {
+        checkInToday: 'Check in today',
+        editTodayCheckIn: "Edit today's check-in",
+        lock: 'Lock',
+      },
+    },
+    calendar: {
+      title: 'Calendar',
+      description: 'Recorded days, estimates, and today at a glance.',
+      navigation: {
+        label: 'Calendar month navigation',
+        previousMonth: 'Previous month',
+        nextMonth: 'Next month',
+        today: 'Today',
+      },
+      legend: {
+        title: 'Calendar markers',
+        recorded: 'Recorded',
+        predicted: 'Predicted',
+        today: 'Today',
+        showGuide: 'Show marker guide',
+        hideGuide: 'Hide marker guide',
+        guideTitle: 'Marker guide',
+        markers: {
+          recorded: 'Solid band: recorded period.',
+          predicted: 'Striped band: predicted period.',
+          possibleStart: 'Outline: possible period start.',
+          checkInWindow: 'Amber bar: possible pre-period check-in window.',
+          higherConfidence: 'Green marker: higher confidence recorded.',
+          spotting: 'Dot: spotting recorded.',
+        },
+      },
+      forecast: {
+        title: 'Next period',
+        range: 'May start {{range}}.',
+        basis: '{{confidence}} confidence · based on {{count}} completed cycles.',
+        basis_one: '{{confidence}} confidence · based on {{count}} completed cycle.',
+        basis_other: '{{confidence}} confidence · based on {{count}} completed cycles.',
+        why: 'Why this estimate?',
+        showPredictedMonth: 'Show predicted month',
+        states: {
+          active: {
+            title: 'Period recorded as active',
+            description: 'Recorded period days take priority over estimates.',
+          },
+          unavailable: {
+            title: 'Estimate unavailable',
+            description:
+              'Add at least two period starts, or a usual cycle length, to see an estimate.',
+          },
+          paused: {
+            title: 'Estimate paused',
+            description: 'Recorded days remain visible.',
+          },
+          variable: {
+            title: 'Cycle lengths vary widely',
+            description:
+              'The estimated start range remains available, but forecast coloring is hidden.',
+          },
+          late: {
+            title: 'Original estimate range has passed',
+            description: 'The original range stays fixed and is not moved forward automatically.',
+          },
+        },
+      },
+      context: {
+        navigationLabel: 'Calendar details',
+        insights: 'Insights',
+        periodHistory: 'Period history',
+        backFromInsights: 'Back to calendar from Insights',
+        backFromPeriodHistory: 'Back to calendar from Period history',
+      },
+      day: {
+        title: 'Details for {{date}}',
+        recorded: 'Recorded observations',
+        forecast: 'Estimate for this date',
+        edit: 'Edit this day',
+        future: 'Future dates are read-only.',
+        close: 'Close day details',
+      },
+    },
+    privacy: {
+      title: 'Privacy',
+      description: 'Protect, back up, restore, export, or erase this journal.',
+      sections: {
+        protection: 'PIN protection',
+        portability: 'Backup and export',
+      },
+      storage: {
+        title: 'Stored on this device',
+        description:
+          'Journal data stays in this browser unless you export a file or erase the local data.',
+        downloads:
+          'Downloaded backups and exports are outside this app and are not removed by Erase everything.',
+      },
+      danger: {
+        show: 'Show erase controls',
+        hide: 'Hide erase controls',
+        title: 'Permanently erase data',
+        description:
+          'Erasing permanently removes this journal and its app preferences from this browser.',
+      },
+    },
+    settings: {
+      title: 'Settings',
+      description: 'Manage estimates, calendar markers, appearance, and language.',
+      sections: {
+        tracking: 'Tracking and estimates',
+        appearance: 'Appearance and language',
+      },
+      about: {
+        title: 'About',
+        description: 'Learn how estimates and calendar markers work.',
+        limitationsTitle: 'What this journal cannot determine',
+        limitations:
+          'Estimates describe patterns in recorded data. They are not medical advice or a diagnosis.',
+      },
+    },
+    checkIn: {
+      title: 'Check in today',
+      editTitle: "Edit today's check-in",
+      dayTitle: 'Check in for this day',
+      editDayTitle: "Edit this day's check-in",
+      description: 'Record only what you notice today. Nothing optional is selected for you.',
+      optional: {
+        show: 'Add note or details',
+        hide: 'Hide note and details',
+        description: 'Ratings and notes are optional.',
+      },
+      guidance: {
+        chooseObservation: 'Choose at least one observation before saving.',
+        startPeriod: 'Light, medium, or heavy flow can start a period.',
+        spotting: 'Spotting is recorded separately and does not start a period.',
+        activePeriod: 'Saving bleeding for today continues the active period.',
+        endPeriod: 'Ending a period is a separate choice. Recording no bleeding does not end it.',
+      },
+      actions: {
+        saveAndDone: 'Save and done',
+        saving: 'Saving…',
+        startPeriodAndSave: 'Start period and save',
+        startingAndSaving: 'Starting period and saving…',
+        cancel: 'Cancel',
+        close: 'Close check-in',
+      },
+    },
+  },
   vault: {
     loading: {
       title: 'Opening your private journal',

@@ -93,31 +93,35 @@ async function ensureGeneratedServiceWorkerControls(page: Page): Promise<void> {
 
 async function finishOnboarding(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Finish without history' }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Your recorded days and estimates' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
+}
+
+async function openPrivacy(page: Page): Promise<void> {
+  await page
+    .getByRole('navigation', { name: 'Primary navigation' })
+    .getByRole('button', { exact: true, name: 'Privacy' })
+    .click();
+  await expect(page.getByRole('heading', { exact: true, level: 1, name: 'Privacy' })).toBeVisible();
 }
 
 async function recordToday(page: Page, note: string): Promise<void> {
-  await page.locator('button[aria-current="date"]').click();
-  const dialog = page.getByRole('dialog', { name: 'Daily check-in' });
+  await page.getByRole('button', { name: 'Check in today' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Check in today' });
   await dialog.getByRole('radio', { name: 'Medium' }).check();
+  await dialog.getByRole('button', { name: 'Add note or details' }).click();
   await dialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }).check();
   await dialog.getByLabel('Private note').fill(note);
-  await dialog.getByRole('button', { name: /Start period/ }).click();
-  await expect(dialog.getByText('Period started.')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Save check-in' }).click();
-  await expect(dialog.getByText('Check-in saved.')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Close daily check-in' }).click();
+  await dialog.getByRole('button', { name: 'Start period and save' }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole('button', { name: "Edit today's check-in" })).toBeVisible();
 }
 
 async function updateTodayNote(page: Page, note: string): Promise<void> {
-  await page.locator('button[aria-current="date"]').click();
-  const dialog = page.getByRole('dialog', { name: 'Daily check-in' });
+  await page.getByRole('button', { name: "Edit today's check-in" }).click();
+  const dialog = page.getByRole('dialog', { name: "Edit today's check-in" });
   await dialog.getByLabel('Private note').fill(note);
-  await dialog.getByRole('button', { name: 'Save check-in' }).click();
-  await expect(dialog.getByText('Check-in saved.')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Close daily check-in' }).click();
+  await dialog.getByRole('button', { name: 'Save and done' }).click();
+  await expect(dialog).not.toBeVisible();
 }
 
 test.describe('Phase 4 production boundaries', () => {
@@ -151,9 +155,7 @@ test.describe('Phase 4 production boundaries', () => {
     await context.setOffline(true);
     try {
       await page.reload({ waitUntil: 'domcontentloaded' });
-      await expect(
-        page.getByRole('heading', { name: 'Your recorded days and estimates' }),
-      ).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
       expect(await page.evaluate<boolean>('navigator.serviceWorker.controller !== null')).toBe(
         true,
       );
@@ -162,7 +164,7 @@ test.describe('Phase 4 production boundaries', () => {
       await expect(today).toHaveAccessibleName(/Recorded period day/);
       await today.click();
       await expect(
-        page.getByRole('dialog', { name: 'Daily check-in' }).getByLabel('Private note'),
+        page.getByRole('dialog', { name: "Edit today's check-in" }).getByLabel('Private note'),
       ).toHaveValue(privateNote);
 
       await assertSecretsAbsentFromBrowserSurfaces(page, requests, [privateNote]);
@@ -190,6 +192,7 @@ test.describe('Phase 4 production boundaries', () => {
     await finishOnboarding(page);
     await recordToday(page, originalNote);
 
+    await openPrivacy(page);
     await page.getByRole('button', { name: 'Set up a PIN', exact: true }).click();
     await page.getByLabel('New PIN', { exact: true }).fill(originalPin);
     await page.getByLabel('Confirm new PIN', { exact: true }).fill(originalPin);
@@ -213,6 +216,7 @@ test.describe('Phase 4 production boundaries', () => {
     await expect(page.getByText('The PIN was changed.')).toBeVisible();
     await updateTodayNote(page, mutatedNote);
 
+    await openPrivacy(page);
     await page.getByLabel('Encrypted JSON backup').setInputFiles(backupPath);
     await page.getByLabel('Backup PIN').fill(originalPin);
     await page
@@ -234,13 +238,11 @@ test.describe('Phase 4 production boundaries', () => {
     await expect(page.getByRole('alert')).toContainText('could not be unlocked');
     await page.getByLabel('PIN').fill(originalPin);
     await page.getByRole('button', { name: 'Unlock' }).click();
-    await expect(
-      page.getByRole('heading', { name: 'Your recorded days and estimates' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
 
-    await page.locator('button[aria-current="date"]').click();
+    await page.getByRole('button', { name: "Edit today's check-in" }).click();
     const restoredNote = page
-      .getByRole('dialog', { name: 'Daily check-in' })
+      .getByRole('dialog', { name: "Edit today's check-in" })
       .getByLabel('Private note');
     await expect(restoredNote).toHaveValue(originalNote);
     await expect(restoredNote).not.toHaveValue(mutatedNote);
@@ -264,12 +266,14 @@ test.describe('Phase 4 production boundaries', () => {
     await finishOnboarding(page);
     await recordToday(page, privateNote);
 
+    await openPrivacy(page);
     await page.getByRole('button', { name: 'Set up a PIN', exact: true }).click();
     await page.getByLabel('New PIN', { exact: true }).fill(pin);
     await page.getByLabel('Confirm new PIN', { exact: true }).fill(pin);
     await page.getByRole('button', { name: 'Enable PIN protection' }).click();
     await expect(page.getByText('PIN protection is now on.')).toBeVisible();
 
+    await page.getByRole('button', { name: 'Show erase controls' }).click();
     await page.getByRole('button', { name: 'Erase everything' }).click();
     await page.getByRole('checkbox', { name: 'I understand that this cannot be undone.' }).check();
     await page.getByRole('button', { name: 'Erase everything' }).click();
@@ -333,6 +337,8 @@ test.describe('Phase 4 download portability', () => {
     await expect(
       page.getByRole('heading', { name: /your patterns, in your hands/i }),
     ).toBeVisible();
+    await finishOnboarding(page);
+    await openPrivacy(page);
 
     await page.getByRole('button', { name: 'Review readable-export warning' }).click();
     await page

@@ -120,6 +120,7 @@ interface RenderAppOptions {
   vaultInitializationFailed?: boolean;
   vaultPinEnabled?: boolean;
   vaultSnapshot?: VaultSnapshot;
+  onboardingCompleted?: boolean;
 }
 
 async function renderApp({
@@ -131,6 +132,7 @@ async function renderApp({
   vaultInitializationFailed = false,
   vaultPinEnabled = false,
   vaultSnapshot,
+  onboardingCompleted = false,
 }: RenderAppOptions = {}) {
   const languageStore = createLanguageStore(languagePreference, preferenceClearSucceeds);
   const systemLanguagesController = createSystemLanguageSource(systemLanguages);
@@ -148,7 +150,19 @@ async function renderApp({
     now: () => nowIso,
     today: () => asLocalDate('2026-08-08'),
   };
-  const createInitialVaultPayload = () => createEmptyVaultPayload(nowIso);
+  const createInitialVaultPayload = () => {
+    const payload = createEmptyVaultPayload(nowIso);
+
+    return onboardingCompleted
+      ? {
+          ...payload,
+          settings: {
+            ...payload.settings,
+            onboardingCompleted: true,
+          },
+        }
+      : payload;
+  };
   const initialPayload = createInitialVaultPayload();
   const vaultController = new FakeVaultController(
     initialPayload,
@@ -296,6 +310,13 @@ function sectionWithHeading(name: string): HTMLElement {
   return section;
 }
 
+async function openRootDestination(
+  user: ReturnType<typeof userEvent.setup>,
+  destination: 'Calendar' | 'Privacy' | 'Settings',
+): Promise<void> {
+  await user.click(screen.getByRole('button', { name: destination }));
+}
+
 describe('App', () => {
   it('renders the private local-first foundation in English', async () => {
     await renderApp();
@@ -306,32 +327,90 @@ describe('App', () => {
     expect(document.title).toBe('Menstrual Pattern Tracker');
   });
 
+  it('opens on Calendar and keeps today check-in one tap away from every root screen', async () => {
+    const user = userEvent.setup();
+    await renderApp({ onboardingCompleted: true });
+
+    expect(screen.getByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Calendar' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(screen.getAllByRole('navigation')).toHaveLength(2);
+
+    await openRootDestination(user, 'Privacy');
+    expect(screen.getByRole('heading', { name: 'Privacy', level: 1 })).toHaveFocus();
+    expect(screen.getByRole('heading', { name: 'Back up or restore your journal' })).toBeVisible();
+
+    const checkInTrigger = screen.getByRole('button', { name: 'Check in today' });
+    await user.click(checkInTrigger);
+    expect(screen.getByRole('dialog', { name: 'Check in today' })).toBeVisible();
+    expect(
+      screen.queryByRole('navigation', { name: 'Primary navigation' }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(checkInTrigger).toHaveFocus();
+    await openRootDestination(user, 'Settings');
+    expect(screen.getByRole('heading', { name: 'Settings', level: 1 })).toHaveFocus();
+    expect(screen.getByRole('heading', { name: 'Estimates and check-in window' })).toBeVisible();
+
+    await openRootDestination(user, 'Calendar');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    const insightsTrigger = screen.getByRole('button', { name: 'Insights' });
+    await user.click(insightsTrigger);
+    const backFromInsights = screen.getByRole('button', {
+      name: 'Back to calendar from Insights',
+    });
+    expect(backFromInsights).toHaveFocus();
+    await user.click(backFromInsights);
+    expect(screen.getByRole('button', { name: 'Insights' })).toHaveFocus();
+  });
+
   it('completes setup, records a period check-in, and exposes semantic calendar markers', async () => {
+    const user = userEvent.setup();
     const { vaultController } = await renderApp();
 
     expect(screen.getByRole('heading', { name: 'Set up your private journal' })).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'Finish without history' }));
+    await user.click(screen.getByRole('button', { name: 'Finish without history' }));
 
-    expect(
-      await screen.findByRole('heading', { name: 'Your recorded days and estimates' }),
-    ).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: /Saturday, August 8, 2026/i }));
-    fireEvent.click(screen.getByRole('radio', { name: 'Spotting' }));
-    expect(screen.getByRole('button', { name: /Start period/i })).toBeDisabled();
-    expect(
-      screen.getByText('Choose light, medium, or heavy flow before starting a period.'),
-    ).toBeVisible();
-    fireEvent.click(screen.getByRole('radio', { name: 'Medium' }));
-    fireEvent.click(screen.getByRole('radio', { name: 'Confidence: 5 out of 5' }));
+    expect(await screen.findByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Check in today' }));
+    expect(screen.getByRole('button', { name: 'Save and done' })).toBeDisabled();
+    expect(screen.getByText('Choose at least one observation before saving.')).toBeVisible();
+    await user.click(screen.getByRole('radio', { name: 'Spotting' }));
+    expect(screen.getByRole('button', { name: 'Save and done' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /Start period/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save and done' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Check in today' })).not.toBeInTheDocument();
+    });
+
+    let snapshot = vaultController.getSnapshot();
+    expect(snapshot.phase).toBe('unlocked');
+    if (snapshot.phase === 'unlocked') {
+      expect(snapshot.payload.episodes).toHaveLength(0);
+      expect(snapshot.payload.logs).toEqual([
+        expect.objectContaining({ date: '2026-08-08', flow: 'spotting' }),
+      ]);
+    }
+
+    await user.click(screen.getByRole('button', { name: "Edit today's check-in" }));
+    await user.click(screen.getByRole('radio', { name: 'Medium' }));
+    await user.click(screen.getByRole('button', { name: 'Add note or details' }));
+    await user.click(screen.getByRole('radio', { name: 'Confidence: 5 out of 5' }));
     fireEvent.change(screen.getByLabelText('Private note'), {
       target: { value: 'A synthetic test check-in.' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /Start period/i }));
-    expect(await screen.findByText('Period started.')).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'Save check-in' }));
-    expect(await screen.findByText('Check-in saved.')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Start period and save' }));
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('dialog', { name: "Edit today's check-in" }),
+      ).not.toBeInTheDocument();
+    });
 
-    const snapshot = vaultController.getSnapshot();
+    snapshot = vaultController.getSnapshot();
     expect(snapshot.phase).toBe('unlocked');
     if (snapshot.phase === 'unlocked') {
       expect(snapshot.payload.episodes).toHaveLength(1);
@@ -346,7 +425,6 @@ describe('App', () => {
       ]);
     }
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close daily check-in' }));
     expect(
       screen.getByRole('button', {
         name: /Saturday, August 8, 2026.*Recorded period day.*Higher confidence recorded/i,
@@ -373,8 +451,8 @@ describe('App', () => {
     expect(
       await screen.findByRole('heading', { name: 'Your recorded days and estimates' }),
     ).toBeVisible();
-    expect(screen.getByText(/Your next period may start/)).toBeVisible();
-    expect(screen.getByText('Based on 1 completed cycle-length record.')).toBeVisible();
+    expect(screen.getByText(/May start/)).toBeVisible();
+    expect(screen.getByText(/rough confidence · based on 1 completed cycle/i)).toBeVisible();
 
     const snapshot = vaultController.getSnapshot();
     expect(snapshot.phase).toBe('unlocked');
@@ -403,17 +481,21 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
     fireEvent.click(screen.getByRole('button', { name: /Wednesday, July 15, 2026/i }));
-    expect(screen.getByRole('button', { name: /Start period/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole('radio', { name: 'Medium' }));
+    expect(screen.getByRole('button', { name: 'Save and done' })).toBeDisabled();
     expect(
       screen.getByText(/A new open period cannot begin before a later recorded period/i),
     ).toBeVisible();
   });
 
   it('renders localized insight data derived from recorded multi-cycle history', async () => {
+    const user = userEvent.setup();
     const payload = createRecordedMultiCyclePayload();
     await renderApp({
       vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
     });
+
+    await user.click(screen.getByRole('button', { name: 'Insights' }));
 
     expect(
       screen.getByRole('heading', { name: 'Recent patterns from your journal' }),
@@ -459,6 +541,7 @@ describe('App', () => {
       vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
     });
 
+    await user.click(screen.getByRole('button', { name: 'Period history' }));
     await user.click(screen.getByRole('button', { name: /Correct period starting Jun 29, 2026/ }));
     const dialog = screen.getByRole('dialog', { name: 'Correct period dates' });
     expect(within(dialog).getByRole('radio', { name: 'Ended — date unknown' })).toBeChecked();
@@ -488,6 +571,7 @@ describe('App', () => {
       vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
     });
 
+    await user.click(screen.getByRole('button', { name: 'Periodenverlauf' }));
     await user.click(
       screen.getByRole('button', {
         name: /Periode ab 27\. Juli 2026.*31\. Juli 2026 korrigieren/,
@@ -609,17 +693,29 @@ describe('App', () => {
 
   it('opens PIN setup from the encrypted-backup requirement', async () => {
     const user = userEvent.setup();
-    await renderApp();
+    await renderApp({ onboardingCompleted: true });
+
+    await openRootDestination(user, 'Privacy');
 
     await user.click(screen.getByRole('button', { name: 'Set up PIN protection' }));
 
     expect(screen.getByLabelText('New PIN')).toHaveFocus();
     expect(screen.getByRole('heading', { name: 'Set up a six-digit PIN' })).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await openRootDestination(user, 'Settings');
+    await openRootDestination(user, 'Privacy');
+    expect(screen.queryByLabelText('New PIN')).not.toBeInTheDocument();
   });
 
   it('downloads encrypted and explicitly confirmed readable exports through the file boundary', async () => {
     const user = userEvent.setup();
-    const { downloadedFiles, vaultController } = await renderApp({ vaultPinEnabled: true });
+    const { downloadedFiles, vaultController } = await renderApp({
+      onboardingCompleted: true,
+      vaultPinEnabled: true,
+    });
+
+    await openRootDestination(user, 'Privacy');
 
     await user.click(screen.getByRole('button', { name: 'Download encrypted backup' }));
     await waitFor(() => {
@@ -650,7 +746,11 @@ describe('App', () => {
 
   it('restores readable-export focus after async work without stealing later focus', async () => {
     const user = userEvent.setup();
-    const { vaultController } = await renderApp({ vaultPinEnabled: true });
+    const { vaultController } = await renderApp({
+      onboardingCompleted: true,
+      vaultPinEnabled: true,
+    });
+    await openRootDestination(user, 'Privacy');
     let finishFirstExport: ((contents: string) => void) | undefined;
     let finishSecondExport: ((contents: string) => void) | undefined;
     const firstExport = new Promise<string>((resolve) => {
@@ -685,8 +785,8 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: reviewWarning }));
     await user.click(screen.getByRole('checkbox', { name: confirmation }));
     await user.click(screen.getByRole('button', { name: 'Export readable data' }));
-    const darkTheme = screen.getByRole('radio', { name: 'Dark' });
-    darkTheme.focus();
+    const settingsDestination = screen.getByRole('button', { name: 'Settings' });
+    settingsDestination.focus();
     await act(async () => {
       finishSecondExport?.('{"kind":"perfect-days/plaintext-export"}');
       await secondExport;
@@ -694,12 +794,13 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: reviewWarning })).toBeEnabled();
     });
-    expect(darkTheme).toHaveFocus();
+    expect(settingsDestination).toHaveFocus();
   });
 
   it('reads, restores, and publishes an encrypted backup without retaining the submitted form PIN', async () => {
     const user = userEvent.setup();
-    const { vaultController, vaultInvalidation } = await renderApp();
+    const { vaultController, vaultInvalidation } = await renderApp({ onboardingCompleted: true });
+    await openRootDestination(user, 'Privacy');
     const backupJson =
       '{"kind":"perfect-days/encrypted-vault-backup","formatVersion":1,"envelope":{}}';
     const backupFile = new File([backupJson], 'private-journal-backup.json', {
@@ -958,6 +1059,7 @@ describe('App', () => {
       themePreference: 'dark',
     });
 
+    await user.click(screen.getByRole('button', { name: 'Show erase controls' }));
     await user.click(screen.getByRole('button', { name: 'Erase everything' }));
     await user.click(
       screen.getByRole('checkbox', { name: 'I understand that this cannot be undone.' }),

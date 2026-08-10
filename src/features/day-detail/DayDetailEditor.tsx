@@ -46,6 +46,12 @@ export interface DayDetailCopy {
   readonly ratings: Readonly<Record<RatingField, RatingScaleCopy>>;
   readonly noteLabel: string;
   readonly noteDescription: string;
+  readonly optionalDetails: {
+    readonly show: string;
+    readonly hide: string;
+    readonly description: string;
+  };
+  readonly cancel: string;
   readonly save: string;
   readonly saving: string;
   readonly removePeriodConfirmation: string;
@@ -69,7 +75,10 @@ export interface DayDetailEditorProps {
   readonly onDelete?: (date: LocalDate) => void;
   readonly onPeriodAction: (action: PeriodQuickAction, date: LocalDate) => void;
   readonly onSave: (value: DayDetailValue, date: LocalDate) => void;
+  readonly saveDisabled?: boolean;
+  readonly saveDisabledReason?: string;
   readonly periodActions: readonly PeriodActionState[];
+  readonly returnFocusElement?: HTMLElement | null;
   readonly statusMessage?: string;
   readonly value: DayDetailValue;
 }
@@ -97,28 +106,51 @@ export function DayDetailEditor({
   onDelete,
   onPeriodAction,
   onSave,
+  saveDisabled = false,
+  saveDisabledReason,
   periodActions,
+  returnFocusElement,
   statusMessage,
   value,
 }: DayDetailEditorProps) {
   const titleId = useId();
   const dateId = useId();
+  const saveDisabledReasonId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const removePeriodButtonRef = useRef<HTMLButtonElement>(null);
   const confirmRemovePeriodButtonRef = useRef<HTMLButtonElement>(null);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
   const confirmDeleteButtonRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  const initialReturnFocusElementRef = useRef(returnFocusElement);
   const [confirmingPeriodRemoval, setConfirmingPeriodRemoval] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(
+    () =>
+      value.confidence !== undefined ||
+      value.tension !== undefined ||
+      value.energy !== undefined ||
+      value.pain !== undefined ||
+      Boolean(value.note?.trim()),
+  );
 
   useLayoutEffect(() => {
     returnFocusRef.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      initialReturnFocusElementRef.current ??
+      (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     dialogRef.current?.focus();
 
     return () => {
-      returnFocusRef.current?.focus();
+      const returnTarget = returnFocusRef.current;
+      globalThis.queueMicrotask(() => {
+        if (
+          returnTarget?.isConnected &&
+          returnTarget.closest('[hidden]') === null &&
+          !returnTarget.matches(':disabled')
+        ) {
+          returnTarget.focus();
+        }
+      });
     };
   }, []);
 
@@ -206,6 +238,26 @@ export function DayDetailEditor({
         </header>
 
         <form className={styles['form']} onSubmit={submit}>
+          <fieldset className={styles['fieldset']} disabled={busy}>
+            <legend>{copy.flowLegend}</legend>
+            <div className={styles['flowOptions']}>
+              {flowValues.map((flow) => (
+                <label key={flow}>
+                  <input
+                    checked={value.flow === flow}
+                    name="flow"
+                    onChange={() => {
+                      onChange({ ...value, flow });
+                    }}
+                    type="radio"
+                    value={flow}
+                  />
+                  <span>{copy.flowOptions[flow]}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
           {periodActions.length > 0 ? (
             <section className={styles['quickActions']}>
               <h3>{copy.quickActionsTitle}</h3>
@@ -273,78 +325,77 @@ export function DayDetailEditor({
             </div>
           ) : null}
 
-          <fieldset className={styles['fieldset']} disabled={busy}>
-            <legend>{copy.flowLegend}</legend>
-            <div className={styles['flowOptions']}>
-              {flowValues.map((flow) => (
-                <label key={flow}>
-                  <input
-                    checked={value.flow === flow}
-                    name="flow"
-                    onChange={() => {
-                      onChange({ ...value, flow });
-                    }}
-                    type="radio"
-                    value={flow}
-                  />
-                  <span>{copy.flowOptions[flow]}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <div className={styles['ratingGroups']}>
-            {ratingFields.map((field) => {
-              const ratingCopy = copy.ratings[field];
-              return (
-                <fieldset className={styles['fieldset']} disabled={busy} key={field}>
-                  <legend>{ratingCopy.legend}</legend>
-                  <div className={styles['ratingScale']}>
-                    {ratingValues.map((rating) => (
-                      <label key={rating}>
-                        <input
-                          aria-label={ratingCopy.options[rating]}
-                          checked={value[field] === rating}
-                          name={field}
-                          onChange={() => {
-                            updateRating(field, rating);
-                          }}
-                          type="radio"
-                          value={rating}
-                        />
-                        <span aria-hidden="true">{rating}</span>
-                      </label>
-                    ))}
-                    {value[field] !== undefined ? (
-                      <button
-                        className={styles['clearRating']}
-                        onClick={() => {
-                          updateRating(field, undefined);
-                        }}
-                        type="button"
-                      >
-                        {ratingCopy.clear}
-                      </button>
-                    ) : null}
-                  </div>
-                </fieldset>
-              );
-            })}
-          </div>
-
-          <label className={styles['noteField']}>
-            <span>{copy.noteLabel}</span>
-            <span className={styles['fieldDescription']}>{copy.noteDescription}</span>
-            <textarea
-              aria-label={copy.noteLabel}
+          <section className={styles['optionalDetails']}>
+            <button
+              aria-expanded={detailsOpen}
+              className={styles['detailsToggle']}
               disabled={busy}
-              onChange={(event) => {
-                onChange({ ...value, note: event.currentTarget.value });
+              onClick={() => {
+                setDetailsOpen((open) => !open);
               }}
-              rows={4}
-              value={value.note ?? ''}
-            />
-          </label>
+              type="button"
+            >
+              {detailsOpen ? copy.optionalDetails.hide : copy.optionalDetails.show}
+            </button>
+            <p>{copy.optionalDetails.description}</p>
+
+            {detailsOpen ? (
+              <div className={styles['detailsContent']}>
+                <div className={styles['ratingGroups']}>
+                  {ratingFields.map((field) => {
+                    const ratingCopy = copy.ratings[field];
+                    return (
+                      <fieldset className={styles['fieldset']} disabled={busy} key={field}>
+                        <legend>{ratingCopy.legend}</legend>
+                        <div className={styles['ratingScale']}>
+                          {ratingValues.map((rating) => (
+                            <label key={rating}>
+                              <input
+                                aria-label={ratingCopy.options[rating]}
+                                checked={value[field] === rating}
+                                name={field}
+                                onChange={() => {
+                                  updateRating(field, rating);
+                                }}
+                                type="radio"
+                                value={rating}
+                              />
+                              <span aria-hidden="true">{rating}</span>
+                            </label>
+                          ))}
+                          {value[field] !== undefined ? (
+                            <button
+                              className={styles['clearRating']}
+                              onClick={() => {
+                                updateRating(field, undefined);
+                              }}
+                              type="button"
+                            >
+                              {ratingCopy.clear}
+                            </button>
+                          ) : null}
+                        </div>
+                      </fieldset>
+                    );
+                  })}
+                </div>
+
+                <label className={styles['noteField']}>
+                  <span>{copy.noteLabel}</span>
+                  <span className={styles['fieldDescription']}>{copy.noteDescription}</span>
+                  <textarea
+                    aria-label={copy.noteLabel}
+                    disabled={busy}
+                    onChange={(event) => {
+                      onChange({ ...value, note: event.currentTarget.value });
+                    }}
+                    rows={4}
+                    value={value.note ?? ''}
+                  />
+                </label>
+              </div>
+            ) : null}
+          </section>
 
           {errorMessage ? (
             <p className={styles['error']} role="alert">
@@ -356,10 +407,30 @@ export function DayDetailEditor({
               {statusMessage}
             </p>
           ) : null}
+          {saveDisabled && saveDisabledReason ? (
+            <p className={styles['saveGuidance']} id={saveDisabledReasonId}>
+              {saveDisabledReason}
+            </p>
+          ) : null}
 
           <div className={styles['formActions']}>
-            <button className={styles['saveButton']} disabled={busy} type="submit">
+            <button
+              aria-describedby={
+                saveDisabled && saveDisabledReason ? saveDisabledReasonId : undefined
+              }
+              className={styles['saveButton']}
+              disabled={busy || saveDisabled}
+              type="submit"
+            >
               {busy ? copy.saving : copy.save}
+            </button>
+            <button
+              className={styles['secondaryButton']}
+              disabled={busy}
+              onClick={onClose}
+              type="button"
+            >
+              {copy.cancel}
             </button>
             {onDelete ? (
               <button

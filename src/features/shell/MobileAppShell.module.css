@@ -1,0 +1,220 @@
+.shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  inline-size: 100%;
+  max-inline-size: 32rem;
+  block-size: 100vh;
+  block-size: 100dvh;
+  margin-inline: auto;
+  overflow: hidden;
+  background: var(--color-background);
+  color: var(--color-text);
+  isolation: isolate;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-block-size: 3.5rem;
+  padding-block: calc(0.5rem + env(safe-area-inset-top)) 0.5rem;
+  padding-inline: 1rem;
+  border-block-end: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.screenTitle {
+  min-inline-size: 0;
+  margin: 0;
+  font-size: clamp(1.15rem, 5vw, 1.35rem);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.screenTitle:focus-visible,
+.lockButton:focus-visible,
+.checkInButton:focus-visible,
+.navigationButton:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.lockButton,
+.navigationButton {
+  color: var(--color-text-muted);
+}
+
+.lockButton {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 2.75rem;
+  min-inline-size: 2.75rem;
+  margin-inline-start: 0.75rem;
+  padding-block: 0.4rem;
+  padding-inline: 0.65rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-small);
+  background: transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lockButton:hover {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-text);
+}
+
+.content {
+  min-inline-size: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding: 1rem;
+  scrollbar-gutter: stable;
+}
+
+.bottomChrome {
+  position: relative;
+  z-index: 1;
+  background: var(--color-surface);
+  box-shadow: 0 -0.35rem 1.25rem rgb(70 35 50 / 8%);
+}
+
+.actionDock {
+  padding-block: 0.625rem 0.5rem;
+  padding-inline: 1rem;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.checkInButton {
+  inline-size: 100%;
+  min-block-size: 3rem;
+  padding-block: 0.65rem;
+  padding-inline: 1rem;
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius-small);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.checkInButton:hover {
+  filter: brightness(1.06);
+}
+
+.bottomNavigation {
+  border-block-start: 1px solid var(--color-border);
+  padding-block: 0.25rem calc(0.25rem + env(safe-area-inset-bottom));
+  padding-inline: 0.35rem;
+}
+
+.navigationList {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.navigationList li {
+  min-inline-size: 0;
+}
+
+.navigationButton {
+  display: flex;
+  gap: 0.15rem;
+  align-items: center;
+  justify-content: center;
+  inline-size: 100%;
+  min-block-size: 3.25rem;
+  min-inline-size: 2.75rem;
+  padding-block: 0.25rem;
+  padding-inline: 0.2rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-small);
+  background: transparent;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.navigationButton[data-active='true'] {
+  background: var(--color-surface-subtle);
+  color: var(--color-accent);
+}
+
+.navigationButton:hover {
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.icon {
+  flex: 0 0 auto;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+@media (min-width: 22rem) {
+  .navigationButton {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 22rem) {
+  .content {
+    padding-block: 0.75rem;
+    padding-inline: 0.25rem;
+  }
+}
+
+@media (min-width: 34rem) {
+  .shell {
+    border-inline: 1px solid var(--color-border);
+    box-shadow: var(--shadow-soft);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content {
+    scroll-behavior: auto;
+  }
+}
+
+@media (forced-colors: active) {
+  .shell,
+  .topBar,
+  .actionDock,
+  .bottomNavigation {
+    border-color: CanvasText;
+  }
+
+  .checkInButton {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+    filter: none;
+  }
+
+  .navigationButton[data-active='true'] {
+    border-color: Highlight;
+    background: Canvas;
+    color: Highlight;
+  }
+}

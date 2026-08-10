@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
+import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useVault } from '../../app/vault/use-vault';
@@ -18,8 +18,6 @@ interface PinFormProps {
   onCancel: () => void;
   onSuccess: () => void;
 }
-
-export const PIN_SETUP_TRIGGER_ID = 'pin-setup-trigger';
 
 function FormErrorMessage({ error }: { error: FormError }) {
   const { t } = useTranslation();
@@ -372,19 +370,52 @@ function isAutoLockDelay(value: string): value is AutoLockDelay {
   );
 }
 
-export function PinSecurityPanel() {
+export interface PinSecurityPanelProps {
+  readonly onSetupRequestHandled?: (request: number) => void;
+  readonly setupRequest?: number;
+}
+
+export function PinSecurityPanel({
+  onSetupRequestHandled,
+  setupRequest = 0,
+}: PinSecurityPanelProps) {
   const { t } = useTranslation();
   const { lock, pinProtectionAvailable, resetNotice, snapshot, updateAutoLockDelay } = useVault();
   const [mode, setMode] = useState<PanelMode>('summary');
   const [success, setSuccess] = useState<SuccessMessage>(null);
   const [autoLockPending, setAutoLockPending] = useState(false);
   const [autoLockFailed, setAutoLockFailed] = useState(false);
+  const [dangerOpen, setDangerOpen] = useState(false);
+  const dangerControlsId = useId();
   const returnFocusModeRef = useRef<EditablePanelMode | null>(null);
   const lockTriggerRef = useRef<HTMLButtonElement>(null);
   const setupTriggerRef = useRef<HTMLButtonElement>(null);
   const changeTriggerRef = useRef<HTMLButtonElement>(null);
   const disableTriggerRef = useRef<HTMLButtonElement>(null);
   const resetTriggerRef = useRef<HTMLButtonElement>(null);
+  const handledSetupRequestRef = useRef(0);
+
+  useEffect(() => {
+    if (
+      setupRequest <= handledSetupRequestRef.current ||
+      snapshot.phase !== 'unlocked' ||
+      snapshot.pinEnabled ||
+      !pinProtectionAvailable
+    ) {
+      return;
+    }
+
+    handledSetupRequestRef.current = setupRequest;
+    setMode('setup');
+    setSuccess(null);
+    onSetupRequestHandled?.(setupRequest);
+  }, [
+    onSetupRequestHandled,
+    pinProtectionAvailable,
+    setupRequest,
+    snapshot.phase,
+    snapshot.pinEnabled,
+  ]);
 
   useEffect(() => {
     if (mode !== 'summary' || returnFocusModeRef.current === null) {
@@ -568,7 +599,6 @@ export function PinSecurityPanel() {
             ) : pinProtectionAvailable ? (
               <button
                 className={formStyles['primaryButton']}
-                id={PIN_SETUP_TRIGGER_ID}
                 onClick={() => {
                   open('setup');
                 }}
@@ -578,16 +608,40 @@ export function PinSecurityPanel() {
                 {t(($) => $.vault.security.unprotected.recommendation)}
               </button>
             ) : null}
+          </div>
+        ) : null}
+
+        {mode === 'summary' ? (
+          <div className={styles['dangerDisclosure']}>
             <button
-              className={formStyles['dangerButton']}
+              aria-controls={dangerControlsId}
+              aria-expanded={dangerOpen}
+              className={formStyles['secondaryButton']}
               onClick={() => {
-                open('reset');
+                setDangerOpen((current) => !current);
               }}
-              ref={resetTriggerRef}
               type="button"
             >
-              {t(($) => $.vault.security.actions.eraseEverything)}
+              {dangerOpen
+                ? t(($) => $.mobile.privacy.danger.hide)
+                : t(($) => $.mobile.privacy.danger.show)}
             </button>
+            {dangerOpen ? (
+              <section className={styles['dangerControls']} id={dangerControlsId}>
+                <h3>{t(($) => $.mobile.privacy.danger.title)}</h3>
+                <p>{t(($) => $.mobile.privacy.danger.description)}</p>
+                <button
+                  className={formStyles['dangerButton']}
+                  onClick={() => {
+                    open('reset');
+                  }}
+                  ref={resetTriggerRef}
+                  type="button"
+                >
+                  {t(($) => $.vault.security.actions.eraseEverything)}
+                </button>
+              </section>
+            ) : null}
           </div>
         ) : null}
 

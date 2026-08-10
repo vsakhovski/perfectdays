@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -45,6 +45,12 @@ const copy: DayDetailCopy = {
   },
   noteLabel: 'Private note',
   noteDescription: 'Only stored in the local vault',
+  optionalDetails: {
+    show: 'Add note or details',
+    hide: 'Hide note and details',
+    description: 'Ratings and notes are optional.',
+  },
+  cancel: 'Cancel',
   save: 'Save day',
   saving: 'Saving day',
   removePeriodConfirmation: 'Remove this complete period?',
@@ -90,10 +96,11 @@ function ControlledEditor({
 }
 
 describe('DayDetailEditor', () => {
-  it('moves focus into the modal editor and restores the originating control on unmount', () => {
+  it('moves focus into the modal editor and restores an explicit touch opener on unmount', async () => {
     const origin = document.createElement('button');
-    document.body.append(origin);
-    origin.focus();
+    const previouslyFocused = document.createElement('button');
+    document.body.append(origin, previouslyFocused);
+    previouslyFocused.focus();
 
     const result = render(
       <DayDetailEditor
@@ -105,14 +112,18 @@ describe('DayDetailEditor', () => {
         onPeriodAction={vi.fn()}
         onSave={vi.fn()}
         periodActions={[]}
+        returnFocusElement={origin}
         value={{}}
       />,
     );
 
     expect(screen.getByRole('dialog', { name: copy.title })).toHaveFocus();
     result.unmount();
-    expect(origin).toHaveFocus();
+    await waitFor(() => {
+      expect(origin).toHaveFocus();
+    });
     origin.remove();
+    previouslyFocused.remove();
   });
 
   it('edits flow, ratings, notes, saves, and invokes valid quick actions', async () => {
@@ -126,6 +137,7 @@ describe('DayDetailEditor', () => {
     expect(screen.getByRole('button', { name: /Continue period/u })).toBeDisabled();
 
     await user.click(screen.getByRole('radio', { name: copy.flowOptions.spotting }));
+    await user.click(screen.getByRole('button', { name: copy.optionalDetails.show }));
     const confidenceFive = screen.getAllByRole('radio', { name: ratingOptions[5] }).at(0);
     if (!confidenceFive) {
       throw new Error('Expected a confidence rating control.');
@@ -177,6 +189,30 @@ describe('DayDetailEditor', () => {
 
     await user.keyboard('{Escape}');
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('explains why saving is unavailable before the user submits', () => {
+    const reason = 'This bleeding day would overlap a later recorded period.';
+    render(
+      <DayDetailEditor
+        copy={copy}
+        date={asLocalDate('2026-05-12')}
+        dateLabel="Tuesday, May 12, 2026"
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+        onPeriodAction={vi.fn()}
+        onSave={vi.fn()}
+        periodActions={[]}
+        saveDisabled
+        saveDisabledReason={reason}
+        value={{ flow: 'medium' }}
+      />,
+    );
+
+    const save = screen.getByRole('button', { name: copy.save });
+    expect(save).toBeDisabled();
+    expect(save).toHaveAccessibleDescription(reason);
+    expect(screen.getByText(reason)).toBeVisible();
   });
 
   it('requires confirmation before removing a complete period and restores focus on cancel', async () => {

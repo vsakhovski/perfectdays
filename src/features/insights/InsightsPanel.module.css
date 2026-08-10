@@ -8,7 +8,7 @@
 }
 
 .panel {
-  margin-block-start: clamp(2.5rem, 8vw, 5rem);
+  margin-block-start: 0;
 }
 
 .heading {

@@ -355,6 +355,167 @@ export const de = {
       failed: 'Die Tracking-Einstellungen konnten nicht gespeichert werden.',
     },
   },
+  mobile: {
+    shell: {
+      navigation: {
+        label: 'Hauptnavigation',
+        calendar: 'Kalender',
+        privacy: 'Datenschutz',
+        settings: 'Einstellungen',
+      },
+      actions: {
+        checkInToday: 'Heute eintragen',
+        editTodayCheckIn: 'Heutigen Check-in bearbeiten',
+        lock: 'Sperren',
+      },
+    },
+    calendar: {
+      title: 'Kalender',
+      description: 'Aufzeichnungen, Schätzungen und der heutige Tag auf einen Blick.',
+      navigation: {
+        label: 'Monatsnavigation des Kalenders',
+        previousMonth: 'Vorheriger Monat',
+        nextMonth: 'Nächster Monat',
+        today: 'Heute',
+      },
+      legend: {
+        title: 'Kalendermarkierungen',
+        recorded: 'Aufgezeichnet',
+        predicted: 'Geschätzt',
+        today: 'Heute',
+        showGuide: 'Markierungsübersicht anzeigen',
+        hideGuide: 'Markierungsübersicht ausblenden',
+        guideTitle: 'Erklärung der Markierungen',
+        markers: {
+          recorded: 'Durchgehendes Band: aufgezeichnete Periode.',
+          predicted: 'Gestreiftes Band: geschätzte Periode.',
+          possibleStart: 'Umrandung: möglicher Periodenbeginn.',
+          checkInWindow: 'Bernsteinfarbener Balken: mögliches Check-in-Fenster vor der Periode.',
+          higherConfidence: 'Grüne Markierung: höheres Selbstvertrauen aufgezeichnet.',
+          spotting: 'Punkt: Schmierblutung aufgezeichnet.',
+        },
+      },
+      forecast: {
+        title: 'Nächste Periode',
+        range: 'Möglicher Beginn: {{range}}.',
+        basis: 'Verlässlichkeit: {{confidence}} · basierend auf {{count}} abgeschlossenen Zyklen.',
+        basis_one:
+          'Verlässlichkeit: {{confidence}} · basierend auf {{count}} abgeschlossenem Zyklus.',
+        basis_other:
+          'Verlässlichkeit: {{confidence}} · basierend auf {{count}} abgeschlossenen Zyklen.',
+        why: 'Warum diese Schätzung?',
+        showPredictedMonth: 'Monat der Schätzung anzeigen',
+        states: {
+          active: {
+            title: 'Periode als aktiv aufgezeichnet',
+            description: 'Aufgezeichnete Periodentage haben Vorrang vor Schätzungen.',
+          },
+          unavailable: {
+            title: 'Keine Schätzung verfügbar',
+            description:
+              'Füge mindestens zwei Periodenstarts oder eine übliche Zykluslänge hinzu, um eine Schätzung zu sehen.',
+          },
+          paused: {
+            title: 'Schätzung pausiert',
+            description: 'Aufgezeichnete Tage bleiben sichtbar.',
+          },
+          variable: {
+            title: 'Zykluslängen schwanken stark',
+            description:
+              'Der geschätzte Startzeitraum bleibt verfügbar, aber Prognosefarben werden ausgeblendet.',
+          },
+          late: {
+            title: 'Ursprünglicher Schätzzeitraum überschritten',
+            description:
+              'Der ursprüngliche Zeitraum bleibt bestehen und wird nicht automatisch nach vorn verschoben.',
+          },
+        },
+      },
+      context: {
+        navigationLabel: 'Kalenderdetails',
+        insights: 'Einblicke',
+        periodHistory: 'Periodenverlauf',
+        backFromInsights: 'Von Einblicken zurück zum Kalender',
+        backFromPeriodHistory: 'Vom Periodenverlauf zurück zum Kalender',
+      },
+      day: {
+        title: 'Details für {{date}}',
+        recorded: 'Aufgezeichnete Beobachtungen',
+        forecast: 'Schätzung für dieses Datum',
+        edit: 'Diesen Tag bearbeiten',
+        future: 'Zukünftige Daten können nur angesehen werden.',
+        close: 'Tagesdetails schließen',
+      },
+    },
+    privacy: {
+      title: 'Datenschutz',
+      description:
+        'Schütze dein Tagebuch und verwalte Sicherungen, Wiederherstellung, Exporte und Löschung.',
+      sections: {
+        protection: 'PIN-Schutz',
+        portability: 'Sicherung und Export',
+      },
+      storage: {
+        title: 'Auf diesem Gerät gespeichert',
+        description:
+          'Tagebuchdaten bleiben in diesem Browser, bis du eine Datei exportierst oder die lokalen Daten löschst.',
+        downloads:
+          'Heruntergeladene Sicherungen und Exporte liegen außerhalb der App und werden durch „Alles löschen“ nicht entfernt.',
+      },
+      danger: {
+        show: 'Optionen zum Löschen anzeigen',
+        hide: 'Optionen zum Löschen ausblenden',
+        title: 'Daten endgültig löschen',
+        description:
+          'Beim Löschen werden dieses Tagebuch und seine App-Einstellungen dauerhaft aus diesem Browser entfernt.',
+      },
+    },
+    settings: {
+      title: 'Einstellungen',
+      description: 'Verwalte Schätzungen, Kalendermarkierungen, Darstellung und Sprache.',
+      sections: {
+        tracking: 'Tracking und Schätzungen',
+        appearance: 'Darstellung und Sprache',
+      },
+      about: {
+        title: 'Über die App',
+        description: 'Erfahre, wie Schätzungen und Kalendermarkierungen funktionieren.',
+        limitationsTitle: 'Was dieses Tagebuch nicht bestimmen kann',
+        limitations:
+          'Schätzungen beschreiben Muster in aufgezeichneten Daten. Sie sind keine medizinische Beratung oder Diagnose.',
+      },
+    },
+    checkIn: {
+      title: 'Heute eintragen',
+      editTitle: 'Heutigen Check-in bearbeiten',
+      dayTitle: 'Check-in für diesen Tag',
+      editDayTitle: 'Check-in dieses Tages bearbeiten',
+      description:
+        'Trage nur ein, was du heute bemerkst. Optionale Werte sind nicht vorausgewählt.',
+      optional: {
+        show: 'Notiz oder Details hinzufügen',
+        hide: 'Notiz und Details ausblenden',
+        description: 'Bewertungen und Notizen sind optional.',
+      },
+      guidance: {
+        chooseObservation: 'Wähle vor dem Speichern mindestens eine Beobachtung aus.',
+        startPeriod: 'Eine leichte, mittlere oder starke Blutung kann eine Periode beginnen.',
+        spotting: 'Schmierblutung wird separat aufgezeichnet und beginnt keine Periode.',
+        activePeriod:
+          'Wenn du die heutige Blutung speicherst, wird die aktive Periode fortgeführt.',
+        endPeriod:
+          'Das Beenden einer Periode ist eine separate Entscheidung. Der Eintrag „Keine Blutung“ beendet sie nicht.',
+      },
+      actions: {
+        saveAndDone: 'Speichern und fertig',
+        saving: 'Wird gespeichert…',
+        startPeriodAndSave: 'Periode beginnen und speichern',
+        startingAndSaving: 'Periode wird begonnen und gespeichert…',
+        cancel: 'Abbrechen',
+        close: 'Check-in schließen',
+      },
+    },
+  },
   vault: {
     loading: {
       title: 'Dein privates Tagebuch wird geöffnet',

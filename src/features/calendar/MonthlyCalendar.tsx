@@ -44,6 +44,12 @@ export interface CalendarCopy {
   readonly selected: string;
   readonly outsideMonth: string;
   readonly legendTitle: string;
+  readonly markerGuide?: string;
+  readonly essentialLegend?: {
+    readonly recorded: string;
+    readonly predicted: string;
+    readonly today: string;
+  };
   readonly markers: Readonly<Record<CalendarMarker | 'neutral', string>>;
 }
 
@@ -54,6 +60,7 @@ export interface MonthlyCalendarProps {
   readonly onNextMonth: () => void;
   readonly onPreviousMonth: () => void;
   readonly onSelectDate: (date: LocalDate, trigger: HTMLButtonElement) => void;
+  readonly onToday?: () => void;
   readonly selectedDate?: LocalDate;
   readonly today: LocalDate;
   readonly weekdays: readonly CalendarWeekday[];
@@ -73,7 +80,9 @@ function markerIsPresent(markers: CalendarDayMarkers): boolean {
   return markerOrder.some((marker) => markers[marker]);
 }
 
-function MarkerIcon({ marker }: { marker: CalendarMarker | 'neutral' }) {
+type LegendMarker = CalendarMarker | 'neutral' | 'today';
+
+function MarkerIcon({ marker }: { marker: LegendMarker }) {
   switch (marker) {
     case 'recordedRed':
       return (
@@ -95,6 +104,8 @@ function MarkerIcon({ marker }: { marker: CalendarMarker | 'neutral' }) {
       return <span aria-hidden="true">{'•'}</span>;
     case 'neutral':
       return <span aria-hidden="true">{'—'}</span>;
+    case 'today':
+      return <span aria-hidden="true">{'○'}</span>;
   }
 }
 
@@ -147,20 +158,48 @@ function chooseInitialDay(
 
 export function CalendarLegend({ copy }: { readonly copy: CalendarCopy }) {
   const titleId = useId();
+  const essentialMarkers = ['recordedRed', 'predictedRed', 'today'] as const;
+  const additionalMarkers = markerOrder.filter(
+    (marker) => marker !== 'recordedRed' && marker !== 'predictedRed',
+  );
+
+  const labelFor = (marker: LegendMarker): string => {
+    if (marker === 'today') return copy.essentialLegend?.today ?? copy.today;
+    if (marker === 'recordedRed') {
+      return copy.essentialLegend?.recorded ?? copy.markers.recordedRed;
+    }
+    if (marker === 'predictedRed') {
+      return copy.essentialLegend?.predicted ?? copy.markers.predictedRed;
+    }
+    return copy.markers[marker];
+  };
 
   return (
     <section className={styles['legend']} aria-labelledby={titleId}>
       <h3 id={titleId}>{copy.legendTitle}</h3>
-      <ul>
-        {([...markerOrder, 'neutral'] as const).map((marker) => (
+      <ul className={styles['essentialLegend']} role="list">
+        {essentialMarkers.map((marker) => (
           <li key={marker}>
             <span className={combineClasses(styles['legendIcon'], styles[`marker-${marker}`])}>
               <MarkerIcon marker={marker} />
             </span>
-            <span>{copy.markers[marker]}</span>
+            <span>{labelFor(marker)}</span>
           </li>
         ))}
       </ul>
+      <details className={styles['markerGuide']}>
+        <summary>{copy.markerGuide ?? copy.legendTitle}</summary>
+        <ul role="list">
+          {([...additionalMarkers, 'neutral'] as const).map((marker) => (
+            <li key={marker}>
+              <span className={combineClasses(styles['legendIcon'], styles[`marker-${marker}`])}>
+                <MarkerIcon marker={marker} />
+              </span>
+              <span>{labelFor(marker)}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
     </section>
   );
 }
@@ -172,6 +211,7 @@ export function MonthlyCalendar({
   onNextMonth,
   onPreviousMonth,
   onSelectDate,
+  onToday,
   selectedDate,
   today,
   weekdays,
@@ -257,6 +297,23 @@ export function MonthlyCalendar({
     }
   };
 
+  const moveToToday = (): void => {
+    setFocusedDate(today);
+    setPendingMonthFocus(dayOfMonth(today));
+    shouldFocusAfterRender.current = true;
+    onToday?.();
+
+    const todayInVisibleMonth = days.find(
+      (day) => day.date === today && day.isCurrentMonth && !day.disabled,
+    );
+    const currentButton = todayInVisibleMonth ? buttonRefs.current.get(today) : undefined;
+    if (currentButton) {
+      setPendingMonthFocus(null);
+      shouldFocusAfterRender.current = false;
+      currentButton.focus();
+    }
+  };
+
   const handleDayKeyDown = (event: KeyboardEvent<HTMLButtonElement>, date: LocalDate): void => {
     switch (event.key) {
       case 'ArrowLeft':
@@ -296,7 +353,7 @@ export function MonthlyCalendar({
 
   return (
     <section className={styles['calendar']} aria-labelledby={headingId}>
-      <div className={styles['calendarHeader']} aria-label={copy.navigationLabel}>
+      <div className={styles['calendarHeader']} aria-label={copy.navigationLabel} role="group">
         <button
           aria-label={copy.previousMonth}
           className={styles['navigationButton']}
@@ -318,6 +375,12 @@ export function MonthlyCalendar({
         </button>
       </div>
 
+      {onToday ? (
+        <button className={styles['todayButton']} onClick={moveToToday} type="button">
+          {copy.today}
+        </button>
+      ) : null}
+
       <div className={styles['tableScroller']}>
         <table className={styles['calendarTable']} aria-label={copy.calendarLabel}>
           <caption className={styles['visuallyHidden']}>{copy.calendarLabel}</caption>
@@ -333,10 +396,12 @@ export function MonthlyCalendar({
           <tbody>
             {groupIntoWeeks(days).map((week) => (
               <tr key={week[0]?.date ?? monthLabel}>
-                {week.map((day) => {
+                {week.map((day, dayIndex) => {
                   const isToday = day.date === today;
                   const isSelected = day.date === selectedDate;
                   const hasMarkers = markerIsPresent(day.markers);
+                  const previousDay = week[dayIndex - 1];
+                  const nextDay = week[dayIndex + 1];
 
                   return (
                     <td key={day.date}>
@@ -348,7 +413,19 @@ export function MonthlyCalendar({
                         data-green={day.markers.green}
                         data-orange={day.markers.orange}
                         data-possible-start={day.markers.possibleStart}
+                        data-predicted-after={
+                          day.markers.predictedRed && nextDay?.markers.predictedRed === true
+                        }
+                        data-predicted-before={
+                          day.markers.predictedRed && previousDay?.markers.predictedRed === true
+                        }
                         data-predicted-red={day.markers.predictedRed}
+                        data-recorded-after={
+                          day.markers.recordedRed && nextDay?.markers.recordedRed === true
+                        }
+                        data-recorded-before={
+                          day.markers.recordedRed && previousDay?.markers.recordedRed === true
+                        }
                         data-recorded-red={day.markers.recordedRed}
                         data-selected={isSelected}
                         data-spotting={day.markers.spotting}

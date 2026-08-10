@@ -1,17 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useLanguage } from '../../app/i18n/use-language';
 import { useVault } from '../../app/vault/use-vault';
+import {
+  buildDailyCheckInPayload,
+  type PeriodTransition,
+} from '../../application/tracker/daily-check-in';
 import { calculateForecast, type ForecastDetails } from '../../domain/forecast';
 import {
-  continuePeriod,
   deleteDailyCheckIn,
-  endPeriod,
   JournalError,
   removePeriod,
-  startPeriod,
-  upsertDailyCheckIn,
   type BleedingFlow,
   type JournalMutationResult,
 } from '../../domain/journal';
@@ -52,8 +52,6 @@ import {
   type TrackerSettingsCopy,
   type TrackerSettingsValue,
 } from '../settings/TrackerSettingsPanel';
-import { TrackerHistorySection } from './TrackerHistorySection';
-import { TrackerInsightsSection } from './TrackerInsightsSection';
 import styles from './tracker-dashboard.module.css';
 
 function valueFromLog(log: DailyLog | undefined): DayDetailValue {
@@ -134,7 +132,24 @@ function isBleedingFlow(flow: DayDetailValue['flow']): flow is BleedingFlow {
   return flow === 'light' || flow === 'medium' || flow === 'heavy';
 }
 
-function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayload }) {
+function checkInTransitionForDate(
+  payload: VaultPayload,
+  date: LocalDate,
+  flow: DayDetailValue['flow'],
+): PeriodTransition {
+  if (!isBleedingFlow(flow) || periodContainingDate(payload, date)) {
+    return 'none';
+  }
+
+  const activeEpisode = payload.episodes.find((episode) => episode.endDate === undefined);
+  if (activeEpisode) {
+    return date >= activeEpisode.startDate ? 'continue' : 'none';
+  }
+
+  return payload.episodes.some((episode) => episode.startDate > date) ? 'none' : 'start';
+}
+
+export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayload }) {
   const { t } = useTranslation();
   const { journalEnvironment, savePayload } = useVault();
   const [busy, setBusy] = useState(false);
@@ -321,7 +336,7 @@ function forecastMessages(
   return messages;
 }
 
-function TrackerPreferences({ payload }: { readonly payload: VaultPayload }) {
+export function TrackerPreferences({ payload }: { readonly payload: VaultPayload }) {
   const { t } = useTranslation();
   const { journalEnvironment, savePayload } = useVault();
   const [value, setValue] = useState<TrackerSettingsValue>(() => ({
@@ -405,7 +420,29 @@ function TrackerPreferences({ payload }: { readonly payload: VaultPayload }) {
   );
 }
 
-function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
+export interface TrackerCalendarProps {
+  readonly checkInReturnFocusElement?: HTMLElement | null;
+  readonly checkInRequest?: number;
+  readonly historyTriggerRef?: Ref<HTMLButtonElement>;
+  readonly insightsTriggerRef?: Ref<HTMLButtonElement>;
+  readonly onCheckInRequestHandled?: (request: number) => void;
+  readonly onEditorOpenChange?: (open: boolean) => void;
+  readonly onOpenHistory?: () => void;
+  readonly onOpenInsights?: () => void;
+  readonly payload: VaultPayload;
+}
+
+export function TrackerCalendar({
+  checkInReturnFocusElement,
+  checkInRequest = 0,
+  historyTriggerRef,
+  insightsTriggerRef,
+  onCheckInRequestHandled,
+  onEditorOpenChange,
+  onOpenHistory,
+  onOpenInsights,
+  payload,
+}: TrackerCalendarProps) {
   const { t } = useTranslation();
   const { resolvedLanguage } = useLanguage();
   const { journalEnvironment, savePayload } = useVault();
@@ -413,12 +450,16 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(today));
   const [selectedDate, setSelectedDate] = useState<LocalDate>(today);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [editorReturnFocusElement, setEditorReturnFocusElement] = useState<HTMLElement | null>(
+    null,
+  );
   const [editorValue, setEditorValue] = useState<DayDetailValue>(() =>
     valueFromLog(payload.logs.find((log) => log.date === today)),
   );
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
   const [statusMessage, setStatusMessage] = useState<string>();
+  const handledCheckInRequestRef = useRef(0);
   const forecast = useMemo(
     () =>
       calculateForecast({
@@ -433,15 +474,45 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
     [resolvedLanguage],
   );
 
+  useEffect(() => {
+    if (checkInRequest <= handledCheckInRequestRef.current) {
+      return;
+    }
+
+    handledCheckInRequestRef.current = checkInRequest;
+    setVisibleMonth(startOfMonth(today));
+    setSelectedDate(today);
+    setEditorReturnFocusElement(checkInReturnFocusElement ?? null);
+    setEditorValue(valueFromLog(payload.logs.find((log) => log.date === today)));
+    setErrorMessage(undefined);
+    setStatusMessage(undefined);
+    setEditorOpen(true);
+    onEditorOpenChange?.(true);
+    onCheckInRequestHandled?.(checkInRequest);
+  }, [
+    checkInRequest,
+    checkInReturnFocusElement,
+    onCheckInRequestHandled,
+    onEditorOpenChange,
+    payload.logs,
+    today,
+  ]);
+
   const calendarCopy: CalendarCopy = {
-    navigationLabel: t(($) => $.tracker.calendar.navigationLabel),
+    navigationLabel: t(($) => $.mobile.calendar.navigation.label),
     calendarLabel: t(($) => $.tracker.calendar.calendarLabel),
-    previousMonth: t(($) => $.tracker.calendar.previousMonth),
-    nextMonth: t(($) => $.tracker.calendar.nextMonth),
-    today: t(($) => $.tracker.calendar.today),
+    previousMonth: t(($) => $.mobile.calendar.navigation.previousMonth),
+    nextMonth: t(($) => $.mobile.calendar.navigation.nextMonth),
+    today: t(($) => $.mobile.calendar.navigation.today),
     selected: t(($) => $.tracker.calendar.selected),
     outsideMonth: t(($) => $.tracker.calendar.outsideMonth),
-    legendTitle: t(($) => $.tracker.calendar.legendTitle),
+    legendTitle: t(($) => $.mobile.calendar.legend.title),
+    markerGuide: t(($) => $.mobile.calendar.legend.guideTitle),
+    essentialLegend: {
+      recorded: t(($) => $.mobile.calendar.legend.recorded),
+      predicted: t(($) => $.mobile.calendar.legend.predicted),
+      today: t(($) => $.mobile.calendar.legend.today),
+    },
     markers: {
       recordedRed: t(($) => $.tracker.calendar.markers.recordedRed),
       predictedRed: t(($) => $.tracker.calendar.markers.predictedRed),
@@ -523,8 +594,14 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
     pain: ratingCopy('pain'),
   } satisfies Readonly<Record<RatingField, RatingScaleCopy>>;
   const dayDetailCopy: DayDetailCopy = {
-    title: t(($) => $.tracker.dayDetail.title),
-    close: t(($) => $.tracker.dayDetail.close),
+    title: payload.logs.some((log) => log.date === selectedDate)
+      ? selectedDate === today
+        ? t(($) => $.mobile.checkIn.editTitle)
+        : t(($) => $.mobile.checkIn.editDayTitle)
+      : selectedDate === today
+        ? t(($) => $.mobile.checkIn.title)
+        : t(($) => $.mobile.checkIn.dayTitle),
+    close: t(($) => $.mobile.checkIn.actions.close),
     quickActionsTitle: t(($) => $.tracker.dayDetail.quickActionsTitle),
     periodActions: {
       start: {
@@ -555,8 +632,20 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
     ratings,
     noteLabel: t(($) => $.tracker.dayDetail.noteLabel),
     noteDescription: t(($) => $.tracker.dayDetail.noteDescription),
-    save: t(($) => $.tracker.dayDetail.save),
-    saving: t(($) => $.tracker.dayDetail.saving),
+    optionalDetails: {
+      show: t(($) => $.mobile.checkIn.optional.show),
+      hide: t(($) => $.mobile.checkIn.optional.hide),
+      description: t(($) => $.mobile.checkIn.optional.description),
+    },
+    cancel: t(($) => $.mobile.checkIn.actions.cancel),
+    save:
+      checkInTransitionForDate(payload, selectedDate, editorValue.flow) === 'start'
+        ? t(($) => $.mobile.checkIn.actions.startPeriodAndSave)
+        : t(($) => $.mobile.checkIn.actions.saveAndDone),
+    saving:
+      checkInTransitionForDate(payload, selectedDate, editorValue.flow) === 'start'
+        ? t(($) => $.mobile.checkIn.actions.startingAndSaving)
+        : t(($) => $.mobile.checkIn.actions.saving),
     removePeriodConfirmation: t(($) => $.tracker.dayDetail.removePeriodConfirmation),
     confirmRemovePeriod: t(($) => $.tracker.dayDetail.confirmRemovePeriod),
     cancelRemovePeriod: t(($) => $.tracker.dayDetail.cancelRemovePeriod),
@@ -589,6 +678,7 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
   const persistJournal = async (
     result: JournalMutationResult,
     successMessage: string,
+    closeAfterSave = false,
   ): Promise<void> => {
     setBusy(true);
     setErrorMessage(undefined);
@@ -601,6 +691,10 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
         updatedAt: journalEnvironment.now(),
       });
       setStatusMessage(successMessage);
+      if (closeAfterSave) {
+        setEditorOpen(false);
+        onEditorOpenChange?.(false);
+      }
     } catch (error) {
       setErrorMessage(messageForError(error));
     } finally {
@@ -610,44 +704,47 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
 
   const handlePeriodAction = (action: PeriodQuickAction, date: LocalDate): void => {
     try {
-      let result: JournalMutationResult;
-      let successMessage: string;
-      switch (action) {
-        case 'start':
-          if (editorValue.flow === 'none' || editorValue.flow === 'spotting') {
-            throw new JournalError('invalid-start-flow');
-          }
-          result = startPeriod(
-            payload,
-            {
-              date,
-              ...(isBleedingFlow(editorValue.flow) ? { flow: editorValue.flow } : {}),
-            },
-            journalEnvironment,
-          );
-          successMessage = t(($) => $.tracker.dayDetail.status.started);
-          break;
-        case 'continue':
-          result = continuePeriod(
-            payload,
-            { date, ...(editorValue.flow === undefined ? {} : { flow: editorValue.flow }) },
-            journalEnvironment,
-          );
-          successMessage = t(($) => $.tracker.dayDetail.status.continued);
-          break;
-        case 'end':
-          result = endPeriod(payload, { date }, journalEnvironment);
-          successMessage = t(($) => $.tracker.dayDetail.status.ended);
-          break;
-        case 'remove': {
-          const episode = periodContainingDate(payload, date);
-          if (!episode) throw new JournalError('episode-not-found');
-          result = removePeriod(payload, episode.id, journalEnvironment);
-          successMessage = t(($) => $.tracker.dayDetail.status.removed);
-          break;
-        }
+      if (action !== 'remove') {
+        const flow = editorValue.flow ?? null;
+        const nextPayload = buildDailyCheckInPayload(
+          payload,
+          date,
+          {
+            flow,
+            confidence: editorValue.confidence ?? null,
+            tension: editorValue.tension ?? null,
+            energy: editorValue.energy ?? null,
+            pain: editorValue.pain ?? null,
+            note: editorValue.note ?? null,
+          },
+          action,
+          journalEnvironment,
+        );
+        setBusy(true);
+        setErrorMessage(undefined);
+        setStatusMessage(undefined);
+        void savePayload(nextPayload)
+          .then(() => {
+            setEditorOpen(false);
+            onEditorOpenChange?.(false);
+          })
+          .catch((error: unknown) => {
+            setErrorMessage(messageForError(error));
+          })
+          .finally(() => {
+            setBusy(false);
+          });
+        return;
       }
-      void persistJournal(result, successMessage);
+
+      const episode = periodContainingDate(payload, date);
+      if (!episode) throw new JournalError('episode-not-found');
+      const result = removePeriod(payload, episode.id, journalEnvironment);
+      void persistJournal(
+        result,
+        t(($) => $.tracker.dayDetail.status.removed),
+        true,
+      );
     } catch (error) {
       setErrorMessage(messageForError(error));
       setStatusMessage(undefined);
@@ -656,10 +753,11 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
 
   const saveCheckIn = (value: DayDetailValue, date: LocalDate): void => {
     try {
-      const result = upsertDailyCheckIn(
+      const transition = checkInTransitionForDate(payload, date, value.flow);
+      const nextPayload = buildDailyCheckInPayload(
         payload,
+        date,
         {
-          date,
           flow: value.flow ?? null,
           confidence: value.confidence ?? null,
           tension: value.tension ?? null,
@@ -667,12 +765,23 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
           pain: value.pain ?? null,
           note: value.note?.trim() ? value.note.trim() : null,
         },
+        transition,
         journalEnvironment,
       );
-      void persistJournal(
-        result,
-        t(($) => $.tracker.dayDetail.status.saved),
-      );
+      setBusy(true);
+      setErrorMessage(undefined);
+      setStatusMessage(undefined);
+      void savePayload(nextPayload)
+        .then(() => {
+          setEditorOpen(false);
+          onEditorOpenChange?.(false);
+        })
+        .catch((error: unknown) => {
+          setErrorMessage(messageForError(error));
+        })
+        .finally(() => {
+          setBusy(false);
+        });
     } catch (error) {
       setErrorMessage(messageForError(error));
       setStatusMessage(undefined);
@@ -685,6 +794,7 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
       void persistJournal(
         result,
         t(($) => $.tracker.dayDetail.status.deleted),
+        true,
       );
     } catch (error) {
       setErrorMessage(messageForError(error));
@@ -693,23 +803,64 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
   };
 
   const existingLog = payload.logs.find((log) => log.date === selectedDate);
+  const selectedEpisode = periodContainingDate(payload, selectedDate);
+  const selectedFlowCannotStartPeriod =
+    isBleedingFlow(editorValue.flow) &&
+    selectedEpisode === undefined &&
+    payload.episodes.some((episode) => episode.startDate > selectedDate);
+  const selectedFlowInvalidatesEpisodeStart =
+    selectedEpisode?.startDate === selectedDate &&
+    (editorValue.flow === 'none' || editorValue.flow === 'spotting');
+  const editorHasObservation =
+    editorValue.flow !== undefined ||
+    editorValue.confidence !== undefined ||
+    editorValue.tension !== undefined ||
+    editorValue.energy !== undefined ||
+    editorValue.pain !== undefined ||
+    (editorValue.note?.trim().length ?? 0) > 0;
+  const saveDisabledReason = selectedFlowCannotStartPeriod
+    ? t(($) => $.tracker.dayDetail.errors.historicalStart)
+    : selectedFlowInvalidatesEpisodeStart
+      ? t(($) => $.tracker.dayDetail.errors.startFlow)
+      : !editorHasObservation
+        ? t(($) => $.mobile.checkIn.guidance.chooseObservation)
+        : undefined;
   const messages = forecastMessages(forecast, payload, resolvedLanguage, t);
+  const activeEpisode = payload.episodes.find((episode) => episode.endDate === undefined);
+  const forecastHeadline =
+    activeEpisode !== undefined
+      ? t(($) => $.mobile.calendar.forecast.states.active.title)
+      : payload.settings.forecastingPaused
+        ? t(($) => $.mobile.calendar.forecast.states.paused.title)
+        : forecast === null
+          ? t(($) => $.mobile.calendar.forecast.states.unavailable.title)
+          : t(($) => $.mobile.calendar.forecast.range, {
+              range: formatLocalDateRange(
+                forecast.earliestStart,
+                forecast.latestStart,
+                resolvedLanguage,
+              ),
+            });
+  const forecastSummary =
+    activeEpisode !== undefined
+      ? t(($) => $.mobile.calendar.forecast.states.active.description)
+      : payload.settings.forecastingPaused
+        ? t(($) => $.mobile.calendar.forecast.states.paused.description)
+        : forecast === null
+          ? t(($) => $.mobile.calendar.forecast.states.unavailable.description)
+          : forecast.completedCyclesUsed > 0
+            ? t(($) => $.mobile.calendar.forecast.basis, {
+                confidence: t(($) => $.tracker.forecast.confidence[forecast.confidence]),
+                count: forecast.completedCyclesUsed,
+              })
+            : t(($) => $.tracker.forecast.typicalSource);
 
   return (
     <>
       <section className={styles['tracker']} aria-labelledby="tracker-calendar-title">
-        <header className={styles['header']}>
-          <p className={styles['sectionLabel']}>{t(($) => $.tracker.calendar.sectionLabel)}</p>
-          <h2 id="tracker-calendar-title">{t(($) => $.tracker.calendar.title)}</h2>
-          <p>{t(($) => $.tracker.calendar.description)}</p>
-        </header>
-
-        <section className={styles['forecast']} aria-labelledby="tracker-forecast-title">
-          <h3 id="tracker-forecast-title">{t(($) => $.tracker.forecast.title)}</h3>
-          {messages.map((message) => (
-            <p key={message}>{message}</p>
-          ))}
-        </section>
+        <h2 className={styles['visuallyHidden']} id="tracker-calendar-title">
+          {t(($) => $.tracker.calendar.title)}
+        </h2>
 
         <MonthlyCalendar
           copy={calendarCopy}
@@ -721,18 +872,25 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
           onPreviousMonth={() => {
             setVisibleMonth((current) => addMonths(current, -1));
           }}
-          onSelectDate={(date) => {
+          onSelectDate={(date, trigger) => {
             setSelectedDate(date);
             if (date > today) {
               setEditorOpen(false);
               setErrorMessage(undefined);
               setStatusMessage(undefined);
+              onEditorOpenChange?.(false);
               return;
             }
+            setEditorReturnFocusElement(trigger);
             setEditorValue(valueFromLog(payload.logs.find((log) => log.date === date)));
             setErrorMessage(undefined);
             setStatusMessage(undefined);
             setEditorOpen(true);
+            onEditorOpenChange?.(true);
+          }}
+          onToday={() => {
+            setVisibleMonth(startOfMonth(today));
+            setSelectedDate(today);
           }}
           selectedDate={selectedDate}
           today={today}
@@ -744,13 +902,57 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
             {t(($) => $.tracker.calendar.future)}
           </p>
         ) : null}
+
+        <section className={styles['forecast']} aria-labelledby="tracker-forecast-title">
+          <h3 id="tracker-forecast-title">{t(($) => $.mobile.calendar.forecast.title)}</h3>
+          <p className={styles['forecastLead']}>{forecastHeadline}</p>
+          <p>{forecastSummary}</p>
+          {forecast?.calendarMarkersSuppressed ? (
+            <p>{t(($) => $.mobile.calendar.forecast.states.variable.description)}</p>
+          ) : null}
+          {forecast?.isLate ? (
+            <p>{t(($) => $.mobile.calendar.forecast.states.late.description)}</p>
+          ) : null}
+          {activeEpisode === undefined && forecast !== null && messages.slice(1).length > 0 ? (
+            <details className={styles['forecastDetails']}>
+              <summary>{t(($) => $.mobile.calendar.forecast.why)}</summary>
+              {messages.slice(1).map((message) => (
+                <p key={message}>{message}</p>
+              ))}
+            </details>
+          ) : null}
+          {forecast && !isSameMonth(forecast.centralStart, visibleMonth) ? (
+            <button
+              className={styles['secondaryAction']}
+              onClick={() => {
+                setVisibleMonth(startOfMonth(forecast.centralStart));
+                setSelectedDate(forecast.centralStart);
+              }}
+              type="button"
+            >
+              {t(($) => $.mobile.calendar.forecast.showPredictedMonth)}
+            </button>
+          ) : null}
+        </section>
+
+        {onOpenInsights || onOpenHistory ? (
+          <nav
+            aria-label={t(($) => $.mobile.calendar.context.navigationLabel)}
+            className={styles['contextLinks']}
+          >
+            {onOpenInsights ? (
+              <button onClick={onOpenInsights} ref={insightsTriggerRef} type="button">
+                {t(($) => $.mobile.calendar.context.insights)}
+              </button>
+            ) : null}
+            {onOpenHistory ? (
+              <button onClick={onOpenHistory} ref={historyTriggerRef} type="button">
+                {t(($) => $.mobile.calendar.context.periodHistory)}
+              </button>
+            ) : null}
+          </nav>
+        ) : null}
       </section>
-
-      <TrackerInsightsSection forecast={forecast} payload={payload} />
-
-      <TrackerHistorySection payload={payload} />
-
-      <TrackerPreferences payload={payload} />
 
       {editorOpen ? (
         <DayDetailEditor
@@ -767,6 +969,7 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
           onChange={setEditorValue}
           onClose={() => {
             setEditorOpen(false);
+            onEditorOpenChange?.(false);
           }}
           {...(existingLog === undefined ? {} : { onDelete: deleteCheckIn })}
           onPeriodAction={handlePeriodAction}
@@ -775,8 +978,10 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
             startFlow: t(($) => $.tracker.dayDetail.errors.startFlow),
             historicalStart: t(($) => $.tracker.dayDetail.errors.historicalStart),
             laterPeriodDays: t(($) => $.tracker.dayDetail.errors.laterPeriodDays),
-          })}
+          }).filter(({ action }) => action === 'end' || action === 'remove')}
+          returnFocusElement={editorReturnFocusElement}
           {...(statusMessage === undefined ? {} : { statusMessage })}
+          {...(saveDisabledReason === undefined ? {} : { saveDisabled: true, saveDisabledReason })}
           value={editorValue}
         />
       ) : null}
@@ -784,13 +989,24 @@ function TrackerCalendar({ payload }: { readonly payload: VaultPayload }) {
   );
 }
 
-export function TrackerDashboard() {
+export interface TrackerDashboardProps {
+  readonly checkInReturnFocusElement?: HTMLElement | null;
+  readonly checkInRequest?: number;
+  readonly historyTriggerRef?: Ref<HTMLButtonElement>;
+  readonly insightsTriggerRef?: Ref<HTMLButtonElement>;
+  readonly onCheckInRequestHandled?: (request: number) => void;
+  readonly onEditorOpenChange?: (open: boolean) => void;
+  readonly onOpenHistory?: () => void;
+  readonly onOpenInsights?: () => void;
+}
+
+export function TrackerDashboard(props: TrackerDashboardProps = {}) {
   const { snapshot } = useVault();
 
   if (snapshot.phase !== 'unlocked') return null;
 
   return snapshot.payload.settings.onboardingCompleted ? (
-    <TrackerCalendar payload={snapshot.payload} />
+    <TrackerCalendar payload={snapshot.payload} {...props} />
   ) : (
     <TrackerOnboardingFlow payload={snapshot.payload} />
   );
