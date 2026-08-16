@@ -343,6 +343,28 @@ test.describe('Phase 5 compact mobile shell', () => {
     await expect(navigation.getByRole('button', { exact: true, name: 'Privacy' })).toBeVisible();
     await expect(navigation.getByRole('button', { exact: true, name: 'Settings' })).toBeVisible();
     await expect(checkInAction).toBeVisible();
+    await expect(checkInAction).toBeInViewport();
+    await expect(page.getByRole('heading', { name: 'Next period' })).toBeInViewport();
+    await expect(page.getByText('Estimate unavailable', { exact: true })).toBeInViewport();
+
+    const monthToolbar = page.getByRole('group', { name: 'Calendar month navigation' });
+    const toolbarCenterSpread = await monthToolbar.evaluate<number, undefined>(
+      `((element) => {
+        const centers = Array.from(element.children).map((child) => {
+          const rect = child.getBoundingClientRect();
+          return rect.top + rect.height / 2;
+        });
+        return Math.max(...centers) - Math.min(...centers);
+      })`,
+      undefined,
+    );
+    expect(toolbarCenterSpread).toBeLessThanOrEqual(1);
+
+    for (const destination of ['Calendar', 'Privacy', 'Settings']) {
+      await expect(
+        navigation.getByRole('button', { exact: true, name: destination }),
+      ).toBeInViewport();
+    }
 
     await openRootDestination(page, 'Privacy');
     await expect(checkInAction).toBeVisible();
@@ -360,6 +382,14 @@ test.describe('Phase 5 compact mobile shell', () => {
 
     await checkInAction.click();
     const checkIn = page.getByRole('dialog', { name: 'Check in today' });
+    const saveAndDone = checkIn.getByRole('button', { name: 'Save and done' });
+    await expect(saveAndDone).toBeInViewport();
+    const saveButtonBottomGap = await saveAndDone.evaluate<number, undefined>(
+      '((button) => window.innerHeight - button.getBoundingClientRect().bottom)',
+      undefined,
+    );
+    expect(saveButtonBottomGap).toBeGreaterThanOrEqual(0);
+    expect(saveButtonBottomGap).toBeLessThanOrEqual(48);
     await checkIn.getByRole('radio', { name: 'Spotting' }).check();
     await expect(page.getByRole('navigation', { name: 'Primary navigation' })).not.toBeVisible();
     expect(page.url()).toBe(initialUrl);

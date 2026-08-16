@@ -353,7 +353,12 @@ export function MonthlyCalendar({
 
   return (
     <section className={styles['calendar']} aria-labelledby={headingId}>
-      <div className={styles['calendarHeader']} aria-label={copy.navigationLabel} role="group">
+      <div
+        aria-label={copy.navigationLabel}
+        className={styles['calendarHeader']}
+        data-has-today={Boolean(onToday)}
+        role="group"
+      >
         <button
           aria-label={copy.previousMonth}
           className={styles['navigationButton']}
@@ -373,13 +378,12 @@ export function MonthlyCalendar({
         >
           <span aria-hidden="true">{'›'}</span>
         </button>
+        {onToday ? (
+          <button className={styles['todayButton']} onClick={moveToToday} type="button">
+            {copy.today}
+          </button>
+        ) : null}
       </div>
-
-      {onToday ? (
-        <button className={styles['todayButton']} onClick={moveToToday} type="button">
-          {copy.today}
-        </button>
-      ) : null}
 
       <div className={styles['tableScroller']}>
         <table className={styles['calendarTable']} aria-label={copy.calendarLabel}>

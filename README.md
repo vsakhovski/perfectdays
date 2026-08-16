@@ -188,6 +188,7 @@ The mobile screen follows this order:
 
 - Previous and next controls move exactly one calendar month and stay adjacent to the localized month and year.
 - **Today** returns to the current local month, selects today, and moves the calendar's roving focus to it.
+- At phone widths, previous month, month/year, next month, and **Today** share one compact toolbar; 44 CSS-pixel day cells keep the forecast headline in the initial 320 Ã— 800 viewport without reducing touch targets.
 - The semantic six-week grid retains localized weekday headers and complete accessible descriptions for every date.
 - Recorded periods form solid red bands across adjacent cells with rounded range ends. Predicted periods use visibly striped bands. Possible starts retain a dashed/outlined treatment, and the optional check-in window uses a thin amber top bar.
 - The essential legend shows **Recorded**, **Predicted**, and **Today** directly below the grid. A **Marker guide** disclosure explains spotting, possible start, amber, green, overlaps, icons, and patterns.
@@ -228,7 +229,7 @@ On a small screen, check-in is a focused full-screen task. On wider screens it m
 2. Flow: `none`, `spotting`, `light`, `medium`, or `heavy`.
 3. Optional compact 1–5 controls for confidence, tension, energy, and pain.
 4. **Add note or details** progressive disclosure.
-5. A sticky bottom bar with **Cancel** and **Save and done**, above the software keyboard and device safe area.
+5. A bottom bar with **Cancel** and **Save and done**. It stays at the viewport bottom for short forms and remains sticky while longer optional details scroll, above the device safe area.
 
 No unknown value is preselected. A successful durable save closes the editor, returns focus meaningfully, and updates the calendar immediately. If today's entry exists, the persistent action changes to **Edit today's check-in**. Delete and whole-period removal remain visually secondary and explicitly confirmed.
 
@@ -924,7 +925,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 ## Current development environment
 
-Verified on August 10, 2026:
+Verified on August 16, 2026:
 
 - Windows and PowerShell
 - Node.js `v24.19.0`
@@ -932,7 +933,7 @@ Verified on August 10, 2026:
 - Git `2.55.0.windows.3`
 - Git repository on `main`, tracking `origin/main`
 - PowerShell blocks the `npm.ps1` shim under the current execution policy; use `npm.cmd` and `npx.cmd` rather than changing machine-wide policy merely for this project.
-- The Phase 5 baseline includes 344 Vitest tests, four production-PWA artifact tests, and 60 configured Playwright cases across desktop Chromium/Firefox and mobile Chromium/WebKit. Fifty-two cases apply in a complete browser installation; eight service-worker/download cases are intentionally skipped outside their applicable engines.
+- The Phase 5 baseline includes 344 Vitest tests, four production-PWA artifact tests, and 60 configured Playwright cases across desktop Chromium/Firefox and mobile Chromium/WebKit. The mobile shell regression checks that the prediction and all bottom controls are in the initial viewport, the month toolbar stays on one row, and the short check-in form anchors its actions at the bottom. Fifty-two cases apply in a complete browser installation; eight service-worker/download cases are intentionally skipped outside their applicable engines.
 
 ### Local setup
 
