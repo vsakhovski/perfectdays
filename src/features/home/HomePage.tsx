@@ -8,6 +8,7 @@ import { BackupAndRestoreSettings } from '../backup/BackupAndRestoreSettings';
 import { LanguageControl } from '../settings/LanguageControl';
 import { PinSecurityPanel } from '../settings/PinSecurityPanel';
 import { ThemeControl } from '../settings/ThemeControl';
+import { WeekStartControl } from '../settings/WeekStartControl';
 import {
   MobileAppShell,
   type MobileAppShellCopy,
@@ -71,17 +72,23 @@ function CalendarDestination({
   checkInReturnFocusElement,
   checkInRequest,
   detailScreen,
+  goTodayRequest,
   onDetailScreenChange,
   onEditorOpenChange,
   onCheckInRequestHandled,
+  onGoTodayRequestHandled,
+  onViewingCurrentMonthChange,
   payload,
 }: {
   readonly checkInReturnFocusElement: HTMLButtonElement | null;
   readonly checkInRequest: number;
   readonly detailScreen: CalendarDetailScreen;
+  readonly goTodayRequest: number;
   readonly onDetailScreenChange: (screen: CalendarDetailScreen) => void;
   readonly onEditorOpenChange: (open: boolean) => void;
   readonly onCheckInRequestHandled: (request: number) => void;
+  readonly onGoTodayRequestHandled: (request: number) => void;
+  readonly onViewingCurrentMonthChange: (isCurrentMonth: boolean) => void;
   readonly payload: VaultPayload;
 }) {
   const { t } = useTranslation();
@@ -147,9 +154,11 @@ function CalendarDestination({
     <TrackerDashboard
       checkInReturnFocusElement={checkInReturnFocusElement}
       checkInRequest={checkInRequest}
+      goTodayRequest={goTodayRequest}
       historyTriggerRef={historyTriggerRef}
       insightsTriggerRef={insightsTriggerRef}
       onCheckInRequestHandled={onCheckInRequestHandled}
+      onGoTodayRequestHandled={onGoTodayRequestHandled}
       onEditorOpenChange={onEditorOpenChange}
       onOpenHistory={() => {
         onDetailScreenChange('history');
@@ -157,6 +166,7 @@ function CalendarDestination({
       onOpenInsights={() => {
         onDetailScreenChange('insights');
       }}
+      onViewingCurrentMonthChange={onViewingCurrentMonthChange}
     />
   );
 }
@@ -201,6 +211,7 @@ function SettingsDestination({ payload }: { readonly payload: VaultPayload }) {
         <div className={styles['preferenceControls']}>
           <ThemeControl />
           <LanguageControl />
+          <WeekStartControl payload={payload} />
         </div>
       </section>
       <section className={styles['informationCard']}>
@@ -223,6 +234,9 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   const [checkInReturnFocusElement, setCheckInReturnFocusElement] =
     useState<HTMLButtonElement | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [goTodayRequest, setGoTodayRequest] = useState<number>();
+  const goTodayRequestCounterRef = useRef(0);
+  const [calendarShowsCurrentMonth, setCalendarShowsCurrentMonth] = useState(true);
   const [pinSetupRequest, setPinSetupRequest] = useState<number>();
   const pinSetupRequestCounterRef = useRef(0);
   const today = journalEnvironment.today();
@@ -247,6 +261,9 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
 
   const navigate = (nextDestination: RootDestination): void => {
     setCalendarDetail(null);
+    if (nextDestination === 'calendar' && destination !== 'calendar') {
+      setCalendarShowsCurrentMonth(true);
+    }
     setDestination(nextDestination);
   };
 
@@ -256,11 +273,16 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
         checkInReturnFocusElement={checkInReturnFocusElement}
         checkInRequest={checkInRequest ?? 0}
         detailScreen={calendarDetail}
+        goTodayRequest={goTodayRequest ?? 0}
         onDetailScreenChange={setCalendarDetail}
         onEditorOpenChange={setEditorOpen}
+        onGoTodayRequestHandled={(request) => {
+          setGoTodayRequest((current) => (current === request ? undefined : current));
+        }}
         onCheckInRequestHandled={(request) => {
           setCheckInRequest((current) => (current === request ? undefined : current));
         }}
+        onViewingCurrentMonthChange={setCalendarShowsCurrentMonth}
         payload={payload}
       />
     ) : destination === 'privacy' ? (
@@ -284,6 +306,18 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
       copy={copy}
       hasTodayCheckIn={hasTodayCheckIn}
       hideBottomChrome={editorOpen}
+      {...(destination === 'calendar' && calendarDetail === null
+        ? {
+            headerAction: {
+              disabled: calendarShowsCurrentMonth,
+              label: t(($) => $.mobile.calendar.navigation.goToToday),
+              onActivate: () => {
+                goTodayRequestCounterRef.current += 1;
+                setGoTodayRequest(goTodayRequestCounterRef.current);
+              },
+            },
+          }
+        : {})}
       onCheckIn={(trigger) => {
         setCheckInReturnFocusElement(trigger);
         setCalendarDetail(null);

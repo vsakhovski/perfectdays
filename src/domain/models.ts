@@ -30,11 +30,13 @@ export interface DailyLog {
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type SupportedLanguage = 'en' | 'de';
 export type LanguagePreference = 'system' | SupportedLanguage;
+export type WeekStartPreference = 'system' | 'monday' | 'sunday';
 export type AutoLockDelay = 'immediate' | '1-minute' | '5-minutes' | '15-minutes';
 
 export interface UserSettings {
   theme: ThemePreference;
   language: LanguagePreference;
+  weekStart: WeekStartPreference;
   onboardingCompleted: boolean;
   orangeEnabled: boolean;
   orangeDays: number;

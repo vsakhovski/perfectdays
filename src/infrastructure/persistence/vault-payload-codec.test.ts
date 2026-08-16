@@ -43,6 +43,7 @@ function createPayload(): VaultPayload {
     ],
     settings: {
       onboardingCompleted: true,
+      weekStart: 'system',
       orangeEnabled: true,
       orangeDays: 5,
       typicalCycleLength: 28,
@@ -55,6 +56,12 @@ function createPayload(): VaultPayload {
   };
 }
 
+function withoutWeekStart(settings: VaultPayload['settings']): Record<string, unknown> {
+  const legacySettings: Record<string, unknown> = { ...settings };
+  delete legacySettings['weekStart'];
+  return legacySettings;
+}
+
 describe('vault payload codec', () => {
   it('creates an empty vault using the documented privacy and forecast defaults', () => {
     expect(createEmptyVaultPayload(timestamp)).toEqual({
@@ -63,6 +70,7 @@ describe('vault payload codec', () => {
       logs: [],
       settings: {
         onboardingCompleted: false,
+        weekStart: 'system',
         orangeEnabled: true,
         orangeDays: 5,
         forecastingPaused: false,
@@ -152,11 +160,12 @@ describe('vault payload codec', () => {
 
   it('migrates version-two payloads without retaining unsafe forecast fallbacks', () => {
     const current = createPayload();
+    const legacySettings = withoutWeekStart(current.settings);
     const legacyPayload = {
       ...current,
       schemaVersion: 2,
       settings: {
-        ...current.settings,
+        ...legacySettings,
         typicalCycleLength: 999_999_999_999,
         typicalBleedDuration: 999_999_999_999,
       },
@@ -169,6 +178,21 @@ describe('vault payload codec', () => {
     expect(migrated.settings).not.toHaveProperty('typicalBleedDuration');
     expect(migrated.episodes).toEqual(current.episodes);
     expect(migrated.logs).toEqual(current.logs);
+  });
+
+  it('migrates a version-three payload to the system week-start default', () => {
+    const current = createPayload();
+    const legacySettings = withoutWeekStart(current.settings);
+    const legacyPayload = {
+      ...current,
+      schemaVersion: 3,
+      settings: legacySettings,
+    };
+
+    const migrated = decodeVaultPayload(new TextEncoder().encode(JSON.stringify(legacyPayload)));
+
+    expect(migrated.schemaVersion).toBe(CURRENT_VAULT_SCHEMA_VERSION);
+    expect(migrated.settings.weekStart).toBe('system');
   });
 
   it('rejects unknown future versions without treating them as the current shape', () => {

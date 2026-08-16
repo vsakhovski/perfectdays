@@ -4,7 +4,7 @@
 
 A private, mobile-first menstrual journal that records bleeding and helps its user notice her own recurring wellbeing patterns. The product uses red, orange, and green calendar markers, but treats them as personal context rather than biological verdicts or judgments about competence.
 
-**Status:** Phase 5 first mobile engineering slice implemented. After onboarding or unlock, the app now opens a compact Calendar-first shell with separate Calendar, Privacy, and Settings destinations; a persistent one-tap today check-in action; an atomic **Save and done** flow; contextual Insights and Period history screens; a forecast summary below the calendar; revised light/dark marker treatments; and mobile-browser coverage. Manual contrast, software-keyboard, forced-colors, screen-reader, and real-user usability review remain open, as do episode splitting/merging, evidence-driven forecast calibration, final naming, and public-beta clinical, legal, and independent security review.
+**Status:** Phase 5 first mobile engineering slice implemented. After onboarding or unlock, the app now opens a compact Calendar-first shell with separate Calendar, Privacy, and Settings destinations; a persistent one-tap today check-in action; an atomic **Save and done** flow; contextual Insights and Period history screens; a forecast summary below the calendar; a header-level **Go to today** action; square responsive date cells; configurable regional week starts; revised light/dark marker treatments; and mobile-browser coverage. Manual contrast, software-keyboard, forced-colors, screen-reader, and real-user usability review remain open, as do episode splitting/merging, evidence-driven forecast calibration, final naming, and public-beta clinical, legal, and independent security review.
 
 ## Product goal
 
@@ -45,11 +45,11 @@ Markers may overlap. For example, a person can be menstruating and also report h
 | **Possible start** | Other dates in the estimated start range | Dashed or outlined range treatment rather than a solid fill |
 | **Orange** | Optional pre-period check-in window | Thin golden-amber bar at the top of the cell, never a warning about competence |
 | **Green** | A day with an explicitly logged high-confidence score | Green badge or accent; retrospective only in the MVP |
-| **Today** | The current local date | Strong blue ring around the day number, heavier number weight, and a complete accessible “Today” label |
+| **Today** | The current local date | Strong blue cell border, heavier number weight, and a complete accessible “Today” label |
 | **Neutral** | Nothing recorded or insufficient evidence | Normal calendar styling |
 | **Spotting** | Spotting that does not start a cycle by itself | Separate dot/icon rather than recorded-red styling |
 
-Recorded observations take precedence over conflicting forecast visuals. An early recorded period removes forecast and amber styling for that date; green may coexist as a separate badge. Today, selection, and keyboard focus remain three independent states: today uses the number ring, selection uses the cell treatment, and keyboard focus uses an outer focus outline.
+Recorded observations take precedence over conflicting forecast visuals. An early recorded period removes forecast and amber styling for that date; green may coexist as a separate badge. A tapped date opens its check-in without leaving a persistent selection state. Today uses the strong cell border, while keyboard focus remains a separate outer focus outline.
 
 Applied Phase 5 marker tokens:
 
@@ -89,12 +89,13 @@ Language to avoid:
 - Offer an optional six-digit PIN and explain that, when enabled, forgetting it requires erasing the inaccessible encrypted local data.
 - Choose **System**, **Light**, or **Dark** appearance. Default: System.
 - Choose **Device language**, **English**, or **Deutsch**. Default: Device language; unsupported device languages fall back to English.
+- Choose **System default**, **Monday**, or **Sunday** as the first calendar weekday. System default uses the device's regional locale and is the default.
 
 ### 2. Calendar as the default destination
 
 - Open the current local month after completed onboarding, reload, or unlock.
-- Provide visible previous-month, next-month, and **Today** controls directly above the grid.
-- Keep today clearly identified independently of the selected date and keyboard focus.
+- Provide visible previous-month and next-month controls directly above the grid, plus a **Go to today** action beside the Calendar screen title.
+- Disable **Go to today** while the current local month is already displayed, and keep today clearly identified independently of keyboard focus.
 - Show recorded bleeding, predicted bleeding, spotting, orange, green, and neutral states.
 - Keep recorded and predicted states unmistakably different.
 - Put a compact essential legend immediately below the grid and the complete marker guide behind a disclosure.
@@ -154,7 +155,7 @@ This section describes the implemented Phase 5 mobile foundation and the remaini
 | --- | --- |
 | **Calendar** | Default destination; current month, recorded observations, predictions, forecast summary, day access, and contextual history |
 | **Privacy** | Lock, PIN, auto-lock, encrypted backup and restore, warned readable export, storage explanation, and nested erasure controls |
-| **Settings** | Tracking and forecast preferences, orange-window configuration, appearance, language, and About/non-medical information |
+| **Settings** | Tracking and forecast preferences, orange-window configuration, appearance, language, calendar week start, and About/non-medical information |
 | **Check in today** | Persistent primary action above the navigation; opens or edits today's entry and is not a destination |
 
 There is no separate **Today** or **Patterns** bottom destination. Their useful content is redistributed: today's work begins through the persistent action, forecast reasoning appears below the calendar, and recent patterns plus period history remain available through contextual secondary screens.
@@ -169,9 +170,8 @@ The mobile screen follows this order:
 
 ```text
 ┌─────────────────────────────────┐
-│ Calendar                  Lock  │
+│ Calendar  [Go to today]   Lock  │
 │ ‹        August 2026        ›   │
-│                    [ Today ]    │
 │ Mon  Tue  Wed  Thu  Fri  Sat Sun│
 │          monthly date grid      │
 │ Recorded · Predicted · Today    │
@@ -187,8 +187,8 @@ The mobile screen follows this order:
 ```
 
 - Previous and next controls move exactly one calendar month and stay adjacent to the localized month and year.
-- **Today** returns to the current local month, selects today, and moves the calendar's roving focus to it.
-- At phone widths, previous month, month/year, next month, and **Today** share one compact toolbar; 44 CSS-pixel day cells keep the forecast headline in the initial 320 Ã— 800 viewport without reducing touch targets.
+- **Go to today** sits beside the Calendar screen title, returns to the current local month, and moves the calendar's roving focus to today. It is disabled when that month is already shown.
+- At phone widths, the month toolbar contains only centered previous/next chevrons and the localized month/year. Day cells retain a square aspect ratio while the viewport changes.
 - The semantic six-week grid retains localized weekday headers and complete accessible descriptions for every date.
 - Recorded periods form solid red bands across adjacent cells with rounded range ends. Predicted periods use visibly striped bands. Possible starts retain a dashed/outlined treatment, and the optional check-in window uses a thin amber top bar.
 - The essential legend shows **Recorded**, **Predicted**, and **Today** directly below the grid. A **Marker guide** disclosure explains spotting, possible start, amber, green, overlaps, icons, and patterns.
@@ -247,7 +247,7 @@ features/
   forecast/    ForecastExplanationScreen
   history/     PeriodHistoryScreen and existing correction workflow
   privacy/     PrivacyScreen for PIN, backup/restore, storage, and erasure
-  settings/    SettingsScreen for tracking, appearance, language, and About
+  settings/    SettingsScreen for tracking, appearance, language, week start, and About
 ```
 
 The current tracker composition derives today, the displayed month, markers, and forecast presentation from the current payload. `buildDailyCheckInPayload` already owns the atomic period-transition-plus-observation mutation; a later `useTrackerViewModel`/command-hook extraction can make the React orchestration smaller. Features do not import persistence or Web Crypto. The former DOM-id/query-selector bridge from backup controls to PIN setup has been replaced with typed in-memory state.
@@ -360,11 +360,13 @@ type DailyLog = {
 type ThemePreference = "system" | "light" | "dark";
 type SupportedLanguage = "en" | "de";
 type LanguagePreference = "system" | SupportedLanguage;
+type WeekStartPreference = "system" | "monday" | "sunday";
 type AutoLockDelay = "immediate" | "1-minute" | "5-minutes" | "15-minutes";
 
 type UserSettings = {
   theme: ThemePreference;
   language: LanguagePreference;
+  weekStart: WeekStartPreference;
   onboardingCompleted: boolean;
   orangeEnabled: boolean;
   orangeDays: number;
@@ -376,7 +378,7 @@ type UserSettings = {
 };
 
 type VaultPayload = {
-  schemaVersion: number; // currently 3
+  schemaVersion: number; // currently 4
   episodes: PeriodEpisode[];
   logs: DailyLog[];
   settings: Omit<UserSettings, "theme" | "language" | "pinEnabled">;
@@ -627,7 +629,7 @@ app -> composition of all layers
 - Device-language, English, and German selection with local persistence and English fallback.
 - Typed English and German message catalogs stored in separate per-language files with no runtime translation network request.
 - Immediate copy updates plus synchronized document `lang`, `dir`, title, and description metadata when language changes.
-- Device locale resolution by supported base tag, including values such as `de-DE` and `de-AT`, and live re-resolution after a browser language change while Device language is selected.
+- Device locale resolution by supported base tag, including values such as `de-DE` and `de-AT`, and live re-resolution after a browser language change while Device language is selected. Calendar week-start resolution retains the device's regional locale so `en-US` can begin on Sunday while `en-GB` begins on Monday.
 - CSS design tokens for both themes, reduced-motion handling, visible keyboard focus, and non-color marker accents.
 - A validated local-date type and timezone-independent date arithmetic with leap-year and boundary tests.
 - A strict version-3 logical payload schema, tested sequential version-0-to-1-to-2-to-3 migrations and safe removal of legacy out-of-range forecast fallbacks, domain-invariant validation, and rejection of unsupported future versions.
@@ -648,7 +650,7 @@ app -> composition of all layers
 - A localized six-week monthly calendar with recorded, predicted, possible-start, orange, retrospective-green, spotting, and neutral markers; a non-color legend; and keyboard navigation.
 - A modal daily editor for flow, confidence, tension, energy, pain, and private notes, with focus return and explicit confirmation for daily deletion and whole-period removal.
 - A fixed-height, safe-area-aware mobile shell whose bottom navigation contains exactly Calendar, Privacy, and Settings and whose separate primary dock opens or edits today's check-in from every destination.
-- Calendar as the default post-onboarding and post-unlock destination, with adjacent month controls, a visible Today action, a compact essential legend plus marker guide, joined recorded/predicted ranges, a distinct amber top bar, and a range-first forecast summary below the grid.
+- Calendar as the default post-onboarding and post-unlock destination, with adjacent month controls, a header-level **Go to today** action, configurable week start, square day cells, a compact essential legend plus marker guide, joined recorded/predicted ranges, a distinct amber top bar, and a range-first forecast summary below the grid.
 - A focused full-height small-screen check-in editor that keeps flow immediately available, moves ratings and notes behind progressive disclosure, disables empty or structurally invalid saves with an explanation, and closes after a successful durable save.
 - One pure application operation that combines period start/continuation/end with the day's observations into one next payload and one vault save; spotting never starts a period and `none` never ends one implicitly.
 - Contextual Insights and Period history screens under Calendar, plus dedicated Privacy and Settings destinations, without a prominent Patterns or Today navigation item.
@@ -733,11 +735,11 @@ Calendar-specific behavior:
 - Represent the month as a semantic grid/table with weekday headers and a complete accessible name for every date cell.
 - Include recorded/predicted status, marker type, and confidence in the date control's accessible description.
 - Give previous month, next month, **Today**, every bottom destination, and the persistent check-in action localized accessible names and touch targets of at least 44 × 44 CSS pixels.
-- Keep **Today** behavior distinct from date selection and keyboard focus: the control returns to the current local month and exposes/focuses today, while the cell uses separate number-ring, selection, and focus-outline treatments.
+- Keep **Go to today** behavior distinct from keyboard focus: the header action returns to the current local month and focuses today, while the cell uses a persistent today border and a separate focus outline. Date activation does not leave a selected-cell treatment.
 - Use one predictable keyboard-entry point for the grid; arrow keys move by day/week and Page Up/Page Down move by month without trapping focus.
 - Announce or otherwise make a month change perceivable without turning the whole application into a live region.
 - Move focus into the day-detail dialog when it opens and return focus to the originating date when it closes.
-- Preserve today, selected-day, focus, recorded, and predicted distinctions in forced-colors/high-contrast mode.
+- Preserve today, focus, recorded, and predicted distinctions in forced-colors/high-contrast mode.
 - Do not make pointer hover the only way to reveal a forecast explanation.
 - Keep fixed bottom controls above device safe-area insets and the software keyboard, and reserve enough content padding that they never hide calendar or dialog content.
 
@@ -806,9 +808,9 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 - [x] Replace the long unlocked scrolling composition with a Calendar/Privacy/Settings shell whose default destination is Calendar.
 - [x] Add the persistent **Check in today** action separately from navigation and implement the focused, atomic **Save and done** flow.
-- [x] Add visible month navigation and **Today**, revised recorded/predicted bands and amber marker, a compact legend, and the forecast summary below the calendar.
+- [x] Add visible month navigation and **Go to today**, revised recorded/predicted bands and amber marker, a compact legend, and the forecast summary below the calendar.
 - [x] Keep forecast reasoning, recent patterns, and history/correction contextually reachable without a **Patterns** bottom destination.
-- [x] Move PIN, auto-lock, backup/restore, readable export, storage explanation, and confirmed erasure into Privacy; move tracking, appearance, language, and About into Settings.
+- [x] Move PIN, auto-lock, backup/restore, readable export, storage explanation, and confirmed erasure into Privacy; move tracking, appearance, language, calendar week start, and About into Settings.
 - [x] Add all new English and German copy, component/unit coverage, mobile browser flows, and navigation/check-in privacy-leakage assertions.
 - [ ] Complete manual contrast, software-keyboard, forced-colors, screen-reader, real-device, and real-user usability validation and address findings.
 
@@ -843,8 +845,9 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Calendar is the default destination after completed onboarding, reload, and unlock, and it opens the current local month.
 - [x] Bottom navigation contains exactly **Calendar**, **Privacy**, and **Settings**, exposes the current destination semantically, and resets to Calendar when the unlocked shell remounts.
 - [x] **Check in today** is visually and semantically separate from navigation, is reachable in one tap from every primary destination, and always opens today regardless of the displayed month or selected date.
-- [x] Previous and next controls move one month; **Today** returns to the current local month, selects today, and places roving calendar focus on it.
-- [ ] Today remains visibly and semantically distinct from selection, keyboard focus, recorded periods, predictions, amber, green, and spotting in normal and forced-colors modes.
+- [x] Previous and next controls move one month; **Go to today** returns to the current local month, is disabled there, and places roving calendar focus on today.
+- [ ] Today remains visibly and semantically distinct from keyboard focus, recorded periods, predictions, amber, green, and spotting in normal and forced-colors modes.
+- [x] System/Monday/Sunday week-start selection appears after Language in Settings, follows the device region by default, and survives reload.
 - [x] Recorded periods use joined solid red bands, predicted periods use visibly striped bands, possible starts use outlined treatment, and the check-in window uses a thin amber top bar.
 - [x] Recorded observations override conflicting forecasts, while green can coexist as a retrospective badge and spotting remains distinct; every overlap has text/icon/pattern semantics in addition to color.
 - [x] The localized forecast summary follows the calendar and legend and leads with a range, confidence, and completed-cycle count; **Why this estimate?** reveals secondary detail.
@@ -854,7 +857,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Starting or continuing a period and recording the day's observations use one logical payload mutation and one vault save; spotting never starts a period and `none` never implicitly ends one.
 - [ ] Future dates are read-only, successful saves update Calendar immediately, and canceling or locking discards unsaved drafts.
 - [x] Privacy contains PIN, auto-lock, encrypted backup/restore, warned readable export, storage explanation, and explicitly confirmed erasure without implying a readable-import path.
-- [x] Settings contains tracking and forecast preferences, appearance, language, and non-medical product information.
+- [x] Settings contains tracking and forecast preferences, appearance, language, persisted calendar week start, and non-medical product information.
 - [ ] Fixed bottom controls do not obscure content at 320 CSS pixels, large text, browser zoom, with an open software keyboard, or across device safe-area insets.
 - [ ] Month, **Today**, navigation, check-in, and sticky action controls have localized accessible names and targets of at least 44 × 44 CSS pixels.
 - [ ] Both themes meet applicable WCAG 2.2 AA text contrast and 3:1 non-text/component contrast with the proposed marker palette before those tokens are accepted.
@@ -977,7 +980,7 @@ Run `npm.cmd run build` before `npm.cmd run preview` whenever source files have 
 
 The service worker is generated only for a production build. To inspect installability or offline behavior manually, run `npm.cmd run build`, start `npm.cmd run preview`, load the app once while online, and then use the browser's installed-app/offline tools. Vite preview applies the security headers from `vite.config.ts`; `public/_headers` is a deployment artifact for compatible static hosts such as Cloudflare Pages or Netlify. Other hosts need equivalent explicit configuration, and every deployed HTTPS response must be verified rather than assuming the file was honored.
 
-`npm.cmd test` includes catalog key/placeholder parity and language resolution; schema-v3 migration and persistence boundaries; local-date and localized-date behavior; pure onboarding, journal, forecast, insight, marker, and walk-forward backtest rules; invariant-preserving single-episode correction; strict backup codecs and crash-safe restore; and calendar, onboarding, day-editor, insights, history, backup, settings, vault, and application component tests. `npm.cmd run verify` builds before checking the generated PWA artifacts. The Playwright setup builds and serves the production bundle when its selected port is free, then covers real IndexedDB journal/correction flows, narrow dark/German reflow and keyboard semantics, generated-service-worker offline reload, encrypted backup across a live-PIN change, restore under the original backup PIN, destructive erasure, and synthetic-secret leakage surfaces.
+`npm.cmd test` includes catalog key/placeholder parity and language resolution; schema-v4 migration and persistence boundaries; regional week-start and localized-date behavior; pure onboarding, journal, forecast, insight, marker, and walk-forward backtest rules; invariant-preserving single-episode correction; strict backup codecs and crash-safe restore; and calendar, onboarding, day-editor, insights, history, backup, settings, vault, and application component tests. `npm.cmd run verify` builds before checking the generated PWA artifacts. The Playwright setup builds and serves the production bundle when its selected port is free, then covers real IndexedDB journal/correction flows, responsive square calendar cells, header/month control geometry, persisted week-start selection, narrow dark/German reflow and keyboard semantics, generated-service-worker offline reload, encrypted backup across a live-PIN change, restore under the original backup PIN, destructive erasure, and synthetic-secret leakage surfaces.
 
 Add a message to `src/i18n/locales/en.ts` first, then add the matching key and placeholders to every other locale; TypeScript and the test suite reject drift.
 

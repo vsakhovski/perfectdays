@@ -18,6 +18,11 @@ export interface MobileAppShellProps {
   readonly copy: MobileAppShellCopy;
   readonly hasTodayCheckIn: boolean;
   readonly hideBottomChrome?: boolean;
+  readonly headerAction?: {
+    readonly disabled?: boolean;
+    readonly label: string;
+    readonly onActivate: () => void;
+  };
   readonly onCheckIn: (trigger: HTMLButtonElement) => void;
   readonly onLock?: () => void;
   readonly onNavigate: (destination: RootDestination) => void;
@@ -74,6 +79,7 @@ export function MobileAppShell({
   copy,
   hasTodayCheckIn,
   hideBottomChrome = false,
+  headerAction,
   onCheckIn,
   onLock,
   onNavigate,
@@ -113,12 +119,24 @@ export function MobileAppShell({
         <h1 className={styles['screenTitle']} ref={headingRef} tabIndex={-1}>
           {screenTitle}
         </h1>
-        {onLock ? (
-          <button className={styles['lockButton']} onClick={onLock} type="button">
-            <LockIcon />
-            <span>{copy.lock}</span>
-          </button>
-        ) : null}
+        <div className={styles['topActions']}>
+          {headerAction ? (
+            <button
+              className={styles['headerActionButton']}
+              disabled={headerAction.disabled}
+              onClick={headerAction.onActivate}
+              type="button"
+            >
+              {headerAction.label}
+            </button>
+          ) : null}
+          {onLock ? (
+            <button className={styles['lockButton']} onClick={onLock} type="button">
+              <LockIcon />
+              <span>{copy.lock}</span>
+            </button>
+          ) : null}
+        </div>
       </header>
 
       <main className={styles['content']} ref={contentRef}>

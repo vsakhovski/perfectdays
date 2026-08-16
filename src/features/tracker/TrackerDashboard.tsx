@@ -23,8 +23,8 @@ import {
   formatLocalDate,
   formatLocalDateRange,
   formatMonthTitle,
+  resolveWeekStartsOn,
   weekdayLabels,
-  weekStartsOn,
 } from '../../i18n/date-format';
 import {
   MonthlyCalendar,
@@ -425,26 +425,32 @@ export interface TrackerCalendarProps {
   readonly checkInRequest?: number;
   readonly historyTriggerRef?: Ref<HTMLButtonElement>;
   readonly insightsTriggerRef?: Ref<HTMLButtonElement>;
+  readonly goTodayRequest?: number;
   readonly onCheckInRequestHandled?: (request: number) => void;
   readonly onEditorOpenChange?: (open: boolean) => void;
+  readonly onGoTodayRequestHandled?: (request: number) => void;
   readonly onOpenHistory?: () => void;
   readonly onOpenInsights?: () => void;
+  readonly onViewingCurrentMonthChange?: (isCurrentMonth: boolean) => void;
   readonly payload: VaultPayload;
 }
 
 export function TrackerCalendar({
   checkInReturnFocusElement,
   checkInRequest = 0,
+  goTodayRequest = 0,
   historyTriggerRef,
   insightsTriggerRef,
   onCheckInRequestHandled,
   onEditorOpenChange,
+  onGoTodayRequestHandled,
   onOpenHistory,
   onOpenInsights,
+  onViewingCurrentMonthChange,
   payload,
 }: TrackerCalendarProps) {
   const { t } = useTranslation();
-  const { resolvedLanguage } = useLanguage();
+  const { resolvedLanguage, systemLanguages } = useLanguage();
   const { journalEnvironment, savePayload } = useVault();
   const today = journalEnvironment.today();
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(today));
@@ -460,6 +466,8 @@ export function TrackerCalendar({
   const [errorMessage, setErrorMessage] = useState<string>();
   const [statusMessage, setStatusMessage] = useState<string>();
   const handledCheckInRequestRef = useRef(0);
+  const handledGoTodayRequestRef = useRef(0);
+  const acknowledgedGoTodayRequestRef = useRef(0);
   const forecast = useMemo(
     () =>
       calculateForecast({
@@ -498,13 +506,41 @@ export function TrackerCalendar({
     today,
   ]);
 
+  useEffect(() => {
+    onViewingCurrentMonthChange?.(isSameMonth(visibleMonth, today));
+  }, [onViewingCurrentMonthChange, today, visibleMonth]);
+
+  useEffect(() => {
+    if (goTodayRequest <= handledGoTodayRequestRef.current) {
+      return;
+    }
+
+    handledGoTodayRequestRef.current = goTodayRequest;
+    setVisibleMonth(startOfMonth(today));
+    setSelectedDate(today);
+    setErrorMessage(undefined);
+    setStatusMessage(undefined);
+  }, [goTodayRequest, today]);
+
+  useEffect(() => {
+    if (
+      goTodayRequest <= acknowledgedGoTodayRequestRef.current ||
+      goTodayRequest > handledGoTodayRequestRef.current ||
+      !isSameMonth(visibleMonth, today)
+    ) {
+      return;
+    }
+
+    acknowledgedGoTodayRequestRef.current = goTodayRequest;
+    onGoTodayRequestHandled?.(goTodayRequest);
+  }, [goTodayRequest, onGoTodayRequestHandled, today, visibleMonth]);
+
   const calendarCopy: CalendarCopy = {
     navigationLabel: t(($) => $.mobile.calendar.navigation.label),
     calendarLabel: t(($) => $.tracker.calendar.calendarLabel),
     previousMonth: t(($) => $.mobile.calendar.navigation.previousMonth),
     nextMonth: t(($) => $.mobile.calendar.navigation.nextMonth),
     today: t(($) => $.mobile.calendar.navigation.today),
-    selected: t(($) => $.tracker.calendar.selected),
     outsideMonth: t(($) => $.tracker.calendar.outsideMonth),
     legendTitle: t(($) => $.mobile.calendar.legend.title),
     markerGuide: t(($) => $.mobile.calendar.legend.guideTitle),
@@ -524,8 +560,13 @@ export function TrackerCalendar({
       neutral: t(($) => $.tracker.calendar.markers.neutral),
     },
   };
-  const shortWeekdays = weekdayLabels(resolvedLanguage, 'short');
-  const longWeekdays = weekdayLabels(resolvedLanguage, 'long');
+  const firstDay = resolveWeekStartsOn(
+    payload.settings.weekStart,
+    systemLanguages,
+    resolvedLanguage,
+  );
+  const shortWeekdays = weekdayLabels(resolvedLanguage, 'short', firstDay);
+  const longWeekdays = weekdayLabels(resolvedLanguage, 'long', firstDay);
   const weekdays: readonly CalendarWeekday[] = shortWeekdays.map((shortLabel, index) => ({
     key: String(index),
     shortLabel,
@@ -547,10 +588,7 @@ export function TrackerCalendar({
             confidence: forecastConfidence,
           }),
         };
-  const days: readonly CalendarDay[] = calendarMonthGrid(
-    visibleMonth,
-    weekStartsOn(resolvedLanguage),
-  ).map((date) => ({
+  const days: readonly CalendarDay[] = calendarMonthGrid(visibleMonth, firstDay).map((date) => ({
     date,
     accessibleName: formatLocalDate(date, resolvedLanguage, {
       weekday: 'long',
@@ -865,6 +903,7 @@ export function TrackerCalendar({
         <MonthlyCalendar
           copy={calendarCopy}
           days={days}
+          focusTodayRequest={goTodayRequest}
           monthLabel={formatMonthTitle(visibleMonth, resolvedLanguage)}
           onNextMonth={() => {
             setVisibleMonth((current) => addMonths(current, 1));
@@ -888,11 +927,6 @@ export function TrackerCalendar({
             setEditorOpen(true);
             onEditorOpenChange?.(true);
           }}
-          onToday={() => {
-            setVisibleMonth(startOfMonth(today));
-            setSelectedDate(today);
-          }}
-          selectedDate={selectedDate}
           today={today}
           weekdays={weekdays}
         />
@@ -992,12 +1026,15 @@ export function TrackerCalendar({
 export interface TrackerDashboardProps {
   readonly checkInReturnFocusElement?: HTMLElement | null;
   readonly checkInRequest?: number;
+  readonly goTodayRequest?: number;
   readonly historyTriggerRef?: Ref<HTMLButtonElement>;
   readonly insightsTriggerRef?: Ref<HTMLButtonElement>;
   readonly onCheckInRequestHandled?: (request: number) => void;
   readonly onEditorOpenChange?: (open: boolean) => void;
+  readonly onGoTodayRequestHandled?: (request: number) => void;
   readonly onOpenHistory?: () => void;
   readonly onOpenInsights?: () => void;
+  readonly onViewingCurrentMonthChange?: (isCurrentMonth: boolean) => void;
 }
 
 export function TrackerDashboard(props: TrackerDashboardProps = {}) {

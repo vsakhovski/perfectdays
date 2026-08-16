@@ -5,6 +5,7 @@ import type { LanguagePreference, SupportedLanguage } from '../../domain/models'
 export interface LanguageContextValue {
   preference: LanguagePreference;
   resolvedLanguage: SupportedLanguage;
+  systemLanguages: readonly string[];
   clearPreference: () => boolean;
   setPreference: (preference: LanguagePreference) => void;
 }

@@ -25,6 +25,7 @@ function payload(): VaultPayload {
     logs: [],
     settings: {
       onboardingCompleted: false,
+      weekStart: 'system',
       orangeEnabled: true,
       orangeDays: 5,
       typicalCycleLength: 30,

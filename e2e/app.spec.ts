@@ -348,16 +348,14 @@ test.describe('Phase 5 compact mobile shell', () => {
     await expect(page.getByText('Estimate unavailable', { exact: true })).toBeInViewport();
 
     const monthToolbar = page.getByRole('group', { name: 'Calendar month navigation' });
-    const toolbarCenterSpread = await monthToolbar.evaluate<number, undefined>(
-      `((element) => {
-        const centers = Array.from(element.children).map((child) => {
-          const rect = child.getBoundingClientRect();
-          return rect.top + rect.height / 2;
-        });
-        return Math.max(...centers) - Math.min(...centers);
-      })`,
-      undefined,
-    );
+    const toolbarChildren = monthToolbar.locator(':scope > *');
+    const toolbarCenters: number[] = [];
+    for (let index = 0; index < (await toolbarChildren.count()); index += 1) {
+      const box = await toolbarChildren.nth(index).boundingBox();
+      if (box !== null) toolbarCenters.push(box.y + box.height / 2);
+    }
+    expect(toolbarCenters).toHaveLength(3);
+    const toolbarCenterSpread = Math.max(...toolbarCenters) - Math.min(...toolbarCenters);
     expect(toolbarCenterSpread).toBeLessThanOrEqual(1);
 
     for (const destination of ['Calendar', 'Privacy', 'Settings']) {
@@ -384,10 +382,14 @@ test.describe('Phase 5 compact mobile shell', () => {
     const checkIn = page.getByRole('dialog', { name: 'Check in today' });
     const saveAndDone = checkIn.getByRole('button', { name: 'Save and done' });
     await expect(saveAndDone).toBeInViewport();
-    const saveButtonBottomGap = await saveAndDone.evaluate<number, undefined>(
-      '((button) => window.innerHeight - button.getBoundingClientRect().bottom)',
-      undefined,
-    );
+    const saveButtonBox = await saveAndDone.boundingBox();
+    const viewport = page.viewportSize();
+    expect(saveButtonBox).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    const saveButtonBottomGap =
+      saveButtonBox === null || viewport === null
+        ? Number.NaN
+        : viewport.height - (saveButtonBox.y + saveButtonBox.height);
     expect(saveButtonBottomGap).toBeGreaterThanOrEqual(0);
     expect(saveButtonBottomGap).toBeLessThanOrEqual(48);
     await checkIn.getByRole('radio', { name: 'Spotting' }).check();
@@ -408,6 +410,91 @@ test.describe('Phase 5 compact mobile shell', () => {
       'document.documentElement.scrollWidth <= document.documentElement.clientWidth',
     );
     expect(hasNoHorizontalOverflow).toBe(true);
+  });
+
+  test('keeps calendar controls stable, square, and configurable at mobile widths', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await finishOnboarding(page);
+
+    const goToToday = page.getByRole('button', { name: 'Go to today' });
+    const calendarTitle = page.getByRole('heading', { exact: true, level: 1, name: 'Calendar' });
+    await expect(goToToday).toBeDisabled();
+    const headerOrder = await page.evaluate<{ actionLeft: number; titleRight: number } | null>(
+      `(() => {
+        const title = document.querySelector('header h1');
+        const action = Array.from(document.querySelectorAll('header button')).find((button) => button.textContent?.includes('Go to today'));
+        if (!(title instanceof HTMLElement) || !(action instanceof HTMLElement)) return null;
+        return { titleRight: title.getBoundingClientRect().right, actionLeft: action.getBoundingClientRect().left };
+      })()`,
+    );
+    expect(headerOrder).not.toBeNull();
+    if (headerOrder !== null) {
+      expect(headerOrder.actionLeft).toBeGreaterThanOrEqual(headerOrder.titleRight);
+    }
+    await expect(calendarTitle).toBeVisible();
+
+    const assertSquareDayCells = async (): Promise<void> => {
+      const dimensions = await page.evaluate<{ height: number; width: number }[]>(
+        `(() => Array.from(document.querySelectorAll('button[data-current-month="true"]')).map((button) => {
+          const rect = button.getBoundingClientRect();
+          return { width: rect.width, height: rect.height };
+        }))()`,
+      );
+      expect(dimensions.length).toBeGreaterThan(27);
+      for (const dimension of dimensions) {
+        expect(Math.abs(dimension.width - dimension.height)).toBeLessThanOrEqual(1);
+      }
+    };
+
+    await assertSquareDayCells();
+    await page.setViewportSize({ height: 800, width: 390 });
+    await assertSquareDayCells();
+    await page.setViewportSize({ height: 800, width: 320 });
+    await assertSquareDayCells();
+
+    for (const label of ['Previous month', 'Next month']) {
+      const navigationButton = page.getByRole('button', { name: label });
+      const buttonBox = await navigationButton.boundingBox();
+      const iconBox = await navigationButton.locator('svg').boundingBox();
+      expect(buttonBox).not.toBeNull();
+      expect(iconBox).not.toBeNull();
+      if (buttonBox !== null && iconBox !== null) {
+        expect(
+          Math.abs(buttonBox.x + buttonBox.width / 2 - (iconBox.x + iconBox.width / 2)),
+        ).toBeLessThanOrEqual(0.5);
+        expect(
+          Math.abs(buttonBox.y + buttonBox.height / 2 - (iconBox.y + iconBox.height / 2)),
+        ).toBeLessThanOrEqual(0.5);
+      }
+    }
+
+    const todayCell = page.locator('button[aria-current="date"]');
+    await expect(todayCell).not.toHaveAttribute('aria-pressed');
+    await expect(todayCell).not.toHaveAttribute('data-selected');
+    await page.getByRole('button', { name: 'Next month' }).click();
+    await expect(goToToday).toBeEnabled();
+    await goToToday.click();
+    await expect(goToToday).toBeDisabled();
+    await expect(todayCell).toBeFocused();
+
+    const firstWeekday = page.getByRole('table').getByRole('columnheader').first();
+    await expect(firstWeekday).toHaveText(/Sun/u);
+    await openRootDestination(page, 'Settings');
+    const weekStart = page.getByRole('combobox', { name: 'First day of the week' });
+    await expect(weekStart).toHaveValue('system');
+    await expect(page.getByText('Your current system default is Sunday.')).toBeVisible();
+    await weekStart.selectOption('monday');
+    await expect(page.getByText('Calendar preference saved.')).toBeVisible();
+    await openRootDestination(page, 'Calendar');
+    await expect(page.getByRole('table').getByRole('columnheader').first()).toHaveText(/Mon/u);
+
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { exact: true, level: 1, name: 'Calendar' }),
+    ).toBeVisible();
+    await expect(page.getByRole('table').getByRole('columnheader').first()).toHaveText(/Mon/u);
   });
 });
 

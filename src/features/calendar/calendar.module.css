@@ -11,13 +11,9 @@
 
 .calendarHeader {
   display: grid;
-  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem auto;
+  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
   align-items: center;
   gap: 0.5rem;
-}
-
-.calendarHeader[data-has-today='false'] {
-  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
 }
 
 .calendarHeader h2 {
@@ -37,8 +33,17 @@
   background: var(--color-surface);
   color: var(--color-text);
   cursor: pointer;
-  font-size: 1.75rem;
-  line-height: 1;
+}
+
+.navigationIcon {
+  display: block;
+  inline-size: 1.35rem;
+  block-size: 1.35rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.25;
 }
 
 .navigationButton:hover {
@@ -46,26 +51,10 @@
 }
 
 .navigationButton:focus-visible,
-.todayButton:focus-visible,
 .markerGuide summary:focus-visible,
 .dayButton:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;
-}
-
-.todayButton {
-  min-block-size: 2.75rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 999px;
-  background: var(--color-surface-subtle);
-  color: var(--color-text);
-  cursor: pointer;
-  font-weight: 750;
-}
-
-.todayButton:hover {
-  border-color: var(--color-focus);
 }
 
 .tableScroller {
@@ -101,7 +90,8 @@
   display: grid;
   grid-template-rows: auto 1fr;
   inline-size: 100%;
-  min-block-size: 2.75rem;
+  aspect-ratio: 1;
+  min-block-size: 0;
   padding: 0.22rem;
   overflow: hidden;
   border: 1px solid var(--color-border);
@@ -180,18 +170,18 @@
   pointer-events: none;
 }
 
-.dayButton[data-today='true'] .dayNumber {
-  border: 2px solid var(--color-focus);
-  border-radius: 999px;
-  box-shadow:
-    0 0 0 2px var(--color-surface),
-    0 0 0 4px var(--color-focus);
-  font-weight: 900;
+.dayButton[data-today='true']::before {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border: 3px solid var(--color-focus);
+  border-radius: inherit;
+  content: '';
+  pointer-events: none;
 }
 
-.dayButton[data-selected='true'] {
-  outline: 3px solid var(--color-accent);
-  outline-offset: -3px;
+.dayButton[data-today='true'] .dayNumber {
+  font-weight: 900;
 }
 
 .dayNumber {
@@ -338,11 +328,6 @@
 }
 
 @media (min-width: 36rem) {
-  .dayButton {
-    min-block-size: 4.5rem;
-    padding: 0.45rem;
-  }
-
   .marker,
   .legendIcon {
     inline-size: 1.1rem;
@@ -362,7 +347,6 @@
   }
 
   .dayButton {
-    min-block-size: 2.75rem;
     padding: 0.16rem;
     border-radius: 0.45rem;
   }
@@ -384,10 +368,6 @@
 
   .calendarHeader {
     gap: 0.3rem;
-  }
-
-  .todayButton {
-    padding-inline: 0.55rem;
   }
 }
 
@@ -414,12 +394,8 @@
     background: CanvasText;
   }
 
-  .dayButton[data-today='true'] .dayNumber {
+  .dayButton[data-today='true']::before {
     border-color: Highlight;
-  }
-
-  .dayButton[data-selected='true'] {
-    outline: 3px solid Highlight;
   }
 
   .marker-green {

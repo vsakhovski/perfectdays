@@ -63,8 +63,8 @@ export function LanguageProvider({
   }, [store]);
 
   const value = useMemo(
-    () => ({ preference, resolvedLanguage, clearPreference, setPreference }),
-    [preference, resolvedLanguage, clearPreference, setPreference],
+    () => ({ preference, resolvedLanguage, systemLanguages, clearPreference, setPreference }),
+    [preference, resolvedLanguage, systemLanguages, clearPreference, setPreference],
   );
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;

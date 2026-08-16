@@ -29,7 +29,6 @@ const copy: CalendarCopy = {
   previousMonth: 'Show April 2026',
   nextMonth: 'Show June 2026',
   today: 'Today',
-  selected: 'Selected',
   outsideMonth: 'Outside the current month',
   legendTitle: 'Calendar legend',
   markerGuide: 'Show marker guide',
@@ -113,13 +112,13 @@ function renderCalendar(
     onNextMonth: () => void;
     onPreviousMonth: () => void;
     onSelectDate: (date: LocalDate, trigger: HTMLButtonElement) => void;
-    onToday: () => void;
+    focusTodayRequest: number;
   }> = {},
 ) {
   const onNextMonth = overrides.onNextMonth ?? vi.fn();
   const onPreviousMonth = overrides.onPreviousMonth ?? vi.fn();
   const onSelectDate = overrides.onSelectDate ?? vi.fn();
-  const onToday = overrides.onToday ?? vi.fn();
+  const focusTodayRequest = overrides.focusTodayRequest ?? 0;
 
   const result = render(
     <MonthlyCalendar
@@ -129,14 +128,13 @@ function renderCalendar(
       onNextMonth={onNextMonth}
       onPreviousMonth={onPreviousMonth}
       onSelectDate={onSelectDate}
-      onToday={onToday}
-      selectedDate={asLocalDate('2026-05-02')}
+      focusTodayRequest={focusTodayRequest}
       today={asLocalDate('2026-05-01')}
       weekdays={weekdays}
     />,
   );
 
-  return { ...result, onNextMonth, onPreviousMonth, onSelectDate, onToday };
+  return { ...result, onNextMonth, onPreviousMonth, onSelectDate };
 }
 
 describe('MonthlyCalendar', () => {
@@ -156,10 +154,11 @@ describe('MonthlyCalendar', () => {
     expect(today).toHaveAttribute('data-predicted-red', 'true');
     expect(today).toHaveAttribute('data-possible-start', 'true');
 
-    const selected = screen.getByRole('button', {
-      name: /Full date 2026-05-02.*Selected.*No marker/u,
+    const ordinaryDay = screen.getByRole('button', {
+      name: /Full date 2026-05-02.*No marker/u,
     });
-    expect(selected).toHaveAttribute('aria-pressed', 'true');
+    expect(ordinaryDay).not.toHaveAttribute('aria-pressed');
+    expect(ordinaryDay).not.toHaveAttribute('data-selected');
 
     const legend = screen.getByRole('heading', { name: copy.legendTitle }).closest('section');
     if (!legend) {
@@ -218,44 +217,40 @@ describe('MonthlyCalendar', () => {
     expect(second).toHaveAttribute('data-predicted-before', 'true');
   });
 
-  it('returns roving focus to today through the visible Today control', async () => {
-    const user = userEvent.setup();
-    const onToday = vi.fn();
-    renderCalendar({ onToday });
-    const anotherDay = screen.getByRole('button', { name: /Full date 2026-05-12/u });
-    anotherDay.focus();
-
-    await user.click(screen.getByRole('button', { name: copy.today }));
-
-    expect(onToday).toHaveBeenCalledOnce();
-    expect(screen.getByRole('button', { name: /Full date 2026-05-01.*Today/u })).toHaveFocus();
-  });
-
-  it('defers focus when today is an adjacent cell that is replaced by the current month', async () => {
+  it('defers requested today focus until the current month is rendered', async () => {
     const user = userEvent.setup();
 
     function TodayMonthHarness() {
       const [showTodayMonth, setShowTodayMonth] = useState(false);
+      const [focusTodayRequest, setFocusTodayRequest] = useState(0);
       const today = asLocalDate('2026-05-31');
       const days = showTodayMonth
         ? createPlainMonthDays(asLocalDate('2026-04-27'), '2026-05')
         : createPlainMonthDays(asLocalDate('2026-05-25'), '2026-06');
 
       return (
-        <MonthlyCalendar
-          copy={copy}
-          days={days}
-          monthLabel={showTodayMonth ? 'May 2026' : 'June 2026'}
-          onNextMonth={vi.fn()}
-          onPreviousMonth={vi.fn()}
-          onSelectDate={vi.fn()}
-          onToday={() => {
-            setShowTodayMonth(true);
-          }}
-          selectedDate={asLocalDate('2026-06-15')}
-          today={today}
-          weekdays={weekdays}
-        />
+        <>
+          <button
+            onClick={() => {
+              setShowTodayMonth(true);
+              setFocusTodayRequest((request) => request + 1);
+            }}
+            type="button"
+          >
+            {copy.today}
+          </button>
+          <MonthlyCalendar
+            copy={copy}
+            days={days}
+            focusTodayRequest={focusTodayRequest}
+            monthLabel={showTodayMonth ? 'May 2026' : 'June 2026'}
+            onNextMonth={vi.fn()}
+            onPreviousMonth={vi.fn()}
+            onSelectDate={vi.fn()}
+            today={today}
+            weekdays={weekdays}
+          />
+        </>
       );
     }
 
@@ -265,7 +260,7 @@ describe('MonthlyCalendar', () => {
       'false',
     );
 
-    await user.click(screen.getByRole('button', { name: copy.today }));
+    await user.click(screen.getByRole('button', { name: new RegExp(`^${copy.today}$`, 'u') }));
 
     await waitFor(() => {
       const currentToday = screen.getByRole('button', { name: /Full date 2026-05-31.*Today/u });

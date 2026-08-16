@@ -5,6 +5,7 @@ import {
   formatLocalDate,
   formatLocalDateRange,
   formatMonthTitle,
+  resolveWeekStartsOn,
   weekdayLabels,
   weekStartsOn,
 } from './date-format';
@@ -33,5 +34,18 @@ describe('localized date formatting', () => {
     expect(weekdayLabels('de')).toHaveLength(7);
     expect(weekdayLabels('en')[0]).toMatch(/^Sun/u);
     expect(weekdayLabels('de')[0]).toMatch(/^Mo/u);
+  });
+
+  it('resolves the system week start from the regional locale and permits an override', () => {
+    expect(resolveWeekStartsOn('system', ['en-US'], 'en')).toBe(0);
+    expect(resolveWeekStartsOn('system', ['en-GB'], 'en')).toBe(1);
+    expect(resolveWeekStartsOn('system', ['de-DE'], 'de')).toBe(1);
+    expect(resolveWeekStartsOn('monday', ['en-US'], 'en')).toBe(1);
+    expect(resolveWeekStartsOn('sunday', ['de-DE'], 'de')).toBe(0);
+  });
+
+  it('orders localized labels using an explicitly resolved first weekday', () => {
+    expect(weekdayLabels('en', 'short', 1)[0]).toMatch(/^Mon/u);
+    expect(weekdayLabels('de', 'short', 0)[0]).toMatch(/^So/u);
   });
 });

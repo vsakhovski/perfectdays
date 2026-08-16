@@ -41,7 +41,6 @@ export interface CalendarCopy {
   readonly previousMonth: string;
   readonly nextMonth: string;
   readonly today: string;
-  readonly selected: string;
   readonly outsideMonth: string;
   readonly legendTitle: string;
   readonly markerGuide?: string;
@@ -60,8 +59,7 @@ export interface MonthlyCalendarProps {
   readonly onNextMonth: () => void;
   readonly onPreviousMonth: () => void;
   readonly onSelectDate: (date: LocalDate, trigger: HTMLButtonElement) => void;
-  readonly onToday?: () => void;
-  readonly selectedDate?: LocalDate;
+  readonly focusTodayRequest?: number;
   readonly today: LocalDate;
   readonly weekdays: readonly CalendarWeekday[];
 }
@@ -140,19 +138,22 @@ function chooseMonthNavigationTarget(
   return exact ?? currentMonthDays.at(-1);
 }
 
-function chooseInitialDay(
-  days: readonly CalendarDay[],
-  selectedDate: LocalDate | undefined,
-  today: LocalDate,
-): CalendarDay | undefined {
+function chooseInitialDay(days: readonly CalendarDay[], today: LocalDate): CalendarDay | undefined {
   const enabled = (date: LocalDate | undefined) =>
     date === undefined ? undefined : days.find((day) => day.date === date && !day.disabled);
 
   return (
-    enabled(selectedDate) ??
     enabled(today) ??
     days.find((day) => day.isCurrentMonth && !day.disabled) ??
     days.find((day) => !day.disabled)
+  );
+}
+
+function MonthChevron({ direction }: { readonly direction: 'next' | 'previous' }) {
+  return (
+    <svg aria-hidden="true" className={styles['navigationIcon']} viewBox="0 0 24 24">
+      <path d={direction === 'previous' ? 'm15 5-7 7 7 7' : 'm9 5 7 7-7 7'} />
+    </svg>
   );
 }
 
@@ -211,25 +212,39 @@ export function MonthlyCalendar({
   onNextMonth,
   onPreviousMonth,
   onSelectDate,
-  onToday,
-  selectedDate,
+  focusTodayRequest = 0,
   today,
   weekdays,
 }: MonthlyCalendarProps) {
   const headingId = useId();
   const buttonRefs = useRef(new Map<LocalDate, HTMLButtonElement>());
   const shouldFocusAfterRender = useRef(false);
+  const handledFocusTodayRequestRef = useRef(0);
   const [pendingMonthFocus, setPendingMonthFocus] = useState<number | null>(null);
   const [focusedDate, setFocusedDate] = useState<LocalDate | undefined>(
-    () => chooseInitialDay(days, selectedDate, today)?.date,
+    () => chooseInitialDay(days, today)?.date,
   );
 
   const focusedDay =
     (pendingMonthFocus === null
       ? days.find((day) => day.date === focusedDate && !day.disabled)
-      : chooseMonthNavigationTarget(days, pendingMonthFocus)) ??
-    chooseInitialDay(days, selectedDate, today);
+      : chooseMonthNavigationTarget(days, pendingMonthFocus)) ?? chooseInitialDay(days, today);
   const focusedDayDate = focusedDay?.date;
+
+  useLayoutEffect(() => {
+    if (
+      focusTodayRequest <= handledFocusTodayRequestRef.current ||
+      !days.some((day) => day.date === today && day.isCurrentMonth && !day.disabled)
+    ) {
+      return;
+    }
+
+    handledFocusTodayRequestRef.current = focusTodayRequest;
+    setFocusedDate(today);
+    setPendingMonthFocus(null);
+    shouldFocusAfterRender.current = false;
+    buttonRefs.current.get(today)?.focus();
+  }, [days, focusTodayRequest, today]);
 
   useLayoutEffect(() => {
     if (focusedDayDate === undefined) {
@@ -297,23 +312,6 @@ export function MonthlyCalendar({
     }
   };
 
-  const moveToToday = (): void => {
-    setFocusedDate(today);
-    setPendingMonthFocus(dayOfMonth(today));
-    shouldFocusAfterRender.current = true;
-    onToday?.();
-
-    const todayInVisibleMonth = days.find(
-      (day) => day.date === today && day.isCurrentMonth && !day.disabled,
-    );
-    const currentButton = todayInVisibleMonth ? buttonRefs.current.get(today) : undefined;
-    if (currentButton) {
-      setPendingMonthFocus(null);
-      shouldFocusAfterRender.current = false;
-      currentButton.focus();
-    }
-  };
-
   const handleDayKeyDown = (event: KeyboardEvent<HTMLButtonElement>, date: LocalDate): void => {
     switch (event.key) {
       case 'ArrowLeft':
@@ -353,19 +351,14 @@ export function MonthlyCalendar({
 
   return (
     <section className={styles['calendar']} aria-labelledby={headingId}>
-      <div
-        aria-label={copy.navigationLabel}
-        className={styles['calendarHeader']}
-        data-has-today={Boolean(onToday)}
-        role="group"
-      >
+      <div aria-label={copy.navigationLabel} className={styles['calendarHeader']} role="group">
         <button
           aria-label={copy.previousMonth}
           className={styles['navigationButton']}
           onClick={onPreviousMonth}
           type="button"
         >
-          <span aria-hidden="true">{'‹'}</span>
+          <MonthChevron direction="previous" />
         </button>
         <h2 id={headingId} aria-live="polite">
           {monthLabel}
@@ -376,13 +369,8 @@ export function MonthlyCalendar({
           onClick={onNextMonth}
           type="button"
         >
-          <span aria-hidden="true">{'›'}</span>
+          <MonthChevron direction="next" />
         </button>
-        {onToday ? (
-          <button className={styles['todayButton']} onClick={moveToToday} type="button">
-            {copy.today}
-          </button>
-        ) : null}
       </div>
 
       <div className={styles['tableScroller']}>
@@ -402,7 +390,6 @@ export function MonthlyCalendar({
               <tr key={week[0]?.date ?? monthLabel}>
                 {week.map((day, dayIndex) => {
                   const isToday = day.date === today;
-                  const isSelected = day.date === selectedDate;
                   const hasMarkers = markerIsPresent(day.markers);
                   const previousDay = week[dayIndex - 1];
                   const nextDay = week[dayIndex + 1];
@@ -411,7 +398,6 @@ export function MonthlyCalendar({
                     <td key={day.date}>
                       <button
                         aria-current={isToday ? 'date' : undefined}
-                        aria-pressed={isSelected}
                         className={styles['dayButton']}
                         data-current-month={day.isCurrentMonth}
                         data-green={day.markers.green}
@@ -431,7 +417,6 @@ export function MonthlyCalendar({
                           day.markers.recordedRed && previousDay?.markers.recordedRed === true
                         }
                         data-recorded-red={day.markers.recordedRed}
-                        data-selected={isSelected}
                         data-spotting={day.markers.spotting}
                         data-today={isToday}
                         disabled={day.disabled}
@@ -462,9 +447,6 @@ export function MonthlyCalendar({
                         ) : null}
                         {isToday ? (
                           <span className={styles['visuallyHidden']}>{copy.today}</span>
-                        ) : null}
-                        {isSelected ? (
-                          <span className={styles['visuallyHidden']}>{copy.selected}</span>
                         ) : null}
                         <span className={styles['dayNumber']} aria-hidden="true">
                           {day.dayNumberLabel}

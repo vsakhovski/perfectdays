@@ -32,6 +32,7 @@
 }
 
 .screenTitle:focus-visible,
+.headerActionButton:focus-visible,
 .lockButton:focus-visible,
 .checkInButton:focus-visible,
 .navigationButton:focus-visible {
@@ -39,9 +40,51 @@
   outline-offset: 2px;
 }
 
+.headerActionButton,
 .lockButton,
 .navigationButton {
   color: var(--color-text-muted);
+}
+
+.topActions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.25rem;
+  align-items: center;
+  min-inline-size: 0;
+  margin-inline-start: 0.5rem;
+}
+
+.headerActionButton,
+.lockButton {
+  min-block-size: 2.75rem;
+  min-inline-size: 2.75rem;
+  padding-block: 0.4rem;
+  padding-inline: 0.6rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-small);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.headerActionButton {
+  color: var(--color-accent);
+}
+
+.headerActionButton:hover:not(:disabled),
+.lockButton:hover {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-text);
+}
+
+.headerActionButton:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+  opacity: 0.55;
 }
 
 .lockButton {
@@ -50,24 +93,6 @@
   gap: 0.4rem;
   align-items: center;
   justify-content: center;
-  min-block-size: 2.75rem;
-  min-inline-size: 2.75rem;
-  margin-inline-start: 0.75rem;
-  padding-block: 0.4rem;
-  padding-inline: 0.65rem;
-  border: 1px solid transparent;
-  border-radius: var(--radius-small);
-  background: transparent;
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.lockButton:hover {
-  border-color: var(--color-border);
-  background: var(--color-surface-subtle);
-  color: var(--color-text);
 }
 
 .content {

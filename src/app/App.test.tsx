@@ -368,6 +368,60 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Insights' })).toHaveFocus();
   });
 
+  it('keeps Go to today in the header and disables it for the current month', async () => {
+    const user = userEvent.setup();
+    await renderApp({ onboardingCompleted: true });
+
+    const goToToday = screen.getByRole('button', { name: 'Go to today' });
+    expect(goToToday).toBeDisabled();
+    expect(goToToday.closest('header')).toContainElement(
+      screen.getByRole('heading', { name: 'Calendar', level: 1 }),
+    );
+    expect(
+      within(screen.getByRole('group', { name: 'Calendar month navigation' })).queryByRole(
+        'button',
+        { name: 'Go to today' },
+      ),
+    ).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Next month' }));
+    expect(screen.getByRole('heading', { name: 'September 2026', level: 2 })).toBeVisible();
+    expect(goToToday).toBeEnabled();
+
+    await user.click(goToToday);
+
+    expect(screen.getByRole('heading', { name: 'August 2026', level: 2 })).toBeVisible();
+    expect(goToToday).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Saturday, August 8, 2026.*Today/u })).toHaveFocus();
+  });
+
+  it('changes the first weekday from Settings and applies it to the calendar', async () => {
+    const user = userEvent.setup();
+    const { vaultController } = await renderApp({
+      onboardingCompleted: true,
+      systemLanguages: ['en-US'],
+    });
+    const firstWeekday = () =>
+      within(screen.getByRole('table')).getAllByRole('columnheader')[0]?.textContent;
+
+    expect(firstWeekday()).toMatch(/^Sun/u);
+    await openRootDestination(user, 'Settings');
+    const weekStart = screen.getByRole('combobox', { name: 'First day of the week' });
+    expect(weekStart).toHaveValue('system');
+    expect(screen.getByText('Your current system default is Sunday.')).toBeVisible();
+
+    await user.selectOptions(weekStart, 'monday');
+    expect(await screen.findByText('Calendar preference saved.')).toBeVisible();
+    await openRootDestination(user, 'Calendar');
+
+    expect(firstWeekday()).toMatch(/^Mon/u);
+    const snapshot = vaultController.getSnapshot();
+    expect(snapshot.phase).toBe('unlocked');
+    if (snapshot.phase === 'unlocked') {
+      expect(snapshot.payload.settings.weekStart).toBe('monday');
+    }
+  });
+
   it('completes setup, records a period check-in, and exposes semantic calendar markers', async () => {
     const user = userEvent.setup();
     const { vaultController } = await renderApp();

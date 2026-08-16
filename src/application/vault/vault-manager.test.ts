@@ -46,7 +46,7 @@ const codec: VaultPayloadCodec = {
       typeof candidate !== 'object' ||
       candidate === null ||
       !('schemaVersion' in candidate) ||
-      candidate.schemaVersion !== 3
+      candidate.schemaVersion !== 4
     ) {
       throw new Error('invalid-payload');
     }
@@ -56,11 +56,12 @@ const codec: VaultPayloadCodec = {
 
 function payload(updatedAt = '2026-08-08T10:00:00.000Z'): VaultPayload {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     episodes: [],
     logs: [],
     settings: {
       onboardingCompleted: false,
+      weekStart: 'system',
       orangeEnabled: true,
       orangeDays: 5,
       forecastingPaused: false,
@@ -1064,10 +1065,11 @@ describe('VaultManager', () => {
         if (candidate['schemaVersion'] === 2) {
           return {
             ...candidate,
-            schemaVersion: 3,
+            schemaVersion: 4,
             settings: {
               ...(candidate['settings'] as VaultPayload['settings']),
               onboardingCompleted: false,
+              weekStart: 'system',
             },
           } as unknown as VaultPayload;
         }
@@ -1097,8 +1099,8 @@ describe('VaultManager', () => {
     await target.manager.restoreEncryptedBackup(backup, '654321');
 
     expect(target.manager.getSnapshot().payload).toMatchObject({
-      schemaVersion: 3,
-      settings: { onboardingCompleted: false },
+      schemaVersion: 4,
+      settings: { onboardingCompleted: false, weekStart: 'system' },
     });
     const active = target.store.activeRecord();
     if (active?.representation !== 'encrypted') {
@@ -1107,8 +1109,8 @@ describe('VaultManager', () => {
     const unlocked = await target.cryptography.unlock(active.envelope, '654321');
     try {
       expect(JSON.parse(textDecoder.decode(unlocked.plaintext))).toMatchObject({
-        schemaVersion: 3,
-        settings: { onboardingCompleted: false },
+        schemaVersion: 4,
+        settings: { onboardingCompleted: false, weekStart: 'system' },
       });
     } finally {
       unlocked.plaintext.fill(0);

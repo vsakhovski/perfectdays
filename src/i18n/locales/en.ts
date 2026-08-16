@@ -366,6 +366,7 @@ export const en = {
         previousMonth: 'Previous month',
         nextMonth: 'Next month',
         today: 'Today',
+        goToToday: 'Go to today',
       },
       legend: {
         title: 'Calendar markers',
@@ -457,10 +458,10 @@ export const en = {
     },
     settings: {
       title: 'Settings',
-      description: 'Manage estimates, calendar markers, appearance, and language.',
+      description: 'Manage estimates, calendar layout, appearance, and language.',
       sections: {
         tracking: 'Tracking and estimates',
-        appearance: 'Appearance and language',
+        appearance: 'Appearance, language, and calendar',
       },
       about: {
         title: 'About',
@@ -708,6 +709,18 @@ export const en = {
     },
   },
   settings: {
+    weekStart: {
+      label: 'First day of the week',
+      options: {
+        system: 'System default',
+        monday: 'Monday',
+        sunday: 'Sunday',
+      },
+      systemDefault: 'Your current system default is {{day}}.',
+      saving: 'Saving calendar preference…',
+      saved: 'Calendar preference saved.',
+      failed: 'The calendar preference could not be saved.',
+    },
     appearance: {
       legend: 'Appearance',
       options: {

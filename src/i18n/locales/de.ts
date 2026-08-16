@@ -377,6 +377,7 @@ export const de = {
         previousMonth: 'Vorheriger Monat',
         nextMonth: 'Nächster Monat',
         today: 'Heute',
+        goToToday: 'Heute anzeigen',
       },
       legend: {
         title: 'Kalendermarkierungen',
@@ -472,10 +473,10 @@ export const de = {
     },
     settings: {
       title: 'Einstellungen',
-      description: 'Verwalte Schätzungen, Kalendermarkierungen, Darstellung und Sprache.',
+      description: 'Verwalte Schätzungen, Kalenderdarstellung, Design und Sprache.',
       sections: {
         tracking: 'Tracking und Schätzungen',
-        appearance: 'Darstellung und Sprache',
+        appearance: 'Design, Sprache und Kalender',
       },
       about: {
         title: 'Über die App',
@@ -734,6 +735,18 @@ export const de = {
     },
   },
   settings: {
+    weekStart: {
+      label: 'Erster Tag der Woche',
+      options: {
+        system: 'Systemstandard',
+        monday: 'Montag',
+        sunday: 'Sonntag',
+      },
+      systemDefault: 'Dein aktueller Systemstandard ist {{day}}.',
+      saving: 'Kalendereinstellung wird gespeichert…',
+      saved: 'Kalendereinstellung gespeichert.',
+      failed: 'Die Kalendereinstellung konnte nicht gespeichert werden.',
+    },
     appearance: {
       legend: 'Darstellung',
       options: {

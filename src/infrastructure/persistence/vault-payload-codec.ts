@@ -9,7 +9,7 @@ import {
   MAX_TYPICAL_CYCLE_LENGTH,
 } from '../../domain/tracking-settings';
 
-export const CURRENT_VAULT_SCHEMA_VERSION = 3 as const;
+export const CURRENT_VAULT_SCHEMA_VERSION = 4 as const;
 
 const localDateSchema = z.custom<LocalDate>(
   (value) => typeof value === 'string' && isLocalDate(value),
@@ -63,6 +63,9 @@ const vaultSettingsV2Schema = vaultSettingsV1Schema.extend({
 const vaultSettingsV3Schema = vaultSettingsV2Schema.extend({
   typicalCycleLength: z.number().int().min(1).max(MAX_TYPICAL_CYCLE_LENGTH).optional(),
   typicalBleedDuration: z.number().int().min(1).max(MAX_TYPICAL_BLEED_DURATION).optional(),
+});
+const vaultSettingsV4Schema = vaultSettingsV3Schema.extend({
+  weekStart: z.enum(['system', 'monday', 'sunday']),
 });
 
 function validateDomainInvariants(
@@ -216,10 +219,21 @@ export const vaultPayloadV2Schema = z
 
 export const vaultPayloadV3Schema = z
   .strictObject({
-    schemaVersion: z.literal(CURRENT_VAULT_SCHEMA_VERSION),
+    schemaVersion: z.literal(3),
     episodes: z.array(periodEpisodeSchema),
     logs: z.array(dailyLogSchema),
     settings: vaultSettingsV3Schema,
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .superRefine(validateDomainInvariants);
+
+export const vaultPayloadV4Schema = z
+  .strictObject({
+    schemaVersion: z.literal(CURRENT_VAULT_SCHEMA_VERSION),
+    episodes: z.array(periodEpisodeSchema),
+    logs: z.array(dailyLogSchema),
+    settings: vaultSettingsV4Schema,
     createdAt: timestampSchema,
     updatedAt: timestampSchema,
   })
@@ -264,6 +278,7 @@ export function createEmptyVaultPayload(nowIso: string): VaultPayload {
     logs: [],
     settings: {
       onboardingCompleted: false,
+      weekStart: 'system',
       orangeEnabled: true,
       orangeDays: 5,
       forecastingPaused: false,
@@ -320,6 +335,19 @@ function migrateVersionTwo(input: unknown): unknown {
   return { ...payload, schemaVersion: 3, settings };
 }
 
+function migrateVersionThree(input: unknown): unknown {
+  const payload = vaultPayloadV3Schema.parse(input);
+
+  return {
+    ...payload,
+    schemaVersion: 4,
+    settings: {
+      ...payload.settings,
+      weekStart: 'system',
+    },
+  };
+}
+
 export function migrateVaultPayload(input: unknown): VaultPayload {
   const { schemaVersion } = versionHeaderSchema.parse(input);
   let candidate = input;
@@ -339,6 +367,10 @@ export function migrateVaultPayload(input: unknown): VaultPayload {
         candidate = migrateVersionTwo(candidate);
         candidateVersion = 3;
         break;
+      case 3:
+        candidate = migrateVersionThree(candidate);
+        candidateVersion = 4;
+        break;
       default:
         throw new UnsupportedVaultSchemaVersionError(candidateVersion);
     }
@@ -348,7 +380,7 @@ export function migrateVaultPayload(input: unknown): VaultPayload {
     throw new UnsupportedVaultSchemaVersionError(candidateVersion);
   }
 
-  return vaultPayloadV3Schema.parse(candidate) as VaultPayload;
+  return vaultPayloadV4Schema.parse(candidate) as VaultPayload;
 }
 
 const encoder = new TextEncoder();
@@ -356,7 +388,7 @@ const decoder = new TextDecoder('utf-8', { fatal: true });
 
 export function encodeVaultPayload(payload: VaultPayload): Uint8Array {
   try {
-    const validatedPayload = vaultPayloadV3Schema.parse(payload);
+    const validatedPayload = vaultPayloadV4Schema.parse(payload);
     return encoder.encode(JSON.stringify(validatedPayload));
   } catch (error) {
     if (error instanceof InvalidVaultPayloadError) {
