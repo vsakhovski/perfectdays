@@ -42,30 +42,8 @@ function OnboardingHome() {
   );
 }
 
-function ContextScreen({
-  backLabel,
-  children,
-  onBack,
-}: {
-  readonly backLabel: string;
-  readonly children: ReactNode;
-  readonly onBack: () => void;
-}) {
-  const backButtonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    backButtonRef.current?.focus();
-  }, []);
-
-  return (
-    <div className={styles['contextScreen']}>
-      <button className={styles['backButton']} onClick={onBack} ref={backButtonRef} type="button">
-        <span aria-hidden="true">{'‹'}</span>
-        <span>{backLabel}</span>
-      </button>
-      {children}
-    </div>
-  );
+function ContextScreen({ children }: { readonly children: ReactNode }) {
+  return <div className={styles['contextScreen']}>{children}</div>;
 }
 
 function CalendarDestination({
@@ -95,11 +73,10 @@ function CalendarDestination({
   readonly payload: VaultPayload;
   readonly rememberedDetailsOpen: boolean | undefined;
 }) {
-  const { t } = useTranslation();
   const { journalEnvironment } = useVault();
   const insightsTriggerRef = useRef<HTMLButtonElement>(null);
   const historyTriggerRef = useRef<HTMLButtonElement>(null);
-  const returnFocusTargetRef = useRef<Exclude<CalendarDetailScreen, null> | undefined>(undefined);
+  const previousDetailScreenRef = useRef(detailScreen);
   const today = journalEnvironment.today();
   const forecast = useMemo(
     () =>
@@ -112,44 +89,30 @@ function CalendarDestination({
   );
 
   useEffect(() => {
-    const returnFocusTarget = returnFocusTargetRef.current;
-    if (detailScreen !== null || returnFocusTarget === undefined) {
+    const previousDetailScreen = previousDetailScreenRef.current;
+    previousDetailScreenRef.current = detailScreen;
+
+    if (detailScreen !== null || previousDetailScreen === null) {
       return;
     }
 
     const target =
-      returnFocusTarget === 'insights' ? insightsTriggerRef.current : historyTriggerRef.current;
+      previousDetailScreen === 'insights' ? insightsTriggerRef.current : historyTriggerRef.current;
     target?.focus();
-    returnFocusTargetRef.current = undefined;
   }, [detailScreen]);
-
-  const returnToCalendar = (screen: Exclude<CalendarDetailScreen, null>): void => {
-    returnFocusTargetRef.current = screen;
-    onDetailScreenChange(null);
-  };
 
   if (detailScreen === 'insights') {
     return (
-      <ContextScreen
-        backLabel={t(($) => $.mobile.calendar.context.backFromInsights)}
-        onBack={() => {
-          returnToCalendar('insights');
-        }}
-      >
-        <TrackerInsightsSection forecast={forecast} payload={payload} />
+      <ContextScreen>
+        <TrackerInsightsSection forecast={forecast} payload={payload} showSectionLabel={false} />
       </ContextScreen>
     );
   }
 
   if (detailScreen === 'history') {
     return (
-      <ContextScreen
-        backLabel={t(($) => $.mobile.calendar.context.backFromPeriodHistory)}
-        onBack={() => {
-          returnToCalendar('history');
-        }}
-      >
-        <TrackerHistorySection payload={payload} />
+      <ContextScreen>
+        <TrackerHistorySection payload={payload} showSectionLabel={false} />
       </ContextScreen>
     );
   }
@@ -313,20 +276,35 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
     <MobileAppShell
       activeDestination={destination}
       copy={copy}
+      focusScreenTitle={calendarDetail !== null}
       hasTodayCheckIn={hasTodayCheckIn}
-      hideBottomChrome={editorOpen}
-      {...(destination === 'calendar' && calendarDetail === null
+      hideBottomChrome={editorOpen || calendarDetail !== null}
+      {...(destination === 'calendar' && calendarDetail !== null
         ? {
             headerAction: {
-              disabled: calendarShowsCurrentMonth,
-              label: t(($) => $.mobile.calendar.navigation.goToToday),
+              icon: 'close' as const,
+              label:
+                calendarDetail === 'insights'
+                  ? t(($) => $.mobile.calendar.context.closeInsights)
+                  : t(($) => $.mobile.calendar.context.closePeriodHistory),
               onActivate: () => {
-                goTodayRequestCounterRef.current += 1;
-                setGoTodayRequest(goTodayRequestCounterRef.current);
+                setCalendarDetail(null);
               },
+              placement: 'end' as const,
             },
           }
-        : {})}
+        : destination === 'calendar'
+          ? {
+              headerAction: {
+                disabled: calendarShowsCurrentMonth,
+                label: t(($) => $.mobile.calendar.navigation.goToToday),
+                onActivate: () => {
+                  goTodayRequestCounterRef.current += 1;
+                  setGoTodayRequest(goTodayRequestCounterRef.current);
+                },
+              },
+            }
+          : {})}
       onCheckIn={(trigger) => {
         setCheckInReturnFocusElement(trigger);
         setCalendarDetail(null);

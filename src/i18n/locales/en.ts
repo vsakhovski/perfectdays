@@ -421,8 +421,8 @@ export const en = {
         navigationLabel: 'Calendar details',
         insights: 'Insights',
         periodHistory: 'Period history',
-        backFromInsights: 'Back to calendar from Insights',
-        backFromPeriodHistory: 'Back to calendar from Period history',
+        closeInsights: 'Close Insights',
+        closePeriodHistory: 'Close Period history',
       },
       day: {
         title: 'Details for {{date}}',

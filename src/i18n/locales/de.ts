@@ -435,8 +435,8 @@ export const de = {
         navigationLabel: 'Kalenderdetails',
         insights: 'Einblicke',
         periodHistory: 'Periodenverlauf',
-        backFromInsights: 'Von Einblicken zurück zum Kalender',
-        backFromPeriodHistory: 'Vom Periodenverlauf zurück zum Kalender',
+        closeInsights: 'Einblicke schließen',
+        closePeriodHistory: 'Periodenverlauf schließen',
       },
       day: {
         title: 'Details für {{date}}',

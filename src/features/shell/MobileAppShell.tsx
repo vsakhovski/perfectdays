@@ -20,9 +20,12 @@ export interface MobileAppShellProps {
   readonly hideBottomChrome?: boolean;
   readonly headerAction?: {
     readonly disabled?: boolean;
+    readonly icon?: 'close';
     readonly label: string;
     readonly onActivate: () => void;
+    readonly placement?: 'default' | 'end';
   };
+  readonly focusScreenTitle?: boolean;
   readonly onCheckIn: (trigger: HTMLButtonElement) => void;
   readonly onLock?: () => void;
   readonly onNavigate: (destination: RootDestination) => void;
@@ -73,10 +76,19 @@ function LockIcon() {
   );
 }
 
+function CloseIcon() {
+  return (
+    <svg aria-hidden="true" className={styles['icon']} viewBox="0 0 24 24">
+      <path d="m6 6 12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
 export function MobileAppShell({
   activeDestination,
   children,
   copy,
+  focusScreenTitle = false,
   hasTodayCheckIn,
   hideBottomChrome = false,
   headerAction,
@@ -89,6 +101,7 @@ export function MobileAppShell({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const contentRef = useRef<HTMLElement>(null);
   const pendingFocusDestinationRef = useRef<RootDestination | null>(null);
+  const previousScreenKeyRef = useRef(screenKey);
 
   useEffect(() => {
     if (pendingFocusDestinationRef.current !== activeDestination) {
@@ -105,6 +118,15 @@ export function MobileAppShell({
     }
   }, [screenKey]);
 
+  useEffect(() => {
+    const screenChanged = previousScreenKeyRef.current !== screenKey;
+    previousScreenKeyRef.current = screenKey;
+
+    if (screenChanged && focusScreenTitle) {
+      headingRef.current?.focus();
+    }
+  }, [focusScreenTitle, screenKey]);
+
   const navigate = (destination: RootDestination) => {
     if (destination !== activeDestination) {
       pendingFocusDestinationRef.current = destination;
@@ -113,6 +135,26 @@ export function MobileAppShell({
     onNavigate(destination);
   };
 
+  const lockButton = onLock ? (
+    <button className={styles['lockButton']} onClick={onLock} type="button">
+      <LockIcon />
+      <span>{copy.lock}</span>
+    </button>
+  ) : null;
+
+  const headerActionButton = headerAction ? (
+    <button
+      aria-label={headerAction.icon === 'close' ? headerAction.label : undefined}
+      className={styles['headerActionButton']}
+      data-icon={headerAction.icon}
+      disabled={headerAction.disabled}
+      onClick={headerAction.onActivate}
+      type="button"
+    >
+      {headerAction.icon === 'close' ? <CloseIcon /> : headerAction.label}
+    </button>
+  ) : null;
+
   return (
     <div className={styles['shell']}>
       <header className={styles['topBar']}>
@@ -120,22 +162,8 @@ export function MobileAppShell({
           {screenTitle}
         </h1>
         <div className={styles['topActions']}>
-          {headerAction ? (
-            <button
-              className={styles['headerActionButton']}
-              disabled={headerAction.disabled}
-              onClick={headerAction.onActivate}
-              type="button"
-            >
-              {headerAction.label}
-            </button>
-          ) : null}
-          {onLock ? (
-            <button className={styles['lockButton']} onClick={onLock} type="button">
-              <LockIcon />
-              <span>{copy.lock}</span>
-            </button>
-          ) : null}
+          {headerAction?.placement === 'end' ? lockButton : headerActionButton}
+          {headerAction?.placement === 'end' ? headerActionButton : lockButton}
         </div>
       </header>
 

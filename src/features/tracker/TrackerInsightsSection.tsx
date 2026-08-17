@@ -16,6 +16,7 @@ import {
 interface TrackerInsightsSectionProps {
   readonly forecast: ForecastDetails | null;
   readonly payload: VaultPayload;
+  readonly showSectionLabel?: boolean;
 }
 
 function variabilityFromSpan(span: number | null): ForecastVariability {
@@ -25,7 +26,11 @@ function variabilityFromSpan(span: number | null): ForecastVariability {
   return 'highly-variable';
 }
 
-export function TrackerInsightsSection({ forecast, payload }: TrackerInsightsSectionProps) {
+export function TrackerInsightsSection({
+  forecast,
+  payload,
+  showSectionLabel = true,
+}: TrackerInsightsSectionProps) {
   const { t } = useTranslation();
   const { resolvedLanguage } = useLanguage();
   const insights = useMemo(
@@ -121,6 +126,7 @@ export function TrackerInsightsSection({ forecast, payload }: TrackerInsightsSec
       }
       greenDayCount={insights.greenDays.sampleCount}
       greenDays={[...insights.greenDays.records].reverse()}
+      showSectionLabel={showSectionLabel}
     />
   );
 }

@@ -360,12 +360,21 @@ describe('App', () => {
 
     const insightsTrigger = screen.getByRole('button', { name: 'Insights' });
     await user.click(insightsTrigger);
-    const backFromInsights = screen.getByRole('button', {
-      name: 'Back to calendar from Insights',
-    });
-    expect(backFromInsights).toHaveFocus();
-    await user.click(backFromInsights);
+    expect(screen.getByRole('heading', { name: 'Insights', level: 1 })).toHaveFocus();
+    expect(screen.queryByText('Insights', { selector: 'p' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Check in today' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Close Insights' }));
     expect(screen.getByRole('button', { name: 'Insights' })).toHaveFocus();
+
+    const historyTrigger = screen.getByRole('button', { name: 'Period history' });
+    await user.click(historyTrigger);
+    expect(screen.getByRole('heading', { name: 'Period history', level: 1 })).toHaveFocus();
+    expect(screen.queryByText('Period history', { selector: 'p' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Check in today' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Close Period history' }));
+    expect(screen.getByRole('button', { name: 'Period history' })).toHaveFocus();
   });
 
   it('keeps Go to today in the header and disables it for the current month', async () => {

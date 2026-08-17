@@ -160,6 +160,8 @@ This section describes the implemented Phase 5 mobile foundation and the remaini
 
 There is no separate **Today** or **Patterns** bottom destination. Their useful content is redistributed: today's work begins through the persistent action, forecast reasoning appears below the calendar, and recent patterns plus period history remain available through contextual secondary screens.
 
+**Insights** and **Period history** open as focused secondary screens. Each uses the shell's single top title and a localized close icon in the top bar; the repeated inner section label, back button, check-in dock, and bottom navigation are omitted. Closing returns to Calendar and restores focus to the control that opened the screen.
+
 Only one primary screen is mounted and presented at a time; the app no longer reads as a sequence of large dashboard cards. The unlocked shell uses a compact top bar, `min-block-size: 100dvh`, a mobile content width of about `32rem` even when centered on desktop, and safe-area-aware bottom chrome. The action dock sits immediately above the three-destination navigation, whose icon-and-text controls retain 44 × 44 CSS-pixel targets. Secondary settings and explanations open as focused sub-screens instead of expanding the daily surface indefinitely.
 
 The initial implementation uses a closed, typed in-memory destination state rather than a router. Calendar is restored as the default whenever the unlocked shell mounts. The active destination, selected date, editor draft, ratings, notes, marker states, and episode identifiers are not persisted in URLs, browser history, `localStorage`, or `sessionStorage`. Locking unmounts the shell and discards navigation state and unsaved drafts. Browser Back support may later store symbolic screen depth only, never health values.
@@ -810,6 +812,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Add the persistent **Check in today** action separately from navigation and implement the focused, atomic **Save and done** flow.
 - [x] Add visible month navigation and **Go to today**, revised recorded/predicted bands and amber marker, a compact legend, and the forecast summary below the calendar.
 - [x] Keep forecast reasoning, recent patterns, and history/correction contextually reachable without a **Patterns** bottom destination.
+- [x] Present Insights and Period history as focused secondary screens with one title, a top-bar close action, restored trigger focus, and no bottom chrome.
 - [x] Move PIN, auto-lock, backup/restore, readable export, storage explanation, and confirmed erasure into Privacy; move tracking, appearance, language, calendar week start, and About into Settings.
 - [x] Add all new English and German copy, component/unit coverage, mobile browser flows, and navigation/check-in privacy-leakage assertions.
 - [ ] Complete manual contrast, software-keyboard, forced-colors, screen-reader, real-device, and real-user usability validation and address findings.
@@ -853,6 +856,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] The localized forecast summary follows the calendar and legend and leads with a range, confidence, and completed-cycle count; **Why this estimate?** reveals secondary detail.
 - [ ] Insufficient-history, paused, active, late, and highly-variable states use honest localized text; highly variable history retains text while suppressing forecast and amber calendar coloring.
 - [x] Forecast context, recent cycle lengths, known durations, retrospective high-confidence days, and period history/correction remain contextually reachable without a **Patterns** destination.
+- [x] Insights and Period history avoid duplicate section labels and back buttons; their top-bar close control returns to Calendar, and their check-in dock and primary navigation stay hidden.
 - [x] A basic today entry can be opened, given a flow value, and durably saved and closed in three taps; ratings remain optional and unknown values are not preselected.
 - [x] Starting or continuing a period and recording the day's observations use one logical payload mutation and one vault save; spotting never starts a period and `none` never implicitly ends one.
 - [x] Check-in uses stable sticky top and bottom panels; opening optional details does not resize the action panel, and its open/closed state is reused for later check-ins in the unlocked session.

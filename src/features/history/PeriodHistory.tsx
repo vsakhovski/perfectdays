@@ -35,6 +35,7 @@ export interface PeriodHistoryProps {
   readonly formatDateRange: (startDate: LocalDate, endDate: LocalDate) => string;
   readonly onEdit: (entry: PeriodHistoryEntry, trigger: HTMLButtonElement) => void;
   readonly selectedEntryId?: string;
+  readonly showSectionLabel?: boolean;
 }
 
 function entryDateLabel(
@@ -55,13 +56,14 @@ export function PeriodHistory({
   formatDateRange,
   onEdit,
   selectedEntryId,
+  showSectionLabel = true,
 }: PeriodHistoryProps) {
   const headingId = useId();
 
   return (
     <section aria-busy={busy} aria-labelledby={headingId} className={styles['panel']}>
       <header className={styles['heading']}>
-        <p className={styles['eyebrow']}>{copy.sectionLabel}</p>
+        {showSectionLabel ? <p className={styles['eyebrow']}>{copy.sectionLabel}</p> : null}
         <h2 id={headingId}>{copy.title}</h2>
         <p>{copy.description}</p>
       </header>

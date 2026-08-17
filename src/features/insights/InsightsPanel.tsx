@@ -80,6 +80,7 @@ export interface InsightsPanelProps {
   readonly formatDateRange: (startDate: LocalDate, endDate: LocalDate) => string;
   readonly greenDayCount: number;
   readonly greenDays: readonly GreenDayInsight[];
+  readonly showSectionLabel?: boolean;
 }
 
 interface InsightCardProps {
@@ -111,13 +112,14 @@ export function InsightsPanel({
   formatDateRange,
   greenDayCount,
   greenDays,
+  showSectionLabel = true,
 }: InsightsPanelProps) {
   const headingId = useId();
 
   return (
     <section aria-labelledby={headingId} className={styles['panel']}>
       <header className={styles['heading']}>
-        <p className={styles['eyebrow']}>{copy.sectionLabel}</p>
+        {showSectionLabel ? <p className={styles['eyebrow']}>{copy.sectionLabel}</p> : null}
         <h2 id={headingId}>{copy.title}</h2>
         <p>{copy.description}</p>
       </header>

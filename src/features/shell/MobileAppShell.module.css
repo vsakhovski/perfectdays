@@ -74,6 +74,21 @@
   color: var(--color-accent);
 }
 
+.headerActionButton[data-icon='close'] {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border-color: transparent;
+  border-radius: 50%;
+  color: var(--color-text);
+}
+
+.headerActionButton[data-icon='close'] .icon {
+  inline-size: 1.4rem;
+  block-size: 1.4rem;
+  stroke-width: 2;
+}
+
 .headerActionButton:hover:not(:disabled),
 .lockButton:hover {
   border-color: var(--color-border);

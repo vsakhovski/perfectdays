@@ -25,6 +25,7 @@ import {
 
 interface TrackerHistorySectionProps {
   readonly payload: VaultPayload;
+  readonly showSectionLabel?: boolean;
 }
 
 function startIntensityForEpisode(
@@ -48,7 +49,10 @@ function correctionValueFromEntry(entry: PeriodHistoryEntry): PeriodCorrectionVa
   };
 }
 
-export function TrackerHistorySection({ payload }: TrackerHistorySectionProps) {
+export function TrackerHistorySection({
+  payload,
+  showSectionLabel = true,
+}: TrackerHistorySectionProps) {
   const { t } = useTranslation();
   const { resolvedLanguage } = useLanguage();
   const { journalEnvironment, savePayload } = useVault();
@@ -209,6 +213,7 @@ export function TrackerHistorySection({ payload }: TrackerHistorySectionProps) {
           setErrorMessage(undefined);
           setStatusMessage(undefined);
         }}
+        showSectionLabel={showSectionLabel}
         {...(selectedEntryId === undefined ? {} : { selectedEntryId })}
       />
 

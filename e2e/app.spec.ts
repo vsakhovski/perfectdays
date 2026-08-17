@@ -152,7 +152,7 @@ test.describe('English application shell', () => {
     await persistedCorrectionDialog
       .getByRole('button', { name: 'Close period correction' })
       .click();
-    await page.getByRole('button', { name: 'Back to calendar from Period history' }).click();
+    await page.getByRole('button', { name: 'Close Period history' }).click();
 
     const persistedToday = page.locator('button[aria-current="date"]');
     await expect(persistedToday).toHaveAccessibleName(/Recorded period day/);
@@ -369,6 +369,27 @@ test.describe('Phase 5 compact mobile shell', () => {
     await openRootDestination(page, 'Settings');
     await expect(checkInAction).toBeVisible();
     await openRootDestination(page, 'Calendar');
+
+    const insightsTrigger = page.getByRole('button', { name: 'Insights' });
+    await insightsTrigger.click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Insights' })).toBeFocused();
+    await expect(page.getByText('Insights', { exact: true })).toHaveCount(1);
+    await expect(navigation).toBeHidden();
+    await expect(checkInAction).toBeHidden();
+    const closeInsights = page.getByRole('button', { name: 'Close Insights' });
+    await expect(closeInsights.locator('svg')).toBeVisible();
+    await expect(closeInsights.locator('xpath=ancestor::header')).toBeVisible();
+    await closeInsights.click();
+    await expect(insightsTrigger).toBeFocused();
+
+    const historyTrigger = page.getByRole('button', { name: 'Period history' });
+    await historyTrigger.click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Period history' })).toBeFocused();
+    await expect(page.getByText('Period history', { exact: true })).toHaveCount(1);
+    await expect(navigation).toBeHidden();
+    await expect(checkInAction).toBeHidden();
+    await page.getByRole('button', { name: 'Close Period history' }).click();
+    await expect(historyTrigger).toBeFocused();
 
     const calendarFitsWithoutInnerScrolling = await page.evaluate<boolean>(
       `(() => {
