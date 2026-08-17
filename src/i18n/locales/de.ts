@@ -297,7 +297,6 @@ export const de = {
         tension: 'Anspannung',
         energy: 'Energie',
         pain: 'Schmerzen',
-        clear: 'Bewertung löschen',
         option: '{{legend}}: {{rating}} von 5',
       },
       noteLabel: 'Private Notiz',

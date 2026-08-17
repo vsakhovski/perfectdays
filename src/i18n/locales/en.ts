@@ -289,7 +289,6 @@ export const en = {
         tension: 'Tension',
         energy: 'Energy',
         pain: 'Pain',
-        clear: 'Clear rating',
         option: '{{legend}}: {{rating}} out of 5',
       },
       noteLabel: 'Private note',

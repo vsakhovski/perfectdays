@@ -4,7 +4,7 @@
 
 A private, mobile-first menstrual journal that records bleeding and helps its user notice her own recurring wellbeing patterns. The product uses red, orange, and green calendar markers, but treats them as personal context rather than biological verdicts or judgments about competence.
 
-**Status:** Phase 5 first mobile engineering slice implemented. After onboarding or unlock, the app now opens a compact Calendar-first shell with separate Calendar, Privacy, and Settings destinations; a persistent one-tap today check-in action; an atomic **Save and done** flow; contextual Insights and Period history screens; a forecast summary below the calendar; a header-level **Go to today** action; square responsive date cells; configurable regional week starts; revised light/dark marker treatments; and mobile-browser coverage. Manual contrast, software-keyboard, forced-colors, screen-reader, and real-user usability review remain open, as do episode splitting/merging, evidence-driven forecast calibration, final naming, and public-beta clinical, legal, and independent security review.
+**Status:** Phase 5 first mobile engineering slice implemented. After onboarding or unlock, the app now opens a compact Calendar-first shell with separate Calendar, Privacy, and Settings destinations; a persistent one-tap today check-in action; an atomic **Save and done** flow with stable sticky header/action chrome and compact toggleable ratings; contextual Insights and Period history screens; a forecast summary below the calendar; a header-level **Go to today** action; square responsive date cells; configurable regional week starts; revised light/dark marker treatments; and mobile-browser coverage. Manual contrast, software-keyboard, forced-colors, screen-reader, and real-user usability review remain open, as do episode splitting/merging, evidence-driven forecast calibration, final naming, and public-beta clinical, legal, and independent security review.
 
 ## Product goal
 
@@ -223,15 +223,15 @@ Orange remains an optional invitation to check in, never advice about conflict o
 
 ### Daily check-in flow
 
-On a small screen, check-in is a focused full-screen task. On wider screens it may be a centered modal sheet. The bottom navigation is hidden while editing, and the editor uses this order:
+On a small screen, check-in is a focused full-screen task. On wider screens it may be a centered modal sheet. The bottom navigation is hidden while editing. A sticky top panel mirrors the main-screen header treatment, keeps the localized title and date visible, and places a flat, centered close icon at the right. The editor uses this order:
 
 1. Date and current period state.
 2. Flow: `none`, `spotting`, `light`, `medium`, or `heavy`.
-3. Optional compact 1–5 controls for confidence, tension, energy, and pain.
-4. **Add note or details** progressive disclosure.
+3. **Add note or details** progressive disclosure.
+4. Optional compact 1–5 controls for confidence, tension, energy, and pain plus the private note.
 5. A bottom bar with **Cancel** and **Save and done**. It stays at the viewport bottom for short forms and remains sticky while longer optional details scroll, above the device safe area.
 
-No unknown value is preselected. A successful durable save closes the editor, returns focus meaningfully, and updates the calendar immediately. If today's entry exists, the persistent action changes to **Edit today's check-in**. Delete and whole-period removal remain visually secondary and explicitly confirmed.
+No unknown value is preselected. Tapping the selected rating a second time clears it; no dynamic clear control is inserted, so selecting or clearing a rating does not move the rating scale. The disclosure's last open/closed state is remembered for later check-ins during the current unlocked app session and is discarded with the rest of the shell state on lock or reload. The bottom action panel reserves a stable layout so expanding details does not change its height or button wrapping. A successful durable save closes the editor, returns focus meaningfully, and updates the calendar immediately. If today's entry exists, the persistent action changes to **Edit today's check-in**. Delete and whole-period removal remain visually secondary and explicitly confirmed.
 
 When no episode is active, choosing `light`, `medium`, or `heavy` presents the explicit combined action **Start period and save**. Spotting never starts a period. During an active episode, bleeding can be continued and saved through the same operation. Ending the episode remains a separate explicit choice and is never inferred from **No bleeding**. The application orchestrator creates one next payload and performs one vault save for the period transition plus daily observations; it must not issue two writes derived from the same stale snapshot.
 
@@ -855,6 +855,8 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Forecast context, recent cycle lengths, known durations, retrospective high-confidence days, and period history/correction remain contextually reachable without a **Patterns** destination.
 - [x] A basic today entry can be opened, given a flow value, and durably saved and closed in three taps; ratings remain optional and unknown values are not preselected.
 - [x] Starting or continuing a period and recording the day's observations use one logical payload mutation and one vault save; spotting never starts a period and `none` never implicitly ends one.
+- [x] Check-in uses stable sticky top and bottom panels; opening optional details does not resize the action panel, and its open/closed state is reused for later check-ins in the unlocked session.
+- [x] Activating an already-selected rating clears it without inserting a separate control or moving the rating scale.
 - [ ] Future dates are read-only, successful saves update Calendar immediately, and canceling or locking discards unsaved drafts.
 - [x] Privacy contains PIN, auto-lock, encrypted backup/restore, warned readable export, storage explanation, and explicitly confirmed erasure without implying a readable-import path.
 - [x] Settings contains tracking and forecast preferences, appearance, language, persisted calendar week start, and non-medical product information.

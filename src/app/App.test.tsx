@@ -395,6 +395,24 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /Saturday, August 8, 2026.*Today/u })).toHaveFocus();
   });
 
+  it('remembers the details disclosure state between check-in openings', async () => {
+    const user = userEvent.setup();
+    await renderApp({ onboardingCompleted: true });
+
+    await user.click(screen.getByRole('button', { name: 'Check in today' }));
+    await user.click(screen.getByRole('button', { name: 'Add note or details' }));
+    expect(screen.getByRole('button', { name: 'Hide note and details' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await user.click(screen.getByRole('button', { name: 'Check in today' }));
+    expect(screen.getByRole('button', { name: 'Hide note and details' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Hide note and details' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await user.click(screen.getByRole('button', { name: 'Check in today' }));
+    expect(screen.getByRole('button', { name: 'Add note or details' })).toBeVisible();
+  });
+
   it('changes the first weekday from Settings and applies it to the calendar', async () => {
     const user = userEvent.setup();
     const { vaultController } = await renderApp({

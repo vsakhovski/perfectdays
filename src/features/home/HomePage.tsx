@@ -74,22 +74,26 @@ function CalendarDestination({
   detailScreen,
   goTodayRequest,
   onDetailScreenChange,
+  onDetailsOpenChange,
   onEditorOpenChange,
   onCheckInRequestHandled,
   onGoTodayRequestHandled,
   onViewingCurrentMonthChange,
   payload,
+  rememberedDetailsOpen,
 }: {
   readonly checkInReturnFocusElement: HTMLButtonElement | null;
   readonly checkInRequest: number;
   readonly detailScreen: CalendarDetailScreen;
   readonly goTodayRequest: number;
   readonly onDetailScreenChange: (screen: CalendarDetailScreen) => void;
+  readonly onDetailsOpenChange: (open: boolean) => void;
   readonly onEditorOpenChange: (open: boolean) => void;
   readonly onCheckInRequestHandled: (request: number) => void;
   readonly onGoTodayRequestHandled: (request: number) => void;
   readonly onViewingCurrentMonthChange: (isCurrentMonth: boolean) => void;
   readonly payload: VaultPayload;
+  readonly rememberedDetailsOpen: boolean | undefined;
 }) {
   const { t } = useTranslation();
   const { journalEnvironment } = useVault();
@@ -158,6 +162,7 @@ function CalendarDestination({
       historyTriggerRef={historyTriggerRef}
       insightsTriggerRef={insightsTriggerRef}
       onCheckInRequestHandled={onCheckInRequestHandled}
+      onDetailsOpenChange={onDetailsOpenChange}
       onGoTodayRequestHandled={onGoTodayRequestHandled}
       onEditorOpenChange={onEditorOpenChange}
       onOpenHistory={() => {
@@ -167,6 +172,7 @@ function CalendarDestination({
         onDetailScreenChange('insights');
       }}
       onViewingCurrentMonthChange={onViewingCurrentMonthChange}
+      {...(rememberedDetailsOpen === undefined ? {} : { rememberedDetailsOpen })}
     />
   );
 }
@@ -234,6 +240,7 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   const [checkInReturnFocusElement, setCheckInReturnFocusElement] =
     useState<HTMLButtonElement | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [checkInDetailsOpen, setCheckInDetailsOpen] = useState<boolean>();
   const [goTodayRequest, setGoTodayRequest] = useState<number>();
   const goTodayRequestCounterRef = useRef(0);
   const [calendarShowsCurrentMonth, setCalendarShowsCurrentMonth] = useState(true);
@@ -275,6 +282,7 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
         detailScreen={calendarDetail}
         goTodayRequest={goTodayRequest ?? 0}
         onDetailScreenChange={setCalendarDetail}
+        onDetailsOpenChange={setCheckInDetailsOpen}
         onEditorOpenChange={setEditorOpen}
         onGoTodayRequestHandled={(request) => {
           setGoTodayRequest((current) => (current === request ? undefined : current));
@@ -284,6 +292,7 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
         }}
         onViewingCurrentMonthChange={setCalendarShowsCurrentMonth}
         payload={payload}
+        rememberedDetailsOpen={checkInDetailsOpen}
       />
     ) : destination === 'privacy' ? (
       <PrivacyDestination

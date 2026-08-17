@@ -38,10 +38,10 @@ const copy: DayDetailCopy = {
     heavy: 'Heavy flow',
   },
   ratings: {
-    confidence: { legend: 'Confidence', clear: 'Clear confidence', options: ratingOptions },
-    tension: { legend: 'Tension', clear: 'Clear tension', options: ratingOptions },
-    energy: { legend: 'Energy', clear: 'Clear energy', options: ratingOptions },
-    pain: { legend: 'Pain', clear: 'Clear pain', options: ratingOptions },
+    confidence: { legend: 'Confidence', options: ratingOptions },
+    tension: { legend: 'Tension', options: ratingOptions },
+    energy: { legend: 'Energy', options: ratingOptions },
+    pain: { legend: 'Pain', options: ratingOptions },
   },
   noteLabel: 'Private note',
   noteDescription: 'Only stored in the local vault',
@@ -143,6 +143,10 @@ describe('DayDetailEditor', () => {
       throw new Error('Expected a confidence rating control.');
     }
     await user.click(confidenceFive);
+    expect(confidenceFive).toBeChecked();
+    await user.click(confidenceFive);
+    expect(confidenceFive).not.toBeChecked();
+    await user.click(confidenceFive);
     await user.type(screen.getByRole('textbox', { name: copy.noteLabel }), 'A private note');
     await user.click(screen.getByRole('button', { name: copy.save }));
 
@@ -154,6 +158,55 @@ describe('DayDetailEditor', () => {
       },
       asLocalDate('2026-05-12'),
     );
+  });
+
+  it('remembers the last details disclosure state across editor renderings', async () => {
+    const user = userEvent.setup();
+
+    function RememberedDetailsHarness() {
+      const [editorVisible, setEditorVisible] = useState(true);
+      const [rememberedDetailsOpen, setRememberedDetailsOpen] = useState<boolean>();
+
+      return editorVisible ? (
+        <DayDetailEditor
+          copy={copy}
+          date={asLocalDate('2026-05-12')}
+          dateLabel="Tuesday, May 12, 2026"
+          onChange={vi.fn()}
+          onClose={() => {
+            setEditorVisible(false);
+          }}
+          onDetailsOpenChange={setRememberedDetailsOpen}
+          onPeriodAction={vi.fn()}
+          onSave={vi.fn()}
+          periodActions={[]}
+          {...(rememberedDetailsOpen === undefined ? {} : { rememberedDetailsOpen })}
+          value={{}}
+        />
+      ) : (
+        <button
+          onClick={() => {
+            setEditorVisible(true);
+          }}
+          type="button"
+        >
+          {copy.title}
+        </button>
+      );
+    }
+
+    render(<RememberedDetailsHarness />);
+    await user.click(screen.getByRole('button', { name: copy.optionalDetails.show }));
+    expect(screen.getByRole('button', { name: copy.optionalDetails.hide })).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: copy.close }));
+    await user.click(screen.getByRole('button', { name: copy.title }));
+    expect(screen.getByRole('button', { name: copy.optionalDetails.hide })).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: copy.optionalDetails.hide }));
+    await user.click(screen.getByRole('button', { name: copy.close }));
+    await user.click(screen.getByRole('button', { name: copy.title }));
+    expect(screen.getByRole('button', { name: copy.optionalDetails.show })).toBeVisible();
   });
 
   it('requires a second explicit action before deleting and closes with Escape', async () => {

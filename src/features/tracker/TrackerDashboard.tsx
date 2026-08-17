@@ -427,12 +427,14 @@ export interface TrackerCalendarProps {
   readonly insightsTriggerRef?: Ref<HTMLButtonElement>;
   readonly goTodayRequest?: number;
   readonly onCheckInRequestHandled?: (request: number) => void;
+  readonly onDetailsOpenChange?: (open: boolean) => void;
   readonly onEditorOpenChange?: (open: boolean) => void;
   readonly onGoTodayRequestHandled?: (request: number) => void;
   readonly onOpenHistory?: () => void;
   readonly onOpenInsights?: () => void;
   readonly onViewingCurrentMonthChange?: (isCurrentMonth: boolean) => void;
   readonly payload: VaultPayload;
+  readonly rememberedDetailsOpen?: boolean;
 }
 
 export function TrackerCalendar({
@@ -442,12 +444,14 @@ export function TrackerCalendar({
   historyTriggerRef,
   insightsTriggerRef,
   onCheckInRequestHandled,
+  onDetailsOpenChange,
   onEditorOpenChange,
   onGoTodayRequestHandled,
   onOpenHistory,
   onOpenInsights,
   onViewingCurrentMonthChange,
   payload,
+  rememberedDetailsOpen,
 }: TrackerCalendarProps) {
   const { t } = useTranslation();
   const { resolvedLanguage, systemLanguages } = useLanguage();
@@ -615,7 +619,6 @@ export function TrackerCalendar({
     const legend = t(($) => $.tracker.dayDetail.ratings[field]);
     return {
       legend,
-      clear: t(($) => $.tracker.dayDetail.ratings.clear),
       options: {
         1: t(($) => $.tracker.dayDetail.ratings.option, { legend, rating: 1 }),
         2: t(($) => $.tracker.dayDetail.ratings.option, { legend, rating: 2 }),
@@ -1006,6 +1009,7 @@ export function TrackerCalendar({
             onEditorOpenChange?.(false);
           }}
           {...(existingLog === undefined ? {} : { onDelete: deleteCheckIn })}
+          {...(onDetailsOpenChange === undefined ? {} : { onDetailsOpenChange })}
           onPeriodAction={handlePeriodAction}
           onSave={saveCheckIn}
           periodActions={periodActionsForDate(payload, selectedDate, today, editorValue, {
@@ -1014,6 +1018,7 @@ export function TrackerCalendar({
             laterPeriodDays: t(($) => $.tracker.dayDetail.errors.laterPeriodDays),
           }).filter(({ action }) => action === 'end' || action === 'remove')}
           returnFocusElement={editorReturnFocusElement}
+          {...(rememberedDetailsOpen === undefined ? {} : { rememberedDetailsOpen })}
           {...(statusMessage === undefined ? {} : { statusMessage })}
           {...(saveDisabledReason === undefined ? {} : { saveDisabled: true, saveDisabledReason })}
           value={editorValue}
@@ -1030,11 +1035,13 @@ export interface TrackerDashboardProps {
   readonly historyTriggerRef?: Ref<HTMLButtonElement>;
   readonly insightsTriggerRef?: Ref<HTMLButtonElement>;
   readonly onCheckInRequestHandled?: (request: number) => void;
+  readonly onDetailsOpenChange?: (open: boolean) => void;
   readonly onEditorOpenChange?: (open: boolean) => void;
   readonly onGoTodayRequestHandled?: (request: number) => void;
   readonly onOpenHistory?: () => void;
   readonly onOpenInsights?: () => void;
   readonly onViewingCurrentMonthChange?: (isCurrentMonth: boolean) => void;
+  readonly rememberedDetailsOpen?: boolean;
 }
 
 export function TrackerDashboard(props: TrackerDashboardProps = {}) {

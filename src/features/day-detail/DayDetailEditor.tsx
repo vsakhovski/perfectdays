@@ -30,7 +30,6 @@ export interface PeriodActionState {
 
 export interface RatingScaleCopy {
   readonly legend: string;
-  readonly clear: string;
   readonly options: Readonly<Record<Rating, string>>;
 }
 
@@ -73,11 +72,13 @@ export interface DayDetailEditorProps {
   readonly onChange: (value: DayDetailValue) => void;
   readonly onClose: () => void;
   readonly onDelete?: (date: LocalDate) => void;
+  readonly onDetailsOpenChange?: (open: boolean) => void;
   readonly onPeriodAction: (action: PeriodQuickAction, date: LocalDate) => void;
   readonly onSave: (value: DayDetailValue, date: LocalDate) => void;
   readonly saveDisabled?: boolean;
   readonly saveDisabledReason?: string;
   readonly periodActions: readonly PeriodActionState[];
+  readonly rememberedDetailsOpen?: boolean;
   readonly returnFocusElement?: HTMLElement | null;
   readonly statusMessage?: string;
   readonly value: DayDetailValue;
@@ -86,6 +87,14 @@ export interface DayDetailEditorProps {
 const flowValues: readonly Flow[] = ['none', 'spotting', 'light', 'medium', 'heavy'];
 const ratingValues: readonly Rating[] = [1, 2, 3, 4, 5];
 const ratingFields: readonly RatingField[] = ['confidence', 'tension', 'energy', 'pain'];
+
+function CloseIcon() {
+  return (
+    <svg aria-hidden="true" className={styles['closeIcon']} viewBox="0 0 24 24">
+      <path d="m6 6 12 12M18 6 6 18" />
+    </svg>
+  );
+}
 
 function getFocusableElements(container: HTMLElement): readonly HTMLElement[] {
   return Array.from(
@@ -104,11 +113,13 @@ export function DayDetailEditor({
   onChange,
   onClose,
   onDelete,
+  onDetailsOpenChange,
   onPeriodAction,
   onSave,
   saveDisabled = false,
   saveDisabledReason,
   periodActions,
+  rememberedDetailsOpen,
   returnFocusElement,
   statusMessage,
   value,
@@ -127,11 +138,12 @@ export function DayDetailEditor({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(
     () =>
-      value.confidence !== undefined ||
-      value.tension !== undefined ||
-      value.energy !== undefined ||
-      value.pain !== undefined ||
-      Boolean(value.note?.trim()),
+      rememberedDetailsOpen ??
+      (value.confidence !== undefined ||
+        value.tension !== undefined ||
+        value.energy !== undefined ||
+        value.pain !== undefined ||
+        Boolean(value.note?.trim())),
   );
 
   useLayoutEffect(() => {
@@ -233,7 +245,7 @@ export function DayDetailEditor({
             onClick={onClose}
             type="button"
           >
-            <span aria-hidden="true">{'×'}</span>
+            <CloseIcon />
           </button>
         </header>
 
@@ -331,7 +343,11 @@ export function DayDetailEditor({
               className={styles['detailsToggle']}
               disabled={busy}
               onClick={() => {
-                setDetailsOpen((open) => !open);
+                setDetailsOpen((open) => {
+                  const nextOpen = !open;
+                  onDetailsOpenChange?.(nextOpen);
+                  return nextOpen;
+                });
               }}
               type="button"
             >
@@ -355,7 +371,14 @@ export function DayDetailEditor({
                                 checked={value[field] === rating}
                                 name={field}
                                 onChange={() => {
-                                  updateRating(field, rating);
+                                  if (value[field] !== rating) {
+                                    updateRating(field, rating);
+                                  }
+                                }}
+                                onClick={() => {
+                                  if (value[field] === rating) {
+                                    updateRating(field, undefined);
+                                  }
                                 }}
                                 type="radio"
                                 value={rating}
@@ -363,17 +386,6 @@ export function DayDetailEditor({
                               <span aria-hidden="true">{rating}</span>
                             </label>
                           ))}
-                          {value[field] !== undefined ? (
-                            <button
-                              className={styles['clearRating']}
-                              onClick={() => {
-                                updateRating(field, undefined);
-                              }}
-                              type="button"
-                            >
-                              {ratingCopy.clear}
-                            </button>
-                          ) : null}
                         </div>
                       </fieldset>
                     );

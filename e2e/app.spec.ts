@@ -496,6 +496,75 @@ test.describe('Phase 5 compact mobile shell', () => {
     ).toBeVisible();
     await expect(page.getByRole('table').getByRole('columnheader').first()).toHaveText(/Mon/u);
   });
+
+  test('keeps the check-in header and actions stable while details are edited', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await finishOnboarding(page);
+    await page.getByRole('button', { name: 'Check in today' }).click();
+
+    const dialog = page.getByRole('dialog', { name: 'Check in today' });
+    const header = dialog.locator('header');
+    const close = dialog.getByRole('button', { name: 'Close check-in' });
+    const closeIcon = close.locator('svg');
+    const save = dialog.getByRole('button', { name: 'Save and done' });
+    const actionPanel = save.locator('..');
+    const headerBefore = await header.boundingBox();
+    const actionPanelBefore = await actionPanel.boundingBox();
+    const closeBox = await close.boundingBox();
+    const closeIconBox = await closeIcon.boundingBox();
+    expect(headerBefore).not.toBeNull();
+    expect(actionPanelBefore).not.toBeNull();
+    expect(closeBox).not.toBeNull();
+    expect(closeIconBox).not.toBeNull();
+    if (closeBox !== null && closeIconBox !== null) {
+      expect(
+        Math.abs(closeBox.x + closeBox.width / 2 - (closeIconBox.x + closeIconBox.width / 2)),
+      ).toBeLessThanOrEqual(0.5);
+      expect(
+        Math.abs(closeBox.y + closeBox.height / 2 - (closeIconBox.y + closeIconBox.height / 2)),
+      ).toBeLessThanOrEqual(0.5);
+    }
+
+    await dialog.getByRole('button', { name: 'Add note or details' }).click();
+    const actionPanelAfter = await actionPanel.boundingBox();
+    expect(actionPanelAfter).not.toBeNull();
+    if (actionPanelBefore !== null && actionPanelAfter !== null) {
+      expect(Math.abs(actionPanelBefore.height - actionPanelAfter.height)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(actionPanelBefore.y - actionPanelAfter.y)).toBeLessThanOrEqual(0.5);
+    }
+
+    const confidenceFive = dialog.getByRole('radio', { name: 'Confidence: 5 out of 5' });
+    const ratingPositionBefore = await confidenceFive.boundingBox();
+    await confidenceFive.click();
+    await expect(confidenceFive).toBeChecked();
+    const ratingPositionAfter = await confidenceFive.boundingBox();
+    expect(ratingPositionBefore).not.toBeNull();
+    expect(ratingPositionAfter).not.toBeNull();
+    if (ratingPositionBefore !== null && ratingPositionAfter !== null) {
+      expect(Math.abs(ratingPositionBefore.x - ratingPositionAfter.x)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(ratingPositionBefore.y - ratingPositionAfter.y)).toBeLessThanOrEqual(0.5);
+    }
+    await confidenceFive.click();
+    await expect(confidenceFive).not.toBeChecked();
+
+    await page.mouse.move(160, 400);
+    await page.mouse.wheel(0, 1200);
+    const headerAfterScroll = await header.boundingBox();
+    expect(headerAfterScroll).not.toBeNull();
+    if (headerBefore !== null && headerAfterScroll !== null) {
+      expect(Math.abs(headerBefore.y - headerAfterScroll.y)).toBeLessThanOrEqual(0.5);
+    }
+
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await page.getByRole('button', { name: 'Check in today' }).click();
+    await expect(
+      page.getByRole('dialog', { name: 'Check in today' }).getByRole('button', {
+        name: 'Hide note and details',
+      }),
+    ).toBeVisible();
+  });
 });
 
 test.describe('device language detection', () => {
