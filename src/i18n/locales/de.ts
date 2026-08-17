@@ -70,13 +70,19 @@ export const de = {
         },
       },
       fallbacks: {
-        title: 'Optionale Ausgangsschätzungen',
+        title: 'Optionale Periodenschätzungen',
         description:
           'Sie werden nur verwendet, solange nicht genügend aufgezeichnete Daten vorliegen. Aufzeichnungen haben immer Vorrang.',
         cycleLength: 'Übliche Zykluslänge in Tagen',
-        cycleLengthDescription: 'Optional. Viele Zyklen Erwachsener schwanken von Monat zu Monat.',
+        cycleLengthDescription:
+          'Optional. Wähle unten einen häufigen Wert oder gib einen anderen Wert ein.',
         bleedDuration: 'Übliche Blutungsdauer in Tagen',
-        bleedDurationDescription: 'Optional. Lass das Feld leer, wenn du unsicher bist.',
+        bleedDurationDescription:
+          'Optional. Wähle unten einen häufigen Wert oder gib einen anderen Wert ein.',
+        notSure: 'Nicht sicher',
+        decrease: '{{field}} verringern',
+        increase: '{{field}} erhöhen',
+        quickChoices: 'Schnellwerte für {{field}}',
       },
       orange: {
         title: 'Mögliches Check-in-Fenster vor der Periode',
@@ -84,16 +90,23 @@ export const de = {
           'Diese optionale Markierung lädt zu einem persönlichen Check-in ein. Sie sagt weder Konflikte voraus noch gibt sie Entscheidungen vor.',
         enabled: 'Mögliches Check-in-Fenster vor der Periode anzeigen',
         days: 'Tage vor der zentralen Schätzung',
-        daysDescription: 'Wähle 1 bis 14 Tage.',
+        daysDescription: 'Wähle unten einen häufigen Wert oder gib 1 bis 14 Tage ein.',
+        decrease: 'Tage vor der Schätzung verringern',
+        increase: 'Tage vor der Schätzung erhöhen',
+        quickChoices: 'Schnellwerte für Tage vor der Schätzung',
       },
       pin: {
         title: 'Schütze dein privates Tagebuch',
         description:
           'Lege optional eine sechsstellige PIN fest. Sie verschlüsselt das in diesem Browser gespeicherte Tagebuch und sperrt die App, wenn sie geschlossen oder im Hintergrund gelassen wird. Die PIN kann nicht wiederhergestellt werden.',
-        pinLabel: 'Neue PIN',
-        confirmationLabel: 'Neue PIN bestätigen',
+        pinLabel: 'Gib eine sechsstellige PIN ein',
+        confirmationLabel: 'Bitte wiederhole die PIN',
         showPin: '{{field}} anzeigen',
         hidePin: '{{field}} verbergen',
+        enable: 'PIN aktivieren',
+        keypadLabel: 'PIN-Ziffernblock',
+        deleteDigit: 'Letzte PIN-Ziffer löschen',
+        placeholder: '******',
         unavailable:
           'PIN-Schutz ist in diesem Browser oder über diese Verbindung nicht verfügbar. Du kannst die Einrichtung abschließen und ihn später unter Datenschutz in einem unterstützten sicheren Browser aktivieren.',
         enabled:

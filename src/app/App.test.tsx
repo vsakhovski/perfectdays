@@ -569,8 +569,14 @@ describe('App', () => {
       await user.click(screen.getByRole('button', { name: 'Continue' }));
     }
     expect(screen.getByRole('heading', { name: 'Protect your private journal' })).toHaveFocus();
-    await user.type(screen.getByLabelText('New PIN'), '246810');
-    await user.type(screen.getByLabelText('Confirm new PIN'), '246810');
+    const finishWithPin = screen.getByRole('button', { name: 'Enable PIN and finish' });
+    expect(finishWithPin).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Enable PIN' }));
+    const keypad = screen.getByRole('group', { name: 'PIN number pad' });
+    for (const digit of '246810246810') {
+      await user.click(within(keypad).getByRole('button', { name: digit }));
+    }
+    expect(finishWithPin).toBeEnabled();
     await user.click(screen.getByRole('button', { name: 'Enable PIN and finish' }));
 
     expect(vaultController.calls.enablePin).toEqual(['246810']);

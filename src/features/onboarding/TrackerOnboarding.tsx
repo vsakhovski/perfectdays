@@ -6,7 +6,6 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
-  type SyntheticEvent,
 } from 'react';
 
 import type { LocalDate } from '../../domain/models';
@@ -16,7 +15,6 @@ import {
   MAX_TYPICAL_BLEED_DURATION,
   MAX_TYPICAL_CYCLE_LENGTH,
 } from '../../domain/tracking-settings';
-import { PinField } from '../vault/PinField';
 import { isSixDigitPin } from '../vault/pin';
 import { OnboardingDatePicker, type OnboardingDatePickerCopy } from './OnboardingDatePicker';
 import styles from './onboarding.module.css';
@@ -65,6 +63,10 @@ export interface OnboardingCopy {
     readonly cycleLengthDescription: string;
     readonly bleedDuration: string;
     readonly bleedDurationDescription: string;
+    readonly notSure: string;
+    readonly decrease: (field: string) => string;
+    readonly increase: (field: string) => string;
+    readonly quickChoices: (field: string) => string;
   };
   readonly orange: {
     readonly title: string;
@@ -72,6 +74,9 @@ export interface OnboardingCopy {
     readonly enabled: string;
     readonly days: string;
     readonly daysDescription: string;
+    readonly decrease: string;
+    readonly increase: string;
+    readonly quickChoices: string;
   };
   readonly pin: {
     readonly title: string;
@@ -80,6 +85,10 @@ export interface OnboardingCopy {
     readonly pinLabel: string;
     readonly confirmationLabel: string;
     readonly showPin: (field: string) => string;
+    readonly enable: string;
+    readonly keypadLabel: string;
+    readonly deleteDigit: string;
+    readonly placeholder: string;
     readonly unavailable: string;
     readonly enabled: string;
   };
@@ -131,6 +140,7 @@ export interface TrackerOnboardingProps {
 type OnboardingStep = 'splash' | 'introduction' | 'history' | 'fallbacks' | 'orange' | 'pin';
 type ValidatedStep = Extract<OnboardingStep, 'history' | 'fallbacks' | 'orange'>;
 type TransitionDirection = 'backward' | 'forward';
+type PinEntryStep = 'first' | 'confirmation';
 type FieldErrors = ReadonlyMap<string, string>;
 
 const onboardingSteps = [
@@ -146,6 +156,23 @@ const MINIMUM_SWIPE_DISTANCE = 56;
 const SWIPE_AXIS_DOMINANCE = 1.25;
 const SWIPE_FEEDBACK_FACTOR = 0.24;
 const MAXIMUM_SWIPE_FEEDBACK = 42;
+const TYPICAL_CYCLE_LENGTHS = [26, 27, 28, 29, 30] as const;
+const TYPICAL_BLEED_DURATIONS = [3, 4, 5, 6, 7] as const;
+const TYPICAL_ORANGE_DAYS = [3, 4, 5, 6, 7] as const;
+const PIN_DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
+const PIN_ZERO = '0';
+
+type OptionalEstimateField = 'typicalCycleLength' | 'typicalBleedDuration';
+
+interface OptionalEstimateDefinition {
+  readonly key: OptionalEstimateField;
+  readonly label: string;
+  readonly description: string;
+  readonly value: number | undefined;
+  readonly initialValue: number;
+  readonly max: number;
+  readonly quickChoices: readonly number[];
+}
 
 interface SwipeStart {
   readonly pointerId: number;
@@ -299,17 +326,23 @@ export function TrackerOnboarding({
   const [pinConfirmation, setPinConfirmation] = useState('');
   const [pinError, setPinError] = useState<string>();
   const [pinPending, setPinPending] = useState(false);
+  const [pinSetupStarted, setPinSetupStarted] = useState(false);
+  const [pinEntryStep, setPinEntryStep] = useState<PinEntryStep>('first');
+  const [pinRevealed, setPinRevealed] = useState(false);
   const [screenTransition, setScreenTransition] = useState<ScreenTransition | null>(null);
   const [swipeFeedback, setSwipeFeedback] = useState(0);
   const [swipeFeedbackActive, setSwipeFeedbackActive] = useState(false);
   const idPrefix = useId();
-  const pinFormId = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const fieldRefs = useRef(new Map<string, HTMLElement>());
   const previousStepRef = useRef(step);
   const swipeStartRef = useRef<SwipeStart | null>(null);
   const stepIndex = onboardingSteps.indexOf(step);
   const controlsDisabled = busy || pinPending;
+  const displayedPin = pinEntryStep === 'first' ? pin : pinConfirmation;
+  const displayedPinLabel =
+    pinEntryStep === 'first' ? copy.pin.pinLabel : copy.pin.confirmationLabel;
+  const pinReady = isSixDigitPin(pin) && isSixDigitPin(pinConfirmation) && pin === pinConfirmation;
 
   useEffect(() => {
     if (previousStepRef.current !== step) {
@@ -411,17 +444,9 @@ export function TrackerOnboarding({
     else back();
   };
 
-  const submitPin = async (event: SyntheticEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault();
+  const submitPin = async (): Promise<void> => {
     setPinError(undefined);
-    if (!isSixDigitPin(pin) || !isSixDigitPin(pinConfirmation)) {
-      setPinError(copy.validation.pinSixDigits);
-      return;
-    }
-    if (pin !== pinConfirmation) {
-      setPinError(copy.validation.pinMismatch);
-      return;
-    }
+    if (!pinReady) return;
 
     setPinPending(true);
     try {
@@ -434,6 +459,46 @@ export function TrackerOnboarding({
     } finally {
       setPinPending(false);
     }
+  };
+
+  const startPinSetup = (): void => {
+    setPin('');
+    setPinConfirmation('');
+    setPinError(undefined);
+    setPinEntryStep('first');
+    setPinRevealed(false);
+    setPinSetupStarted(true);
+  };
+
+  const enterPinDigit = (digit: string): void => {
+    setPinError(undefined);
+    if (pinEntryStep === 'first') {
+      const nextPin = `${pin}${digit}`.slice(0, 6);
+      setPin(nextPin);
+      if (nextPin.length === 6) {
+        setPinConfirmation('');
+        setPinEntryStep('confirmation');
+        setPinRevealed(false);
+      }
+      return;
+    }
+
+    const nextConfirmation = `${pinConfirmation}${digit}`.slice(0, 6);
+    if (nextConfirmation.length === 6 && nextConfirmation !== pin) {
+      setPin('');
+      setPinConfirmation('');
+      setPinEntryStep('first');
+      setPinRevealed(false);
+      setPinError(copy.validation.pinMismatch);
+      return;
+    }
+    setPinConfirmation(nextConfirmation);
+  };
+
+  const deletePinDigit = (): void => {
+    setPinError(undefined);
+    if (pinEntryStep === 'first') setPin((current) => current.slice(0, -1));
+    else setPinConfirmation((current) => current.slice(0, -1));
   };
 
   const historyContent = (
@@ -594,54 +659,106 @@ export function TrackerOnboarding({
               label: copy.fallbacks.cycleLength,
               description: copy.fallbacks.cycleLengthDescription,
               value: draft.typicalCycleLength,
+              initialValue: 28,
+              max: MAX_TYPICAL_CYCLE_LENGTH,
+              quickChoices: TYPICAL_CYCLE_LENGTHS,
             },
             {
               key: 'typicalBleedDuration',
               label: copy.fallbacks.bleedDuration,
               description: copy.fallbacks.bleedDurationDescription,
               value: draft.typicalBleedDuration,
+              initialValue: 5,
+              max: MAX_TYPICAL_BLEED_DURATION,
+              quickChoices: TYPICAL_BLEED_DURATIONS,
             },
-          ] as const
-        ).map(({ key, label, description, value }) => {
+          ] as const satisfies readonly OptionalEstimateDefinition[]
+        ).map(({ key, label, description, value, initialValue, max, quickChoices }) => {
           const descriptionId = `${idPrefix}-${key}-description`;
           const errorId = `${idPrefix}-${key}-error`;
+          const inputId = `${idPrefix}-${key}`;
           const fieldError = errors.get(key);
+          const setValue = (nextValue: number | undefined): void => {
+            updateDraft({ ...draft, [key]: nextValue });
+          };
           return (
-            <label key={key}>
-              <span>{label}</span>
+            <div className={styles['numberField']} key={key}>
+              <label htmlFor={inputId}>{label}</label>
               <span className={styles['fieldDescription']} id={descriptionId}>
                 {description}
               </span>
-              <input
-                aria-describedby={describedBy(errorId, descriptionId, fieldError !== undefined)}
-                aria-invalid={fieldError !== undefined}
-                aria-label={label}
-                disabled={controlsDisabled}
-                inputMode="numeric"
-                max={
-                  key === 'typicalCycleLength'
-                    ? MAX_TYPICAL_CYCLE_LENGTH
-                    : MAX_TYPICAL_BLEED_DURATION
-                }
-                min={1}
-                onChange={(event) => {
-                  const value = event.currentTarget.valueAsNumber;
-                  updateDraft({ ...draft, [key]: Number.isNaN(value) ? undefined : value });
-                }}
-                ref={(node) => {
-                  if (node) fieldRefs.current.set(key, node);
-                  else fieldRefs.current.delete(key);
-                }}
-                step={1}
-                type="number"
-                value={value ?? ''}
-              />
+              <div className={styles['numberSpinner']}>
+                <button
+                  aria-label={copy.fallbacks.decrease(label)}
+                  disabled={controlsDisabled || (value !== undefined && value <= 1)}
+                  onClick={() => {
+                    setValue(value === undefined ? initialValue : Math.max(1, value - 1));
+                  }}
+                  type="button"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="M5 12h14" />
+                  </svg>
+                </button>
+                <input
+                  aria-describedby={describedBy(errorId, descriptionId, fieldError !== undefined)}
+                  aria-invalid={fieldError !== undefined}
+                  disabled={controlsDisabled}
+                  id={inputId}
+                  inputMode="numeric"
+                  max={max}
+                  min={1}
+                  onChange={(event) => {
+                    const nextValue = event.currentTarget.valueAsNumber;
+                    setValue(Number.isNaN(nextValue) ? undefined : nextValue);
+                  }}
+                  placeholder={copy.fallbacks.notSure}
+                  ref={(node) => {
+                    if (node) fieldRefs.current.set(key, node);
+                    else fieldRefs.current.delete(key);
+                  }}
+                  step={1}
+                  type="number"
+                  value={value ?? ''}
+                />
+                <button
+                  aria-label={copy.fallbacks.increase(label)}
+                  disabled={controlsDisabled || (value !== undefined && value >= max)}
+                  onClick={() => {
+                    setValue(value === undefined ? initialValue : Math.min(max, value + 1));
+                  }}
+                  type="button"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="M5 12h14M12 5v14" />
+                  </svg>
+                </button>
+              </div>
+              <div
+                aria-label={copy.fallbacks.quickChoices(label)}
+                className={styles['numberChoices']}
+                role="group"
+              >
+                {quickChoices.map((choice) => (
+                  <button
+                    aria-pressed={value === choice}
+                    disabled={controlsDisabled}
+                    key={choice}
+                    onClick={() => {
+                      setValue(choice);
+                    }}
+                    type="button"
+                  >
+                    {choice}
+                  </button>
+                ))}
+              </div>
               {fieldError ? (
                 <span className={styles['fieldError']} id={errorId}>
                   {fieldError}
                 </span>
               ) : null}
-            </label>
+            </div>
           );
         })}
       </div>
@@ -667,41 +784,100 @@ export function TrackerOnboarding({
         />
         <span>{copy.orange.enabled}</span>
       </label>
-      <label className={styles['orangeDays']}>
-        <span>{copy.orange.days}</span>
+      <div className={styles['numberField']}>
+        <label htmlFor={`${idPrefix}-orange-days`}>{copy.orange.days}</label>
         <span className={styles['fieldDescription']} id={`${idPrefix}-orange-description`}>
           {copy.orange.daysDescription}
         </span>
-        <input
-          aria-describedby={describedBy(
-            `${idPrefix}-orange-error`,
-            `${idPrefix}-orange-description`,
-            errors.has('orangeDays'),
-          )}
-          aria-invalid={errors.has('orangeDays')}
-          aria-label={copy.orange.days}
-          disabled={controlsDisabled || !draft.orangeEnabled}
-          inputMode="numeric"
-          max={14}
-          min={1}
-          onChange={(event) => {
-            updateDraft({ ...draft, orangeDays: event.currentTarget.valueAsNumber });
-          }}
-          ref={(node) => {
-            if (node) fieldRefs.current.set('orangeDays', node);
-            else fieldRefs.current.delete('orangeDays');
-          }}
-          required={draft.orangeEnabled}
-          step={1}
-          type="number"
-          value={draft.orangeDays}
-        />
+        <div className={styles['numberSpinner']}>
+          <button
+            aria-label={copy.orange.decrease}
+            disabled={
+              controlsDisabled ||
+              !draft.orangeEnabled ||
+              (Number.isFinite(draft.orangeDays) && draft.orangeDays <= 1)
+            }
+            onClick={() => {
+              updateDraft({
+                ...draft,
+                orangeDays: Number.isFinite(draft.orangeDays)
+                  ? Math.max(1, draft.orangeDays - 1)
+                  : 5,
+              });
+            }}
+            type="button"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M5 12h14" />
+            </svg>
+          </button>
+          <input
+            aria-describedby={describedBy(
+              `${idPrefix}-orange-error`,
+              `${idPrefix}-orange-description`,
+              errors.has('orangeDays'),
+            )}
+            aria-invalid={errors.has('orangeDays')}
+            disabled={controlsDisabled || !draft.orangeEnabled}
+            id={`${idPrefix}-orange-days`}
+            inputMode="numeric"
+            max={14}
+            min={1}
+            onChange={(event) => {
+              updateDraft({ ...draft, orangeDays: event.currentTarget.valueAsNumber });
+            }}
+            ref={(node) => {
+              if (node) fieldRefs.current.set('orangeDays', node);
+              else fieldRefs.current.delete('orangeDays');
+            }}
+            required={draft.orangeEnabled}
+            step={1}
+            type="number"
+            value={draft.orangeDays}
+          />
+          <button
+            aria-label={copy.orange.increase}
+            disabled={
+              controlsDisabled ||
+              !draft.orangeEnabled ||
+              (Number.isFinite(draft.orangeDays) && draft.orangeDays >= 14)
+            }
+            onClick={() => {
+              updateDraft({
+                ...draft,
+                orangeDays: Number.isFinite(draft.orangeDays)
+                  ? Math.min(14, draft.orangeDays + 1)
+                  : 5,
+              });
+            }}
+            type="button"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M5 12h14M12 5v14" />
+            </svg>
+          </button>
+        </div>
+        <div aria-label={copy.orange.quickChoices} className={styles['numberChoices']} role="group">
+          {TYPICAL_ORANGE_DAYS.map((choice) => (
+            <button
+              aria-pressed={draft.orangeDays === choice}
+              disabled={controlsDisabled || !draft.orangeEnabled}
+              key={choice}
+              onClick={() => {
+                updateDraft({ ...draft, orangeDays: choice });
+              }}
+              type="button"
+            >
+              {choice}
+            </button>
+          ))}
+        </div>
         {errors.has('orangeDays') ? (
           <span className={styles['fieldError']} id={`${idPrefix}-orange-error`}>
             {errors.get('orangeDays')}
           </span>
         ) : null}
-      </label>
+      </div>
     </div>
   );
 
@@ -711,52 +887,117 @@ export function TrackerOnboarding({
         <h1 ref={step === 'pin' ? headingRef : undefined} tabIndex={-1}>
           {copy.pin.title}
         </h1>
-        <p>{copy.pin.description}</p>
+        {pinSetupStarted ? null : <p>{copy.pin.description}</p>}
       </div>
       {pinEnabled ? (
         <p className={styles['success']} role="status">
           {copy.pin.enabled}
         </p>
       ) : pinProtectionAvailable ? (
-        <form
-          autoComplete="off"
-          className={styles['pinForm']}
-          id={pinFormId}
-          noValidate
-          onSubmit={(event) => void submitPin(event)}
-        >
-          <PinField
-            disabled={controlsDisabled}
-            hideValueLabel={copy.pin.hidePin(copy.pin.pinLabel)}
-            invalid={pinError !== undefined}
-            label={copy.pin.pinLabel}
-            name="onboarding-pin"
-            onChange={(value) => {
-              setPin(value);
-              setPinError(undefined);
-            }}
-            showValueLabel={copy.pin.showPin(copy.pin.pinLabel)}
-            value={pin}
-          />
-          <PinField
-            disabled={controlsDisabled}
-            hideValueLabel={copy.pin.hidePin(copy.pin.confirmationLabel)}
-            invalid={pinError !== undefined}
-            label={copy.pin.confirmationLabel}
-            name="onboarding-pin-confirmation"
-            onChange={(value) => {
-              setPinConfirmation(value);
-              setPinError(undefined);
-            }}
-            showValueLabel={copy.pin.showPin(copy.pin.confirmationLabel)}
-            value={pinConfirmation}
-          />
-          {pinError ? (
-            <p className={styles['fieldError']} role="alert">
-              {pinError}
+        pinSetupStarted ? (
+          <div className={styles['pinEntry']}>
+            <p aria-live="polite" className={styles['pinPrompt']} id={`${idPrefix}-pin-prompt`}>
+              {displayedPinLabel}
             </p>
-          ) : null}
-        </form>
+            <div className={styles['pinDisplayShell']}>
+              <input
+                aria-describedby={pinError ? `${idPrefix}-pin-error` : undefined}
+                aria-invalid={pinError !== undefined}
+                aria-labelledby={`${idPrefix}-pin-prompt`}
+                autoComplete="off"
+                className={styles['pinDisplay']}
+                data-masked={!pinRevealed || displayedPin.length === 0}
+                placeholder={copy.pin.placeholder}
+                readOnly
+                tabIndex={-1}
+                type="text"
+                value={
+                  pinRevealed ? displayedPin : copy.pin.placeholder.slice(0, displayedPin.length)
+                }
+              />
+              {pinRevealed && displayedPin.length > 0 ? null : (
+                <span aria-hidden="true" className={styles['pinMask']}>
+                  <span className={styles['pinMaskText']}>
+                    {displayedPin.length === 0
+                      ? copy.pin.placeholder
+                      : copy.pin.placeholder.slice(0, displayedPin.length)}
+                  </span>
+                </span>
+              )}
+              <button
+                aria-label={
+                  pinRevealed
+                    ? copy.pin.hidePin(displayedPinLabel)
+                    : copy.pin.showPin(displayedPinLabel)
+                }
+                aria-pressed={pinRevealed}
+                className={styles['pinRevealButton']}
+                disabled={controlsDisabled}
+                onClick={() => {
+                  setPinRevealed((current) => !current);
+                }}
+                type="button"
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                  <circle cx="12" cy="12" r="2.75" />
+                  {pinRevealed ? <path d="m4 4 16 16" /> : null}
+                </svg>
+              </button>
+            </div>
+            <div className={styles['pinValidationSlot']}>
+              {pinError ? (
+                <p className={styles['fieldError']} id={`${idPrefix}-pin-error`} role="alert">
+                  {pinError}
+                </p>
+              ) : null}
+            </div>
+            <div aria-label={copy.pin.keypadLabel} className={styles['pinKeypad']} role="group">
+              {PIN_DIGITS.map((digit) => (
+                <button
+                  disabled={controlsDisabled || displayedPin.length >= 6}
+                  key={digit}
+                  onClick={() => {
+                    enterPinDigit(digit);
+                  }}
+                  type="button"
+                >
+                  {digit}
+                </button>
+              ))}
+              <span aria-hidden="true" className={styles['pinKeypadSpacer']} />
+              <button
+                disabled={controlsDisabled || displayedPin.length >= 6}
+                onClick={() => {
+                  enterPinDigit(PIN_ZERO);
+                }}
+                type="button"
+              >
+                {PIN_ZERO}
+              </button>
+              <button
+                aria-label={copy.pin.deleteDigit}
+                disabled={controlsDisabled || displayedPin.length === 0}
+                onClick={deletePinDigit}
+                type="button"
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="m10 7-5 5 5 5h9V7h-9Z" />
+                  <path d="m13 10 4 4m0-4-4 4" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            className={[styles['primaryButton'], styles['startPinButton']].join(' ')}
+            disabled={controlsDisabled}
+            onClick={startPinSetup}
+            type="button"
+          >
+            {copy.pin.enable}
+          </button>
+        )
       ) : (
         <p className={styles['warning']} role="status">
           {copy.pin.unavailable}
@@ -934,9 +1175,9 @@ export function TrackerOnboarding({
               </button>
               <button
                 className={styles['primaryButton']}
-                disabled={controlsDisabled}
-                form={pinFormId}
-                type="submit"
+                disabled={controlsDisabled || !pinReady}
+                onClick={() => void submitPin()}
+                type="button"
               >
                 {pinPending ? copy.actions.enablingPin : copy.actions.enablePinAndFinish}
               </button>

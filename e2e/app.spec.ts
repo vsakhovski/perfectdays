@@ -340,30 +340,125 @@ test.describe('English application shell', () => {
     await expect(secondPeriod).toBeHidden();
     await page.getByRole('button', { name: 'Continue' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Optional starting estimates' })).toBeFocused();
-    await page.getByLabel('Usual cycle length in days').fill('28');
-    await page.getByLabel('Usual bleeding duration in days').fill('5');
+    await expect(page.getByRole('heading', { name: 'Optional period estimates' })).toBeFocused();
+    const cycleChoice = page
+      .getByRole('group', { name: 'Quick choices for Usual cycle length in days' })
+      .getByRole('button', { name: '28', exact: true });
+    await cycleChoice.click();
+    await page
+      .getByRole('group', { name: 'Quick choices for Usual bleeding duration in days' })
+      .getByRole('button', { name: '5', exact: true })
+      .click();
+    await expect(
+      page.getByRole('spinbutton', { name: 'Usual cycle length in days', exact: true }),
+    ).toHaveValue('28');
+    await expect(
+      page.getByRole('spinbutton', { name: 'Usual bleeding duration in days', exact: true }),
+    ).toHaveValue('5');
+    const cycleInputBounds = await page
+      .getByRole('spinbutton', { name: 'Usual cycle length in days', exact: true })
+      .boundingBox();
+    const cycleChoiceBounds = await cycleChoice.boundingBox();
+    const firstCycleChoiceBounds = await page
+      .getByRole('group', { name: 'Quick choices for Usual cycle length in days' })
+      .getByRole('button', { name: '26', exact: true })
+      .boundingBox();
+    const lastCycleChoiceBounds = await page
+      .getByRole('group', { name: 'Quick choices for Usual cycle length in days' })
+      .getByRole('button', { name: '30', exact: true })
+      .boundingBox();
+    expect(cycleInputBounds).not.toBeNull();
+    expect(cycleChoiceBounds).not.toBeNull();
+    expect(firstCycleChoiceBounds).not.toBeNull();
+    expect(lastCycleChoiceBounds).not.toBeNull();
+    if (cycleInputBounds && cycleChoiceBounds && firstCycleChoiceBounds && lastCycleChoiceBounds) {
+      expect(cycleInputBounds.width).toBeLessThanOrEqual(110);
+      expect(cycleChoiceBounds.width).toBeGreaterThanOrEqual(44);
+      expect(cycleChoiceBounds.height).toBeGreaterThanOrEqual(44);
+      expect(lastCycleChoiceBounds.y).toBeCloseTo(firstCycleChoiceBounds.y, 0);
+      expect(lastCycleChoiceBounds.x + lastCycleChoiceBounds.width).toBeLessThanOrEqual(320);
+    }
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(
       page.getByRole('heading', { name: 'Possible pre-period check-in window' }),
     ).toBeFocused();
+    const windowChoices = page.getByRole('group', {
+      name: 'Quick choices for days before the estimate',
+    });
+    await expect(windowChoices.getByRole('button')).toHaveCount(5);
+    const firstWindowChoiceBounds = await windowChoices
+      .getByRole('button', { name: '3', exact: true })
+      .boundingBox();
+    const lastWindowChoice = windowChoices.getByRole('button', { name: '7', exact: true });
+    const lastWindowChoiceBounds = await lastWindowChoice.boundingBox();
+    expect(firstWindowChoiceBounds).not.toBeNull();
+    expect(lastWindowChoiceBounds).not.toBeNull();
+    if (firstWindowChoiceBounds && lastWindowChoiceBounds) {
+      expect(firstWindowChoiceBounds.width).toBeGreaterThanOrEqual(44);
+      expect(lastWindowChoiceBounds.height).toBeGreaterThanOrEqual(44);
+      expect(lastWindowChoiceBounds.y).toBeCloseTo(firstWindowChoiceBounds.y, 0);
+      expect(lastWindowChoiceBounds.x + lastWindowChoiceBounds.width).toBeLessThanOrEqual(320);
+    }
+    await lastWindowChoice.click();
+    await expect(
+      page.getByRole('spinbutton', { name: 'Days before the central estimate', exact: true }),
+    ).toHaveValue('7');
     await page.getByRole('button', { name: 'Continue' }).click();
 
     await expect(page.getByRole('heading', { name: 'Protect your private journal' })).toBeFocused();
-    const newPin = page.getByLabel('New PIN', { exact: true });
-    const confirmPin = page.getByLabel('Confirm new PIN', { exact: true });
-    await expect(newPin).toBeVisible();
-    await newPin.fill('123456');
-    await confirmPin.fill('123456');
-    await expect(newPin).toHaveAttribute('type', 'password');
-    await page.getByRole('button', { name: 'Show New PIN' }).click();
-    await expect(newPin).toHaveAttribute('type', 'text');
-    await expect(newPin).toHaveValue('123456');
-    await page.getByRole('button', { name: 'Show Confirm new PIN' }).click();
-    await expect(confirmPin).toHaveAttribute('type', 'text');
-    await expect(confirmPin).toHaveValue('123456');
-    await page.getByRole('button', { name: 'Hide New PIN' }).click();
-    await expect(newPin).toHaveAttribute('type', 'password');
+    const finishWithPin = page.getByRole('button', { name: 'Enable PIN and finish' });
+    await expect(finishWithPin).toBeDisabled();
+    await expect(page.getByLabel('Enter a six-digit PIN')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Enable PIN', exact: true }).click();
+    const keypad = page.getByRole('group', { name: 'PIN number pad' });
+    const pinDisplay = page.getByRole('textbox', {
+      name: 'Enter a six-digit PIN',
+      exact: true,
+    });
+    await expect(pinDisplay).toHaveAttribute('readonly', '');
+    await expect(pinDisplay).toHaveAttribute('placeholder', '******');
+    await expect(pinDisplay).toHaveCSS('text-align', 'start');
+    await expect(pinDisplay).toHaveCSS('font-size', '32px');
+    await expect(page.getByRole('button', { name: 'Delete the last PIN digit' })).toBeInViewport();
+    const keypadBoundsBeforeValidation = await keypad.boundingBox();
+    const firstDigitBounds = await keypad
+      .getByRole('button', { name: '1', exact: true })
+      .boundingBox();
+    expect(firstDigitBounds).not.toBeNull();
+    if (firstDigitBounds) {
+      expect(firstDigitBounds.width).toBeGreaterThanOrEqual(44);
+      expect(firstDigitBounds.height).toBeGreaterThanOrEqual(44);
+    }
+    for (const digit of '12345') {
+      await keypad.getByRole('button', { name: digit, exact: true }).click();
+    }
+    await expect(pinDisplay).toHaveValue('*****');
+    await page.getByRole('button', { name: 'Show Enter a six-digit PIN' }).click();
+    await expect(pinDisplay).toHaveAttribute('type', 'text');
+    await expect(pinDisplay).toHaveValue('12345');
+    await keypad.getByRole('button', { name: '6', exact: true }).click();
+    const confirmationDisplay = page.getByRole('textbox', {
+      name: 'Please repeat the PIN',
+      exact: true,
+    });
+    await expect(confirmationDisplay).toHaveValue('');
+    await expect(confirmationDisplay).toHaveAttribute('placeholder', '******');
+    for (const digit of '123455') {
+      await keypad.getByRole('button', { name: digit, exact: true }).click();
+    }
+    await expect(page.getByRole('alert')).toContainText('The PINs do not match');
+    await expect(finishWithPin).toBeDisabled();
+    const keypadBoundsAfterValidation = await keypad.boundingBox();
+    expect(keypadBoundsBeforeValidation).not.toBeNull();
+    expect(keypadBoundsAfterValidation).not.toBeNull();
+    if (keypadBoundsBeforeValidation && keypadBoundsAfterValidation) {
+      expect(keypadBoundsAfterValidation.y).toBeCloseTo(keypadBoundsBeforeValidation.y, 0);
+    }
+    for (const digit of '123456123456') {
+      await keypad.getByRole('button', { name: digit, exact: true }).click();
+    }
+    await expect(finishWithPin).toBeEnabled();
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     const hasNoHorizontalOverflow = await page.evaluate<boolean>(
       'document.documentElement.scrollWidth <= document.documentElement.clientWidth',
     );

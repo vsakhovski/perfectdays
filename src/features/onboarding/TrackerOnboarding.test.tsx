@@ -40,12 +40,16 @@ const copy: OnboardingCopy = {
     },
   },
   fallbacks: {
-    title: 'Optional starting estimates',
+    title: 'Optional period estimates',
     description: 'Used only until enough history exists.',
     cycleLength: 'Usual cycle length',
     cycleLengthDescription: 'Number of calendar days',
     bleedDuration: 'Usual bleeding duration',
     bleedDurationDescription: 'Number of calendar days',
+    notSure: 'Not sure',
+    decrease: (field) => `Decrease ${field}`,
+    increase: (field) => `Increase ${field}`,
+    quickChoices: (field) => `Quick choices for ${field}`,
   },
   orange: {
     title: 'Pre-period check-in window',
@@ -53,14 +57,21 @@ const copy: OnboardingCopy = {
     enabled: 'Show the possible pre-period check-in window',
     days: 'Number of check-in days',
     daysDescription: 'Choose from 1 through 14 days',
+    decrease: 'Decrease check-in days',
+    increase: 'Increase check-in days',
+    quickChoices: 'Quick choices for check-in days',
   },
   pin: {
     title: 'Protect your private journal',
     description: 'Optionally use a six-digit PIN.',
     hidePin: (field) => `Hide ${field}`,
-    pinLabel: 'New PIN',
-    confirmationLabel: 'Confirm new PIN',
+    pinLabel: 'Enter a six-digit PIN',
+    confirmationLabel: 'Please repeat the PIN',
     showPin: (field) => `Show ${field}`,
+    enable: 'Enable PIN',
+    keypadLabel: 'PIN number pad',
+    deleteDigit: 'Delete the last PIN digit',
+    placeholder: '******',
     unavailable: 'PIN protection is unavailable.',
     enabled: 'PIN protection is on.',
   },
@@ -176,6 +187,16 @@ async function chooseAvailableDate(
 ): Promise<void> {
   await user.click(screen.getByLabelText(fieldLabel));
   await user.click(availableDateInOpenPicker());
+}
+
+async function enterPinWithKeypad(
+  user: ReturnType<typeof userEvent.setup>,
+  value: string,
+): Promise<void> {
+  const keypad = screen.getByRole('group', { name: copy.pin.keypadLabel });
+  for (const digit of value) {
+    await user.click(within(keypad).getByRole('button', { name: digit }));
+  }
 }
 
 describe('TrackerOnboarding', () => {
@@ -297,6 +318,90 @@ describe('TrackerOnboarding', () => {
     expect(onRemoveHistory).toHaveBeenCalledWith('two');
   });
 
+  it('offers touch-friendly estimate choices, compact spinners, and an unset initial state', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await goToHistory(user);
+    await user.click(screen.getByRole('button', { name: copy.actions.next }));
+
+    const cycleInput = screen.getByLabelText(copy.fallbacks.cycleLength);
+    const bleedInput = screen.getByLabelText(copy.fallbacks.bleedDuration);
+    const cycleChoices = screen.getByRole('group', {
+      name: copy.fallbacks.quickChoices(copy.fallbacks.cycleLength),
+    });
+    const bleedChoices = screen.getByRole('group', {
+      name: copy.fallbacks.quickChoices(copy.fallbacks.bleedDuration),
+    });
+
+    expect(cycleInput).toHaveValue(null);
+    expect(cycleInput).toHaveAttribute('placeholder', copy.fallbacks.notSure);
+    expect(bleedInput).toHaveValue(null);
+    expect(
+      screen.getByRole('button', { name: copy.fallbacks.decrease(copy.fallbacks.cycleLength) }),
+    ).toBeEnabled();
+    expect(within(cycleChoices).getAllByRole('button')).toHaveLength(5);
+    expect(within(bleedChoices).getAllByRole('button')).toHaveLength(5);
+
+    await user.click(within(cycleChoices).getByRole('button', { name: '30' }));
+    await user.click(within(bleedChoices).getByRole('button', { name: '7' }));
+    expect(cycleInput).toHaveValue(30);
+    expect(bleedInput).toHaveValue(7);
+    expect(within(cycleChoices).getByRole('button', { name: '30' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: copy.fallbacks.decrease(copy.fallbacks.cycleLength) }),
+    );
+    await user.click(
+      screen.getByRole('button', { name: copy.fallbacks.increase(copy.fallbacks.bleedDuration) }),
+    );
+    expect(cycleInput).toHaveValue(29);
+    expect(bleedInput).toHaveValue(8);
+
+    await user.clear(cycleInput);
+    expect(cycleInput).toHaveValue(null);
+    await user.click(
+      screen.getByRole('button', { name: copy.fallbacks.increase(copy.fallbacks.cycleLength) }),
+    );
+    expect(cycleInput).toHaveValue(28);
+
+    await user.clear(bleedInput);
+    await user.click(
+      screen.getByRole('button', { name: copy.fallbacks.decrease(copy.fallbacks.bleedDuration) }),
+    );
+    expect(bleedInput).toHaveValue(5);
+    await user.clear(bleedInput);
+    await user.type(bleedInput, '12');
+    expect(bleedInput).toHaveValue(12);
+  });
+
+  it('uses the same compact spinner and five quick choices for the check-in window', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await goToHistory(user);
+    await user.click(screen.getByRole('button', { name: copy.actions.next }));
+    await user.click(screen.getByRole('button', { name: copy.actions.next }));
+
+    const daysInput = screen.getByLabelText(copy.orange.days);
+    const quickChoices = screen.getByRole('group', { name: copy.orange.quickChoices });
+    const selectedFive = within(quickChoices).getByRole('button', { name: '5' });
+
+    expect(daysInput).toHaveValue(5);
+    expect(within(quickChoices).getAllByRole('button')).toHaveLength(5);
+    expect(selectedFive).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(within(quickChoices).getByRole('button', { name: '7' }));
+    await user.click(screen.getByRole('button', { name: copy.orange.decrease }));
+    expect(daysInput).toHaveValue(6);
+
+    await user.click(screen.getByLabelText(copy.orange.enabled));
+    expect(daysInput).toBeDisabled();
+    expect(screen.getByRole('button', { name: copy.orange.increase })).toBeDisabled();
+    expect(within(quickChoices).getByRole('button', { name: '6' })).toBeDisabled();
+  });
+
   it('navigates with deliberate horizontal swipes and preserves step validation', () => {
     render(<Harness />);
 
@@ -415,27 +520,43 @@ describe('TrackerOnboarding', () => {
     await user.click(screen.getByRole('button', { name: copy.actions.next }));
     await user.click(screen.getByRole('button', { name: copy.actions.next }));
 
-    await user.click(screen.getByRole('button', { name: copy.actions.enablePinAndFinish }));
-    expect(screen.getByText(copy.validation.pinSixDigits)).toBeVisible();
+    const finishWithPin = screen.getByRole('button', { name: copy.actions.enablePinAndFinish });
+    expect(finishWithPin).toBeDisabled();
+    expect(screen.queryByLabelText(copy.pin.pinLabel)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: copy.pin.enable }));
+
     const pinInput = screen.getByLabelText(copy.pin.pinLabel);
-    const confirmationInput = screen.getByLabelText(copy.pin.confirmationLabel);
-    await user.type(pinInput, '123456');
-    await user.type(confirmationInput, '123456');
-    expect(pinInput).toHaveAttribute('type', 'password');
-    expect(confirmationInput).toHaveAttribute('type', 'password');
+    expect(pinInput).toHaveAttribute('readonly');
+    expect(pinInput).toHaveAttribute('placeholder', copy.pin.placeholder);
+    expect(pinInput).toHaveAttribute('data-masked', 'true');
+    await user.click(screen.getByRole('button', { name: copy.pin.showPin(copy.pin.pinLabel) }));
+    expect(pinInput).toHaveAttribute('data-masked', 'true');
+    await user.click(screen.getByRole('button', { name: copy.pin.hidePin(copy.pin.pinLabel) }));
+    await enterPinWithKeypad(user, '12345');
+    expect(pinInput).toHaveValue('*****');
     await user.click(screen.getByRole('button', { name: copy.pin.showPin(copy.pin.pinLabel) }));
     expect(pinInput).toHaveAttribute('type', 'text');
-    expect(pinInput).toHaveValue('123456');
-    await user.click(
-      screen.getByRole('button', { name: copy.pin.showPin(copy.pin.confirmationLabel) }),
-    );
-    expect(confirmationInput).toHaveAttribute('type', 'text');
-    expect(confirmationInput).toHaveValue('123456');
-    await user.click(screen.getByRole('button', { name: copy.pin.hidePin(copy.pin.pinLabel) }));
-    expect(pinInput).toHaveAttribute('type', 'password');
-    await user.click(screen.getByRole('button', { name: copy.actions.enablePinAndFinish }));
+    expect(pinInput).toHaveValue('12345');
+    await enterPinWithKeypad(user, '6');
 
-    expect(onEnablePin).toHaveBeenCalledWith('123456');
+    const confirmationInput = screen.getByLabelText(copy.pin.confirmationLabel);
+    expect(confirmationInput).toHaveValue('');
+    expect(confirmationInput).toHaveAttribute('placeholder', copy.pin.placeholder);
+    expect(finishWithPin).toBeDisabled();
+
+    await enterPinWithKeypad(user, '123455');
+    expect(screen.getByRole('alert')).toHaveTextContent(copy.validation.pinMismatch);
+    expect(screen.getByLabelText(copy.pin.pinLabel)).toHaveValue('');
+    expect(finishWithPin).toBeDisabled();
+
+    await enterPinWithKeypad(user, '246810');
+    expect(screen.getByLabelText(copy.pin.confirmationLabel)).toHaveValue('');
+    await enterPinWithKeypad(user, '246810');
+    expect(screen.getByLabelText(copy.pin.confirmationLabel)).toHaveValue('******');
+    expect(finishWithPin).toBeEnabled();
+    await user.click(finishWithPin);
+
+    expect(onEnablePin).toHaveBeenCalledWith('246810');
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ history: [] }));
   });
 });

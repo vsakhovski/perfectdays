@@ -240,8 +240,7 @@
 .historyList,
 .historyEntry,
 .dateFields,
-.numberFields,
-.pinForm {
+.numberFields {
   display: grid;
   gap: 1rem;
 }
@@ -310,21 +309,88 @@
   min-inline-size: 0;
 }
 
-.numberFields label,
-.orangeDays {
+.numberField {
   display: grid;
   gap: 0.35rem;
+}
+
+.numberField > label {
   font-weight: 700;
 }
 
-.numberFields input,
-.orangeDays input {
+.numberSpinner {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(4.75rem, 6.5rem) 2.75rem;
+  gap: 0.35rem;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.numberSpinner input {
   inline-size: 100%;
   min-block-size: 2.75rem;
   padding: 0.55rem 0.65rem;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-small);
   background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.numberSpinner input {
+  min-inline-size: 0;
+  text-align: center;
+  appearance: textfield;
+}
+
+.numberSpinner input::-webkit-inner-spin-button,
+.numberSpinner input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.numberSpinner button,
+.numberChoices button {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 2.75rem;
+  min-block-size: 2.75rem;
+  padding: 0.35rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.numberSpinner button {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.numberSpinner button svg {
+  inline-size: 1.35rem;
+  block-size: 1.35rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.numberChoices {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(2.75rem, 1fr));
+  gap: 0.25rem;
+  inline-size: min(100%, 30rem);
+  margin-block-start: 0.35rem;
+  justify-self: center;
+}
+
+.numberChoices button[aria-pressed='true'] {
+  border-color: var(--color-accent);
+  background: var(--color-surface-subtle);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
   color: var(--color-text);
 }
 
@@ -358,8 +424,8 @@
   opacity: 0.4;
 }
 
-.numberFields input[aria-invalid='true'],
-.orangeDays input[aria-invalid='true'] {
+.numberSpinner input[aria-invalid='true'],
+.pinDisplay[aria-invalid='true'] {
   border-color: var(--color-danger);
   box-shadow: inset 0 0 0 1px var(--color-danger);
 }
@@ -391,15 +457,151 @@
   accent-color: var(--color-accent);
 }
 
-.orangeDays {
-  max-inline-size: 18rem;
+.startPinButton {
+  justify-self: center;
+  min-inline-size: min(100%, 12rem);
 }
 
-.pinForm {
-  padding: 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-large);
+.pinEntry {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+}
+
+.pinPrompt {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 750;
+  text-align: center;
+}
+
+.pinDisplayShell {
+  position: relative;
+  inline-size: min(100%, 17rem);
+}
+
+.pinDisplay {
+  inline-size: 100%;
+  block-size: 3rem;
+  padding: 0 3.25rem 0 1.25rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
   background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  letter-spacing: 0.4em;
+  line-height: calc(3rem - 2px);
+  pointer-events: none;
+  text-align: start;
+}
+
+.pinDisplay::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.45;
+}
+
+.pinDisplay[data-masked='true'] {
+  color: transparent;
+}
+
+.pinDisplay[data-masked='true']::placeholder {
+  color: transparent;
+}
+
+.pinMask {
+  position: absolute;
+  inset-block: 0;
+  inset-inline: 1.25rem 3.25rem;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 2rem;
+  font-weight: 750;
+  letter-spacing: 0.4em;
+  line-height: 1;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.pinDisplay:placeholder-shown + .pinMask {
+  color: var(--color-text-muted);
+  opacity: 0.45;
+}
+
+.pinMaskText {
+  transform: translateY(0.2em);
+}
+
+.pinRevealButton {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: 0.35rem;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--color-accent);
+  cursor: pointer;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.pinRevealButton svg,
+.pinKeypad button svg {
+  inline-size: 1.4rem;
+  block-size: 1.4rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.pinKeypad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(2.75rem, 1fr));
+  gap: 0.4rem;
+  inline-size: min(100%, 17rem);
+}
+
+.pinValidationSlot {
+  min-block-size: 1.25rem;
+  color: var(--color-danger);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.pinValidationSlot p {
+  margin: 0;
+}
+
+.pinKeypad button {
+  display: inline-grid;
+  place-items: center;
+  min-block-size: 2.75rem;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1.4rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.pinKeypadSpacer {
+  min-block-size: 2.75rem;
 }
 
 .success,
@@ -476,8 +678,11 @@ input:disabled {
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible,
 .removePeriodButton:focus-visible,
-.numberFields input:focus-visible,
-.orangeDays input:focus-visible,
+.numberSpinner input:focus-visible,
+.numberSpinner button:focus-visible,
+.numberChoices button:focus-visible,
+.pinRevealButton:focus-visible,
+.pinKeypad button:focus-visible,
 .toggle input:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;
@@ -513,8 +718,7 @@ input:disabled {
   .topBar,
   .actions,
   .privacyCard,
-  .historyEntry,
-  .pinForm {
+  .historyEntry {
     border-color: CanvasText;
   }
 
@@ -527,8 +731,8 @@ input:disabled {
     background: Highlight;
   }
 
-  .numberFields input[aria-invalid='true'],
-  .orangeDays input[aria-invalid='true'] {
+  .numberSpinner input[aria-invalid='true'],
+  .pinDisplay[aria-invalid='true'] {
     border: 3px solid Mark;
     box-shadow: none;
   }
