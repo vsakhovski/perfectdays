@@ -2,6 +2,16 @@
   min-inline-size: 0;
 }
 
+.control[data-compact='true'] {
+  inline-size: 100%;
+  text-align: start;
+}
+
+.control[data-compact='true'] .label {
+  margin-block-end: 0.4rem;
+  font-size: 0.82rem;
+}
+
 .label {
   display: block;
   margin-block-end: 0.75rem;
@@ -10,14 +20,20 @@
 
 .select {
   inline-size: 100%;
+  max-inline-size: 100%;
   min-block-size: 2.75rem;
-  padding-inline: 0.85rem 2.5rem;
+  padding-inline: 0.85rem;
   border: 1px solid var(--color-border-strong);
-  border-radius: 999px;
+  border-radius: 0.375rem;
   background: var(--color-surface-subtle);
   color: var(--color-text);
   cursor: pointer;
+  font-size: 1.05rem;
   font-weight: 650;
+}
+
+.select option {
+  max-inline-size: 100%;
 }
 
 .select:focus-visible {

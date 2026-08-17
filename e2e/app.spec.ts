@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 async function finishOnboarding(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Finish without history' }).click();
+  await page.getByRole('button', { name: 'Skip setup' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
 }
 
@@ -23,13 +23,80 @@ test.describe('English application shell', () => {
   test('loads and passes an automated accessibility scan', async ({ page }) => {
     await page.goto('/');
 
-    await expect(
-      page.getByRole('heading', { name: /your patterns, in your hands/i }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
+    await expect(page.getByText(/Version 0\.1\.0/)).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 
     const accessibilityScan = await new AxeBuilder({ page }).analyze();
     expect(accessibilityScan.violations).toEqual([]);
+  });
+
+  test('walks forward and back through the focused onboarding screens', async ({ page }) => {
+    await page.setViewportSize({ height: 640, width: 320 });
+    await page.goto('/');
+
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    const language = page.getByRole('combobox', { name: 'Select language' });
+    await expect(language).toHaveValue('en');
+    await expect(language.locator('option')).toHaveCount(2);
+    await expect(language.locator('option[value="system"]')).toHaveCount(0);
+    await expect(language).toHaveCSS('border-radius', '6px');
+    const languageControlBounds = await language.boundingBox();
+    expect(languageControlBounds).not.toBeNull();
+    if (languageControlBounds !== null) {
+      expect(languageControlBounds.x).toBeGreaterThanOrEqual(0);
+      expect(languageControlBounds.x + languageControlBounds.width).toBeLessThanOrEqual(320);
+    }
+    await language.focus();
+    await language.selectOption('de');
+    await expect(page.getByRole('combobox', { name: 'Sprache auswählen' })).toBeFocused();
+    await page.getByRole('combobox', { name: 'Sprache auswählen' }).selectOption('en');
+    await expect(page.getByRole('combobox', { name: 'Select language' })).toBeFocused();
+    await expect(page.getByRole('radio', { name: /light|dark|system/i })).toHaveCount(0);
+    await expect(page.getByText('Version 0.1.0')).toBeInViewport();
+    await expect(page.getByText('Step 1 of 6')).toHaveCount(0);
+    await expect(page.getByRole('progressbar', { name: 'Step 1 of 6' })).toHaveAttribute(
+      'aria-valuenow',
+      '1',
+    );
+    await page.getByRole('button', { name: 'Get started' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Understand your cycle, privately' }),
+    ).toBeFocused();
+    await expect(
+      page.getByRole('heading', { name: 'Your data stays under your control' }),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Back' }).locator('svg')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Skip setup' }).locator('svg')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(page.getByRole('heading', { name: 'Previous periods' })).toBeFocused();
+    await page.getByRole('button', { name: 'Back' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Understand your cycle, privately' }),
+    ).toBeFocused();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Add previous period' }).click();
+    await page.getByLabel('Start date').fill('2026-07-01');
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Optional starting estimates' })).toBeFocused();
+    await page.getByLabel('Usual cycle length in days').fill('28');
+    await page.getByLabel('Usual bleeding duration in days').fill('5');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Possible pre-period check-in window' }),
+    ).toBeFocused();
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Protect your private journal' })).toBeFocused();
+    await expect(page.getByLabel('New PIN', { exact: true })).toBeVisible();
+    const hasNoHorizontalOverflow = await page.evaluate<boolean>(
+      'document.documentElement.scrollWidth <= document.documentElement.clientWidth',
+    );
+    expect(hasNoHorizontalOverflow).toBe(true);
+    await page.getByRole('button', { name: 'Finish without PIN' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
   });
 
   test('persists an explicit theme preference across reloads', async ({ page }) => {
@@ -175,7 +242,7 @@ test.describe('English application shell', () => {
     page,
   }) => {
     const secondPage = await context.newPage();
-    const privateHeading = /your patterns, in your hands/i;
+    const privateHeading = 'Pattern Journal';
 
     await Promise.all([page.goto('/'), secondPage.goto('/')]);
 
@@ -288,12 +355,12 @@ test.describe('English application shell', () => {
     await page.goto('/');
     await finishOnboarding(page);
     await openRootDestination(page, 'Settings');
-    const languageSelect = page.getByRole('combobox', { name: 'Language' });
+    const languageSelect = page.getByRole('combobox', { name: 'Select language' });
     await languageSelect.focus();
     await languageSelect.selectOption('de');
 
     await expect(page.getByRole('heading', { level: 1, name: 'Einstellungen' })).toBeVisible();
-    await expect(page.getByRole('combobox', { name: 'Sprache' })).toBeFocused();
+    await expect(page.getByRole('combobox', { name: 'Sprache auswählen' })).toBeFocused();
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
     await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
     await expect(page).toHaveTitle('Menstruationskalender');
@@ -316,7 +383,7 @@ test.describe('English application shell', () => {
       .getByRole('navigation', { name: 'Hauptnavigation' })
       .getByRole('button', { exact: true, name: 'Einstellungen' })
       .click();
-    await expect(page.getByRole('combobox', { name: 'Sprache' })).toHaveValue('de');
+    await expect(page.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveValue('de');
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
   });
 });
@@ -505,6 +572,13 @@ test.describe('Phase 5 compact mobile shell', () => {
     await openRootDestination(page, 'Settings');
     const weekStart = page.getByRole('combobox', { name: 'First day of the week' });
     await expect(weekStart).toHaveValue('system');
+    await expect(weekStart).toHaveCSS('border-radius', '6px');
+    const weekStartBounds = await weekStart.boundingBox();
+    expect(weekStartBounds).not.toBeNull();
+    if (weekStartBounds !== null) {
+      expect(weekStartBounds.x).toBeGreaterThanOrEqual(0);
+      expect(weekStartBounds.x + weekStartBounds.width).toBeLessThanOrEqual(320);
+    }
     await expect(page.getByText('Your current system default is Sunday.')).toBeVisible();
     await weekStart.selectOption('monday');
     await expect(page.getByText('Calendar preference saved.')).toBeVisible();
@@ -594,10 +668,8 @@ test.describe('device language detection', () => {
   test('uses the supported base language on first visit', async ({ page }) => {
     await page.goto('/');
 
-    await expect(
-      page.getByRole('heading', { name: 'Deine Muster. In deiner Hand.' }),
-    ).toBeVisible();
-    await expect(page.getByRole('combobox', { name: 'Sprache' })).toHaveValue('system');
+    await expect(page.getByText('Ein privater Ort für deine Zyklusmuster.')).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveValue('de');
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
   });
 });
@@ -616,7 +688,7 @@ test.describe('narrow dark German shell', () => {
       globalThis.localStorage.setItem('perfect-days:theme', 'dark');
     });
     await page.goto('/');
-    await page.getByRole('button', { name: 'Ohne Verlauf abschließen' }).click();
+    await page.getByRole('button', { name: 'Einrichtung überspringen' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Kalender' })).toBeVisible();
     await page
       .getByRole('navigation', { name: 'Hauptnavigation' })

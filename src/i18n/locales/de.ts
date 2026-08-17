@@ -39,13 +39,23 @@ export const de = {
   },
   tracker: {
     onboarding: {
-      title: 'Richte dein privates Tagebuch ein',
-      introduction:
-        'Trage nur ein, was du weißt. Frühere Daten verbessern Schätzungen; optionale Schätzwerte können später geändert werden.',
+      splash: {
+        appName: 'Pattern Journal',
+        tagline: 'Ein privater Ort für deine Zyklusmuster.',
+        version: 'Version {{version}}',
+      },
+      introduction: {
+        title: 'Verstehe deinen Zyklus – privat',
+        description:
+          'Diese App hilft dir, deine Zyklen zu erfassen, den möglichen Beginn deiner nächsten Periode einzuschätzen und ein privates Tagebuch deiner eigenen Beobachtungen zu führen.',
+        privacyTitle: 'Du behältst die Kontrolle über deine Daten',
+        privacyDescription:
+          'Dein Tagebuch bleibt standardmäßig auf diesem Gerät – ohne Konto, Werbung oder Analyse. Eine optionale PIN kann es im Speicher verschlüsseln; ohne PIN sind lokale Daten nicht verschlüsselt.',
+      },
       history: {
         title: 'Frühere Perioden',
         description:
-          'Startdaten bilden den Zyklusverlauf. Füge ein Enddatum nur hinzu, wenn du es kennst; ohne Enddatum wird keine Blutungsdauer geschätzt.',
+          'Schätzungen beruhen auf früheren Periodenstarts. Füge frühere Perioden hinzu, wenn dir diese Daten vorliegen. Trage ein Enddatum nur ein, wenn du es kennst.',
         empty: 'Noch keine frühere Periode hinzugefügt.',
         startDate: 'Startdatum',
         endDate: 'Enddatum (optional)',
@@ -70,6 +80,17 @@ export const de = {
         days: 'Tage vor der zentralen Schätzung',
         daysDescription: 'Wähle 1 bis 14 Tage.',
       },
+      pin: {
+        title: 'Schütze dein privates Tagebuch',
+        description:
+          'Lege optional eine sechsstellige PIN fest. Sie verschlüsselt das in diesem Browser gespeicherte Tagebuch und sperrt die App, wenn sie geschlossen oder im Hintergrund gelassen wird. Die PIN kann nicht wiederhergestellt werden.',
+        pinLabel: 'Neue PIN',
+        confirmationLabel: 'Neue PIN bestätigen',
+        unavailable:
+          'PIN-Schutz ist in diesem Browser oder über diese Verbindung nicht verfügbar. Du kannst die Einrichtung abschließen und ihn später unter Datenschutz in einem unterstützten sicheren Browser aktivieren.',
+        enabled:
+          'PIN-Schutz ist aktiviert. Schließe die Einrichtung ab, um den Kalender zu öffnen.',
+      },
       validation: {
         startRequired: 'Füge ein Startdatum hinzu oder entferne diese Zeile.',
         endBeforeStart: 'Das Enddatum darf nicht vor dem Startdatum liegen.',
@@ -80,11 +101,22 @@ export const de = {
         bleedRange: 'Wähle eine ganze Zahl von 1 bis 90 Tagen.',
         orangeRange: 'Wähle eine ganze Zahl von 1 bis 14.',
         futureDate: 'Zukünftige Daten können nicht zum Periodenverlauf hinzugefügt werden.',
+        pinSixDigits: 'Gib in beide Felder eine sechsstellige PIN ein.',
+        pinMismatch: 'Die PINs stimmen nicht überein.',
+        pinFailed:
+          'Der PIN-Schutz konnte nicht aktiviert werden. Dein Tagebuch wurde nicht verändert.',
       },
       actions: {
-        skip: 'Ohne Verlauf abschließen',
-        complete: 'Einrichtung abschließen',
+        back: 'Zurück',
+        skip: 'Einrichtung überspringen',
+        start: 'Loslegen',
+        next: 'Weiter',
+        finishWithoutPin: 'Ohne PIN abschließen',
+        enablePinAndFinish: 'PIN aktivieren und abschließen',
+        enablingPin: 'PIN wird aktiviert…',
+        finish: 'Einrichtung abschließen',
         completing: 'Einrichtung wird gespeichert…',
+        progress: 'Schritt {{current}} von {{total}}',
       },
       saveFailed:
         'Die Einrichtung konnte nicht gespeichert werden. Dein bestehendes Tagebuch wurde nicht verändert.',
@@ -760,9 +792,8 @@ export const de = {
       current: 'Aktuell wird der Modus „{{theme}}“ angezeigt.',
     },
     language: {
-      label: 'Sprache',
+      label: 'Sprache auswählen',
       options: {
-        system: 'Gerätesprache',
         en: 'English',
         de: 'Deutsch',
       },

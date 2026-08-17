@@ -4,7 +4,7 @@
 
 A private, mobile-first menstrual journal that records bleeding and helps its user notice her own recurring wellbeing patterns. The product uses red, orange, and green calendar markers, but treats them as personal context rather than biological verdicts or judgments about competence.
 
-**Status:** Phase 5 first mobile engineering slice implemented. After onboarding or unlock, the app now opens a compact Calendar-first shell with separate Calendar, Privacy, and Settings destinations; a persistent one-tap today check-in action; an atomic **Save and done** flow with stable sticky header/action chrome and compact toggleable ratings; contextual Insights and Period history screens; a forecast summary below the calendar; a header-level **Go to today** action; square responsive date cells; configurable regional week starts; revised light/dark marker treatments; and mobile-browser coverage. Manual contrast, software-keyboard, forced-colors, screen-reader, and real-user usability review remain open, as do episode splitting/merging, evidence-driven forecast calibration, final naming, and public-beta clinical, legal, and independent security review.
+**Status:** Phase 5 mobile engineering is implemented. First use now opens a focused, skippable six-screen onboarding flow with a placeholder brand splash and language selector, dot progress, privacy introduction, optional history and estimates, pre-period check-in configuration, and optional PIN setup. After onboarding or unlock, the app opens a compact Calendar-first shell with separate Calendar, Privacy, and Settings destinations; a persistent one-tap today check-in action; an atomic **Save and done** flow; contextual Insights and Period history screens; and mobile-browser coverage. Manual contrast, software-keyboard, forced-colors, screen-reader, and real-user usability review remain open, as do episode splitting/merging, evidence-driven forecast calibration, final naming, and public-beta clinical, legal, and independent security review.
 
 ## Product goal
 
@@ -80,16 +80,17 @@ Language to avoid:
 
 ### 1. Onboarding
 
-- Explain local storage, PIN limitations, prediction uncertainty, and the product's non-medical scope in plain language.
+- Present one focused screen at a time in this order: placeholder brand splash with the package version; cycle-tracking and privacy introduction; previous periods; optional starting estimates; pre-period check-in window; optional PIN.
+- Keep an icon-only back chevron available after the splash and an icon-only close/skip action available throughout, with localized accessible names. Skipping commits the existing safe defaults without partially applying the in-memory draft.
+- Show six progress dots in the top panel, enlarging the current dot. Expose the numeric step through progressbar semantics without displaying “Step X of Y” as text.
+- Explain that the app can track cycles, estimate when the next period may begin, and hold a private journal. State plainly that data stays on-device by default, that there is no account/advertising/analytics, and that local data is not encrypted until PIN protection is enabled.
 - Allow entry of known previous episode start dates and optional end dates; four starts provide three completed cycle lengths, while only explicitly supplied ends provide duration history.
 - Treat a start-only historical observation as cycle-length evidence without inventing a bleeding duration or leaving an active period open.
 - Ask for usual cycle length and typical bleeding duration as optional fallbacks. These values never override recorded history and are bounded to 1-365 and 1-90 days respectively so invalid date arithmetic cannot be persisted.
 - Enable or disable the orange window and choose its length. Default: five days; allowed range: 1–14 days.
 - Use confidence as the initial green metric.
 - Offer an optional six-digit PIN and explain that, when enabled, forgetting it requires erasing the inaccessible encrypted local data.
-- Choose **System**, **Light**, or **Dark** appearance. Default: System.
-- Choose **Device language**, **English**, or **Deutsch**. Default: Device language; unsupported device languages fall back to English.
-- Choose **System default**, **Monday**, or **Sunday** as the first calendar weekday. System default uses the device's regional locale and is the default.
+- Put the **Select language** control directly below the splash subtitle. It shows only the resolved `English` and `Deutsch` choices, never a separate Device language entry. Do not place appearance or calendar-week-start controls in onboarding. Initial appearance is **Light**; language initially follows the device with English fallback until the user explicitly chooses a language. Appearance, language, and week-start remain configurable later in Settings.
 
 ### 2. Calendar as the default destination
 
@@ -631,7 +632,7 @@ app -> composition of all layers
 - Device-language, English, and German selection with local persistence and English fallback.
 - Typed English and German message catalogs stored in separate per-language files with no runtime translation network request.
 - Immediate copy updates plus synchronized document `lang`, `dir`, title, and description metadata when language changes.
-- Device locale resolution by supported base tag, including values such as `de-DE` and `de-AT`, and live re-resolution after a browser language change while Device language is selected. Calendar week-start resolution retains the device's regional locale so `en-US` can begin on Sunday while `en-GB` begins on Monday.
+- Device locale resolution by supported base tag, including values such as `de-DE` and `de-AT`, and live re-resolution after a browser language change while no explicit language has been chosen. The selector displays the resolved language rather than an internal device-default value. Calendar week-start resolution retains the device's regional locale so `en-US` can begin on Sunday while `en-GB` begins on Monday.
 - CSS design tokens for both themes, reduced-motion handling, visible keyboard focus, and non-color marker accents.
 - A validated local-date type and timezone-independent date arithmetic with leap-year and boundary tests.
 - A strict version-3 logical payload schema, tested sequential version-0-to-1-to-2-to-3 migrations and safe removal of legacy out-of-range forecast fallbacks, domain-invariant validation, and rejection of unsupported future versions.
@@ -713,10 +714,10 @@ The interface must never diagnose from a single entry or turn safety information
 ## Accessibility and localization
 
 - The MVP ships complete English (`en`) and German (`de`) catalogs. English is the fallback language.
-- **Device language** is the default. The app checks browser language tags in priority order, resolves supported base tags such as `de-DE` to `de`, and falls back to English when none is supported.
+- The initial language follows the device. The app checks browser language tags in priority order, resolves supported base tags such as `de-DE` to `de`, and falls back to English when none is supported. The selector itself always shows the actually resolved `English` or `Deutsch` choice; selecting either stores it explicitly.
 - Every visible message and every user-facing accessible name, description, validation error, empty state, confirmation, and notification must use a typed key from a per-language file.
 - The document `lang` and `dir` attributes, page title, and description metadata update whenever the resolved language changes.
-- The language selector uses a native labeled control and language endonyms (`English`, `Deutsch`), not flags.
+- Language and other list selectors use labeled native controls, a small corner radius, comfortably sized text, and full container width. Where the browser supports customizable native selects, the picker arrow stays inline with the selected value, the selected row uses a background instead of a checkmark, and the open list is anchored to exactly the control width, can flip around the trigger, and is capped to the visible viewport; other browsers retain their own viewport-managed native picker. Language choices use endonyms (`English`, `Deutsch`), not flags.
 - Translation keys represent complete messages. Use interpolation, context, and locale-aware plural rules rather than concatenating fragments.
 - Format dates, month and weekday names, numbers, and quantities with the resolved language at the presentation boundary. Persisted `LocalDate` values and enum codes remain locale-neutral.
 - English and German are left-to-right, while layout continues to use logical CSS properties for future right-to-left locales.
@@ -781,7 +782,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 ### Phase 2 — First vertical slice (complete)
 
-- [x] Add tracker onboarding with optional historical starts/ends, bounded fallback estimates, orange configuration, and an explicit finish-without-history action; keep theme, language, and optional PIN controls available as app-wide settings.
+- [x] Add sequential, back-navigable, globally skippable onboarding with a versioned placeholder splash and language selector, privacy introduction, optional historical starts/ends, bounded fallback estimates, orange configuration, and final optional PIN setup; keep theme and week-start controls out of onboarding and available later in Settings.
 - [x] Add the localized monthly calendar with recorded and forecast states, today/selection distinctions, non-color semantics, and an accessible legend.
 - [x] Add period actions and a daily editor for flow, spotting, confidence, tension, energy, pain, and notes.
 - [x] Derive retrospective green badges only from recorded confidence values of 4–5.
@@ -815,6 +816,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Present Insights and Period history as focused secondary screens with one title, a top-bar close action, restored trigger focus, and no bottom chrome.
 - [x] Move PIN, auto-lock, backup/restore, readable export, storage explanation, and confirmed erasure into Privacy; move tracking, appearance, language, calendar week start, and About into Settings.
 - [x] Add all new English and German copy, component/unit coverage, mobile browser flows, and navigation/check-in privacy-leakage assertions.
+- [x] Refactor onboarding into focused consecutive screens with icon-only Back/Skip controls, accessible dot progress, a placeholder logo, package version and a resolved English/Deutsch language selector, light-mode/device-language resolution defaults, and optional PIN as the final step.
 - [ ] Complete manual contrast, software-keyboard, forced-colors, screen-reader, real-device, and real-user usability validation and address findings.
 
 ### Phase 6 — Pilot and public-beta readiness
@@ -829,6 +831,9 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 ### Functional
 
+- [x] First launch shows a localized placeholder-brand splash with the package version, then advances through introduction/privacy, history, starting estimates, pre-period window, and optional PIN as separate screens.
+- [x] Onboarding preserves its in-memory draft across Back/Continue, exposes accessible icon-only Back/Skip actions, displays dot progress instead of numeric text, and shows only language—not appearance or week-start—on the splash.
+- [x] A user can finish onboarding with or without PIN protection; failed PIN activation or setup persistence remains visible and retryable rather than silently completing.
 - [x] A user can start, continue, end, and remove periods and create, edit, clear, and delete eligible daily check-ins.
 - [x] A user can directly correct arbitrary start/end boundaries for one period, including changing its active state and start-day intensity, without creating overlap or discarding unrelated daily observations.
 - [ ] A user can explicitly split or merge episodes if research confirms that the added correction workflow is needed.
@@ -995,9 +1000,9 @@ Add a message to `src/i18n/locales/en.ts` first, then add the matching key and p
 - Mobile-first installable PWA
 - Local-only, offline, single-user MVP
 - Adult self-tracking use case
-- English and German MVP catalogs; Device language by default; English fallback
+- English and German MVP catalogs; device language resolution by default without a separate selector option; English fallback
 - Final product name deferred
-- System theme by default
+- Light theme by default; System and Dark remain available in Settings
 - Optional six-digit PIN
 - One-minute default auto-lock after backgrounding
 - Five-day default orange window

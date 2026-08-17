@@ -39,6 +39,65 @@ select {
   font: inherit;
 }
 
+select {
+  max-inline-size: 100%;
+  border-radius: 0.375rem;
+  font-size: 1.05rem;
+}
+
+select option {
+  max-inline-size: 100%;
+}
+
+/* Browsers with customizable selects can keep the open list exactly aligned
+   with its control. Other browsers retain their viewport-managed native picker. */
+@supports (appearance: base-select) {
+  select,
+  ::picker(select) {
+    appearance: base-select;
+  }
+
+  select {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  select::picker-icon {
+    flex: none;
+    align-self: center;
+    margin-inline-start: auto;
+  }
+
+  ::picker(select) {
+    inline-size: anchor-size(width);
+    max-inline-size: calc(100vw - 1rem);
+    max-block-size: calc(100dvh - 1rem);
+    overflow-y: auto;
+    border: 1px solid var(--color-border-strong);
+    border-radius: 0.375rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+    position-try-fallbacks: flip-block, flip-inline;
+  }
+
+  select option {
+    min-block-size: 2.75rem;
+    padding: 0.65rem 0.85rem;
+    overflow-wrap: anywhere;
+  }
+
+  select option::checkmark {
+    display: none;
+  }
+
+  select option:checked {
+    background: color-mix(in srgb, var(--color-accent) 18%, var(--color-surface));
+    color: var(--color-text);
+    font-weight: 750;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

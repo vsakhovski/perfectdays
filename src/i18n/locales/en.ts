@@ -35,13 +35,23 @@ export const en = {
   },
   tracker: {
     onboarding: {
-      title: 'Set up your private journal',
-      introduction:
-        'Add only what you know. Previous dates improve estimates, and optional estimate settings can be changed later.',
+      splash: {
+        appName: 'Pattern Journal',
+        tagline: 'A private place for your cycle patterns.',
+        version: 'Version {{version}}',
+      },
+      introduction: {
+        title: 'Understand your cycle, privately',
+        description:
+          'This app can help you track your cycles, estimate when your next period may begin, and keep a private journal of your own observations.',
+        privacyTitle: 'Your data stays under your control',
+        privacyDescription:
+          'Your journal stays on this device by default, with no account, advertising, or analytics. An optional PIN can encrypt it at rest; without a PIN, local data is not encrypted.',
+      },
       history: {
         title: 'Previous periods',
         description:
-          'Start dates build cycle history. Add an end date only when you know it; an omitted end will not be used as a bleeding-duration estimate.',
+          'Predictions are based on previous period starts. Add previous periods when that information is available. Add an end date only when you know it.',
         empty: 'No previous periods added yet.',
         startDate: 'Start date',
         endDate: 'End date (optional)',
@@ -66,6 +76,16 @@ export const en = {
         days: 'Days before the central estimate',
         daysDescription: 'Choose from 1 to 14 days.',
       },
+      pin: {
+        title: 'Protect your private journal',
+        description:
+          'Optionally choose a six-digit PIN. It encrypts the journal stored in this browser and locks the app when it is closed or left in the background. There is no PIN recovery.',
+        pinLabel: 'New PIN',
+        confirmationLabel: 'Confirm new PIN',
+        unavailable:
+          'PIN protection is unavailable in this browser or connection. You can finish setup and enable it later from Privacy in a supported secure browser.',
+        enabled: 'PIN protection is on. Finish setup to open your calendar.',
+      },
       validation: {
         startRequired: 'Add a start date or remove this row.',
         endBeforeStart: 'The end date cannot be before the start date.',
@@ -76,11 +96,21 @@ export const en = {
         bleedRange: 'Choose a whole number from 1 to 90 days.',
         orangeRange: 'Choose a whole number from 1 to 14.',
         futureDate: 'Future dates cannot be added to period history.',
+        pinSixDigits: 'Enter a six-digit PIN in both fields.',
+        pinMismatch: 'The PINs do not match.',
+        pinFailed: 'PIN protection could not be enabled. Your journal was not changed.',
       },
       actions: {
-        skip: 'Finish without history',
-        complete: 'Finish setup',
+        back: 'Back',
+        skip: 'Skip setup',
+        start: 'Get started',
+        next: 'Continue',
+        finishWithoutPin: 'Finish without PIN',
+        enablePinAndFinish: 'Enable PIN and finish',
+        enablingPin: 'Enabling PIN…',
+        finish: 'Finish setup',
         completing: 'Saving setup…',
+        progress: 'Step {{current}} of {{total}}',
       },
       saveFailed: 'The setup could not be saved. Your existing journal was not changed.',
     },
@@ -734,9 +764,8 @@ export const en = {
       current: 'Currently displaying {{theme}} mode.',
     },
     language: {
-      label: 'Language',
+      label: 'Select language',
       options: {
-        system: 'Device language',
         en: 'English',
         de: 'Deutsch',
       },

@@ -1,18 +1,3 @@
-.onboardingPage {
-  display: grid;
-  gap: 1.25rem;
-  inline-size: min(100% - 2rem, 42rem);
-  margin-inline: auto;
-  padding-block: clamp(1rem, 5vw, 2.5rem) 2rem;
-}
-
-.onboardingHeader {
-  display: grid;
-  gap: 0.65rem;
-}
-
-.onboardingHeader h1,
-.onboardingHeader p,
 .informationCard h2,
 .informationCard h3,
 .informationCard p,
@@ -21,28 +6,12 @@
   margin: 0;
 }
 
-.onboardingHeader h1 {
-  font-size: clamp(2rem, 10vw, 3.75rem);
-  letter-spacing: -0.045em;
-  line-height: 1;
-}
-
-.onboardingHeader > p:last-child,
 .screenDescription,
 .informationCard p {
   color: var(--color-text-muted);
   line-height: 1.55;
 }
 
-.eyebrow {
-  color: var(--color-accent);
-  font-size: 0.78rem;
-  font-weight: 750;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-.onboardingPreferences,
 .screenStack,
 .contextScreen,
 .preferenceControls {
@@ -50,7 +19,6 @@
   gap: 1rem;
 }
 
-.onboardingPreferences,
 .settingsCard,
 .informationCard {
   padding: 1rem;
@@ -84,14 +52,7 @@
   font-size: 0.92rem;
 }
 
-.footer {
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
-  text-align: center;
-}
-
 @media (forced-colors: active) {
-  .onboardingPreferences,
   .settingsCard,
   .informationCard {
     border-color: CanvasText;

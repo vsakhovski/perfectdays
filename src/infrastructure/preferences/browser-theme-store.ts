@@ -11,9 +11,9 @@ export const browserThemeStore: ThemeStore = {
   read() {
     try {
       const storedPreference = window.localStorage.getItem(THEME_STORAGE_KEY);
-      return isThemePreference(storedPreference) ? storedPreference : 'system';
+      return isThemePreference(storedPreference) ? storedPreference : 'light';
     } catch {
-      return 'system';
+      return 'light';
     }
   },
   write(preference) {

@@ -47,6 +47,7 @@ import {
   type OnboardingCopy,
   type OnboardingDraft,
 } from '../onboarding/TrackerOnboarding';
+import { LanguageControl } from '../settings/LanguageControl';
 import {
   TrackerSettingsPanel,
   type TrackerSettingsCopy,
@@ -151,7 +152,8 @@ function checkInTransitionForDate(
 
 export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayload }) {
   const { t } = useTranslation();
-  const { journalEnvironment, savePayload } = useVault();
+  const { enablePin, journalEnvironment, pinProtectionAvailable, savePayload, snapshot } =
+    useVault();
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
   const [draft, setDraft] = useState<OnboardingDraft>(() => ({
@@ -167,8 +169,17 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
   }));
 
   const copy: OnboardingCopy = {
-    title: t(($) => $.tracker.onboarding.title),
-    introduction: t(($) => $.tracker.onboarding.introduction),
+    splash: {
+      appName: t(($) => $.tracker.onboarding.splash.appName),
+      tagline: t(($) => $.tracker.onboarding.splash.tagline),
+      version: (version) => t(($) => $.tracker.onboarding.splash.version, { version }),
+    },
+    introduction: {
+      title: t(($) => $.tracker.onboarding.introduction.title),
+      description: t(($) => $.tracker.onboarding.introduction.description),
+      privacyTitle: t(($) => $.tracker.onboarding.introduction.privacyTitle),
+      privacyDescription: t(($) => $.tracker.onboarding.introduction.privacyDescription),
+    },
     history: {
       title: t(($) => $.tracker.onboarding.history.title),
       description: t(($) => $.tracker.onboarding.history.description),
@@ -203,11 +214,30 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
       cycleRange: t(($) => $.tracker.onboarding.validation.cycleRange),
       bleedRange: t(($) => $.tracker.onboarding.validation.bleedRange),
       orangeRange: t(($) => $.tracker.onboarding.validation.orangeRange),
+      pinSixDigits: t(($) => $.tracker.onboarding.validation.pinSixDigits),
+      pinMismatch: t(($) => $.tracker.onboarding.validation.pinMismatch),
+      pinFailed: t(($) => $.tracker.onboarding.validation.pinFailed),
+    },
+    pin: {
+      title: t(($) => $.tracker.onboarding.pin.title),
+      description: t(($) => $.tracker.onboarding.pin.description),
+      pinLabel: t(($) => $.tracker.onboarding.pin.pinLabel),
+      confirmationLabel: t(($) => $.tracker.onboarding.pin.confirmationLabel),
+      unavailable: t(($) => $.tracker.onboarding.pin.unavailable),
+      enabled: t(($) => $.tracker.onboarding.pin.enabled),
     },
     actions: {
+      back: t(($) => $.tracker.onboarding.actions.back),
       skip: t(($) => $.tracker.onboarding.actions.skip),
-      complete: t(($) => $.tracker.onboarding.actions.complete),
+      start: t(($) => $.tracker.onboarding.actions.start),
+      next: t(($) => $.tracker.onboarding.actions.next),
+      finishWithoutPin: t(($) => $.tracker.onboarding.actions.finishWithoutPin),
+      enablePinAndFinish: t(($) => $.tracker.onboarding.actions.enablePinAndFinish),
+      enablingPin: t(($) => $.tracker.onboarding.actions.enablingPin),
+      finish: t(($) => $.tracker.onboarding.actions.finish),
       completing: t(($) => $.tracker.onboarding.actions.completing),
+      progress: (current, total) =>
+        t(($) => $.tracker.onboarding.actions.progress, { current, total }),
     },
   };
 
@@ -266,10 +296,12 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
 
   return (
     <TrackerOnboarding
+      appVersion={__APP_VERSION__}
       busy={busy}
       copy={copy}
       draft={draft}
       {...(errorMessage === undefined ? {} : { errorMessage })}
+      languageControl={<LanguageControl compact />}
       onAddHistory={() => {
         setDraft((current) => ({
           ...current,
@@ -281,6 +313,7 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
       }}
       onChange={setDraft}
       onComplete={complete}
+      onEnablePin={enablePin}
       onRemoveHistory={(id) => {
         setDraft((current) => ({
           ...current,
@@ -290,6 +323,8 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
       onSkip={() => {
         void saveSetup(skipOnboarding(payload, journalEnvironment));
       }}
+      pinEnabled={snapshot.pinEnabled}
+      pinProtectionAvailable={pinProtectionAvailable}
     />
   );
 }

@@ -75,9 +75,7 @@ async function ensureGeneratedServiceWorkerControls(page: Page): Promise<void> {
 
   if (!(await page.evaluate<boolean>('navigator.serviceWorker.controller !== null'))) {
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(
-      page.getByRole('heading', { name: /your patterns, in your hands/i }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
   }
 
   await page.waitForFunction('navigator.serviceWorker.controller !== null');
@@ -92,7 +90,7 @@ async function ensureGeneratedServiceWorkerControls(page: Page): Promise<void> {
 }
 
 async function finishOnboarding(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Finish without history' }).click();
+  await page.getByRole('button', { name: 'Skip setup' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
 }
 
@@ -144,9 +142,7 @@ test.describe('Phase 4 production boundaries', () => {
     expect(responseHeaders['content-security-policy']).toContain("default-src 'self'");
     expect(responseHeaders['x-content-type-options']).toBe('nosniff');
     expect(responseHeaders['referrer-policy']).toBe('no-referrer');
-    await expect(
-      page.getByRole('heading', { name: /your patterns, in your hands/i }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
     await ensureGeneratedServiceWorkerControls(page);
     const requests = capturePostLoadRequests(page);
     await finishOnboarding(page);
@@ -184,9 +180,7 @@ test.describe('Phase 4 production boundaries', () => {
     const secrets = [originalPin, changedPin, originalNote, mutatedNote];
 
     await page.goto('/');
-    await expect(
-      page.getByRole('heading', { name: /your patterns, in your hands/i }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
     await ensureGeneratedServiceWorkerControls(page);
     const requests = capturePostLoadRequests(page);
     await finishOnboarding(page);
@@ -258,9 +252,7 @@ test.describe('Phase 4 production boundaries', () => {
     const privateNote = `phase4-erasure-note-${randomUUID()}`;
 
     await page.goto('/');
-    await expect(
-      page.getByRole('heading', { name: /your patterns, in your hands/i }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
     await ensureGeneratedServiceWorkerControls(page);
     const requests = capturePostLoadRequests(page);
     await finishOnboarding(page);
@@ -278,7 +270,7 @@ test.describe('Phase 4 production boundaries', () => {
     await page.getByRole('checkbox', { name: 'I understand that this cannot be undone.' }).check();
     await page.getByRole('button', { name: 'Erase everything' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Set up your private journal' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
 
     const persistedRecords = await page.evaluate<
       readonly { readonly representation: string; readonly payloadText: string }[]
@@ -334,9 +326,7 @@ test.describe('Phase 4 download portability', () => {
     page,
   }, testInfo) => {
     await page.goto('/');
-    await expect(
-      page.getByRole('heading', { name: /your patterns, in your hands/i }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
     await finishOnboarding(page);
     await openPrivacy(page);
 

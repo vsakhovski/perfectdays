@@ -23,7 +23,7 @@ import { FakeVaultController } from '../test/fake-vault-controller';
 import { App } from './App';
 import { AppProviders } from './AppProviders';
 
-function createThemeStore(initial: ThemePreference = 'system', clearSucceeds = true): ThemeStore {
+function createThemeStore(initial: ThemePreference = 'light', clearSucceeds = true): ThemeStore {
   let preference = initial;
 
   return {
@@ -31,7 +31,7 @@ function createThemeStore(initial: ThemePreference = 'system', clearSucceeds = t
       if (!clearSucceeds) {
         return false;
       }
-      preference = 'system';
+      preference = 'light';
       return true;
     },
     read: () => preference,
@@ -321,10 +321,26 @@ describe('App', () => {
   it('renders the private local-first foundation in English', async () => {
     await renderApp();
 
-    expect(screen.getByRole('heading', { name: /your patterns, in your hands/i })).toBeVisible();
-    expect(screen.getByText(/stay on this device/i)).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
+    expect(screen.getByText('Version 0.1.0')).toBeVisible();
+    const languageSelect = screen.getByRole('combobox', { name: 'Select language' });
+    expect(languageSelect).toHaveValue('en');
+    expect(within(languageSelect).getAllByRole('option')).toHaveLength(2);
+    expect(within(languageSelect).queryByRole('option', { name: 'Device language' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Dark' })).toBeNull();
     expect(document.documentElement).toHaveAttribute('lang', 'en');
     expect(document.title).toBe('Menstrual Pattern Tracker');
+  });
+
+  it('switches language directly from the splash screen', async () => {
+    const user = userEvent.setup();
+    const { languageStore } = await renderApp({ languagePreference: 'system' });
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Select language' }), 'de');
+
+    expect(screen.getByText('Ein privater Ort für deine Zyklusmuster.')).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveFocus();
+    expect(languageStore.read()).toBe('de');
   });
 
   it('opens on Calendar and keeps today check-in one tap away from every root screen', async () => {
@@ -453,8 +469,8 @@ describe('App', () => {
     const user = userEvent.setup();
     const { vaultController } = await renderApp();
 
-    expect(screen.getByRole('heading', { name: 'Set up your private journal' })).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Finish without history' }));
+    expect(screen.getByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Skip setup' }));
 
     expect(await screen.findByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Check in today' }));
@@ -513,10 +529,35 @@ describe('App', () => {
     ).toBeVisible();
   }, 10_000);
 
+  it('can enable the optional PIN on the final onboarding screen', async () => {
+    const user = userEvent.setup();
+    const { vaultController } = await renderApp();
+
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
+    for (let step = 0; step < 4; step += 1) {
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+    }
+    expect(screen.getByRole('heading', { name: 'Protect your private journal' })).toHaveFocus();
+    await user.type(screen.getByLabelText('New PIN'), '246810');
+    await user.type(screen.getByLabelText('Confirm new PIN'), '246810');
+    await user.click(screen.getByRole('button', { name: 'Enable PIN and finish' }));
+
+    expect(vaultController.calls.enablePin).toEqual(['246810']);
+    expect(await screen.findByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
+    const snapshot = vaultController.getSnapshot();
+    expect(snapshot.phase).toBe('unlocked');
+    if (snapshot.phase === 'unlocked') {
+      expect(snapshot.pinEnabled).toBe(true);
+      expect(snapshot.payload.settings.onboardingCompleted).toBe(true);
+    }
+  });
+
   it('imports start-only history without inventing durations and derives a forecast range', async () => {
     const user = userEvent.setup();
     const { vaultController } = await renderApp();
 
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
     await user.click(screen.getByRole('button', { name: 'Add previous period' }));
     await user.click(screen.getByRole('button', { name: 'Add previous period' }));
     const startDates = screen.getAllByLabelText('Start date');
@@ -527,7 +568,10 @@ describe('App', () => {
     }
     fireEvent.change(firstStart, { target: { value: '2026-07-01' } });
     fireEvent.change(secondStart, { target: { value: '2026-07-29' } });
-    await user.click(screen.getByRole('button', { name: 'Finish setup' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'Finish without PIN' }));
 
     expect(
       await screen.findByRole('heading', { name: 'Your recorded days and estimates' }),
@@ -718,8 +762,8 @@ describe('App', () => {
   it('uses the supported base language from the device preference', async () => {
     await renderApp({ languagePreference: 'system', systemLanguages: ['de-DE', 'en-US'] });
 
-    expect(screen.getByRole('heading', { name: 'Deine Muster. In deiner Hand.' })).toBeVisible();
-    expect(screen.getByRole('combobox', { name: 'Sprache' })).toHaveValue('system');
+    expect(screen.getByText('Ein privater Ort für deine Zyklusmuster.')).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveValue('de');
     expect(document.documentElement).toHaveAttribute('lang', 'de');
     expect(document.documentElement).toHaveAttribute('dir', 'ltr');
     expect(document.title).toBe('Menstruationskalender');
@@ -727,15 +771,14 @@ describe('App', () => {
 
   it('lets the user switch language without losing focus and persists the choice', async () => {
     const user = userEvent.setup();
-    const { languageStore } = await renderApp();
-    const languageSelect = screen.getByRole('combobox', { name: 'Language' });
+    const { languageStore } = await renderApp({ onboardingCompleted: true });
+    await openRootDestination(user, 'Settings');
+    const languageSelect = screen.getByRole('combobox', { name: 'Select language' });
 
     await user.selectOptions(languageSelect, 'de');
 
-    expect(
-      await screen.findByRole('heading', { name: 'Deine Muster. In deiner Hand.' }),
-    ).toBeVisible();
-    expect(screen.getByRole('combobox', { name: 'Sprache' })).toHaveFocus();
+    expect(await screen.findByRole('heading', { name: 'Einstellungen' })).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveFocus();
     expect(languageStore.read()).toBe('de');
     await waitFor(() => {
       expect(document.documentElement).toHaveAttribute('lang', 'de');
@@ -745,6 +788,7 @@ describe('App', () => {
 
   it('follows device-language changes while the system preference is active', async () => {
     const { systemLanguagesController } = await renderApp({
+      onboardingCompleted: true,
       languagePreference: 'system',
       systemLanguages: ['en-US'],
     });
@@ -753,9 +797,7 @@ describe('App', () => {
       systemLanguagesController.setLanguages(['de-AT']);
     });
 
-    expect(
-      await screen.findByRole('heading', { name: 'Deine Muster. In deiner Hand.' }),
-    ).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Kalender' })).toBeVisible();
     await waitFor(() => {
       expect(document.documentElement).toHaveAttribute('lang', 'de');
     });
@@ -763,7 +805,8 @@ describe('App', () => {
 
   it('lets the user choose a dark theme after changing language', async () => {
     const user = userEvent.setup();
-    await renderApp({ languagePreference: 'de' });
+    await renderApp({ languagePreference: 'de', onboardingCompleted: true });
+    await user.click(screen.getByRole('button', { name: 'Einstellungen' }));
 
     await user.click(screen.getByRole('radio', { name: 'Dunkel' }));
 
@@ -913,7 +956,8 @@ describe('App', () => {
 
   it('validates and enables a six-digit PIN from the security panel', async () => {
     const user = userEvent.setup();
-    const { vaultController } = await renderApp();
+    const { vaultController } = await renderApp({ onboardingCompleted: true });
+    await openRootDestination(user, 'Privacy');
 
     await user.click(screen.getByRole('button', { name: 'Set up a PIN' }));
     const newPin = screen.getByLabelText('New PIN');
@@ -938,7 +982,8 @@ describe('App', () => {
 
   it('moves focus into a PIN form and restores it when the form is cancelled', async () => {
     const user = userEvent.setup();
-    await renderApp();
+    await renderApp({ onboardingCompleted: true });
+    await openRootDestination(user, 'Privacy');
     const setupButton = screen.getByRole('button', { name: 'Set up a PIN' });
 
     await user.click(setupButton);
@@ -971,9 +1016,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Unlock' }));
 
     expect(vaultController.calls.unlock).toEqual(['123456']);
-    expect(
-      await screen.findByRole('heading', { name: /your patterns, in your hands/i }),
-    ).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
     await waitFor(() => {
       expect(document.title).toBe('Menstrual Pattern Tracker');
     });
@@ -1050,7 +1093,9 @@ describe('App', () => {
   });
 
   it('fails closed when secure cryptography is unavailable before PIN setup', async () => {
-    await renderApp({ pinProtectionAvailable: false });
+    const user = userEvent.setup();
+    await renderApp({ onboardingCompleted: true, pinProtectionAvailable: false });
+    await openRootDestination(user, 'Privacy');
 
     expect(screen.queryByRole('button', { name: 'Set up a PIN' })).not.toBeInTheDocument();
     expect(screen.getByText(/did not pass the secure-cryptography check/i)).toBeVisible();
@@ -1058,18 +1103,18 @@ describe('App', () => {
 
   it('manually locks a protected vault without leaving health copy visible', async () => {
     const user = userEvent.setup();
-    await renderApp({ vaultPinEnabled: true });
+    await renderApp({ onboardingCompleted: true, vaultPinEnabled: true });
 
-    await user.click(screen.getByRole('button', { name: 'Lock now' }));
+    await user.click(screen.getByRole('button', { name: 'Lock' }));
 
     expect(await screen.findByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
     expect(screen.queryByText(/menstrual/i)).not.toBeInTheDocument();
   });
 
   it('immediately hides an open journal when another tab invalidates its vault state', async () => {
-    const { reloadPage, vaultInvalidation } = await renderApp();
+    const { reloadPage, vaultInvalidation } = await renderApp({ onboardingCompleted: true });
 
-    expect(screen.getByRole('heading', { name: /your patterns, in your hands/i })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Calendar' })).toBeVisible();
     act(() => {
       vaultInvalidation.invalidate();
     });
@@ -1101,11 +1146,9 @@ describe('App', () => {
     );
     await user.click(eraseButton);
 
-    expect(
-      await screen.findByRole('heading', { name: /your patterns, in your hands/i }),
-    ).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
     expect(languageStore.read()).toBe('system');
-    expect(themeStore.read()).toBe('system');
+    expect(themeStore.read()).toBe('light');
     expect(vaultController.getSnapshot()).toMatchObject({
       phase: 'unlocked',
       pinEnabled: false,
@@ -1127,19 +1170,19 @@ describe('App', () => {
     );
     await user.click(eraseButton);
 
-    expect(
-      await screen.findByRole('heading', { name: /your patterns, in your hands/i }),
-    ).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
   });
 
   it('reports when journal erasure succeeds but outside-vault preferences remain', async () => {
     const user = userEvent.setup();
     const { languageStore, themeStore } = await renderApp({
       languagePreference: 'en',
+      onboardingCompleted: true,
       preferenceClearSucceeds: false,
       themePreference: 'dark',
     });
 
+    await openRootDestination(user, 'Privacy');
     await user.click(screen.getByRole('button', { name: 'Show erase controls' }));
     await user.click(screen.getByRole('button', { name: 'Erase everything' }));
     await user.click(
@@ -1147,6 +1190,7 @@ describe('App', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Erase everything' }));
 
+    await openRootDestination(user, 'Privacy');
     expect(
       await screen.findByText(/journal and PIN data were erased, but an appearance/i),
     ).toBeVisible();

@@ -55,7 +55,7 @@ export function ThemeProvider({ children, store }: ThemeProviderProps) {
   const clearPreference = useCallback(() => {
     const cleared = store.clear();
     if (cleared) {
-      setPreferenceState('system');
+      setPreferenceState('light');
     }
     return cleared;
   }, [store]);

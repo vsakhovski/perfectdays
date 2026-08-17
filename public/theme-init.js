@@ -1,6 +1,6 @@
 (() => {
   const storageKey = 'perfect-days:theme';
-  let preference = 'system';
+  let preference = 'light';
 
   try {
     const storedPreference = globalThis.localStorage.getItem(storageKey);
@@ -8,7 +8,7 @@
       preference = storedPreference;
     }
   } catch {
-    // The system theme remains a safe fallback when storage is unavailable.
+    // Light mode remains a safe fallback when storage is unavailable.
   }
 
   const resolvedTheme =

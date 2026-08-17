@@ -1,83 +1,211 @@
 .onboarding {
   display: grid;
-  gap: 1.5rem;
-  inline-size: min(100%, 52rem);
-  padding: clamp(1rem, 4vw, 2rem);
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  inline-size: 100%;
+  max-inline-size: 32rem;
+  block-size: 100vh;
+  block-size: 100dvh;
   margin-inline: auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-large);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+  background: var(--color-background);
+  color: var(--color-text);
 }
 
-.header,
-.form,
-.section,
+.topBar {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+  align-items: center;
+  min-block-size: 3.5rem;
+  padding-block: calc(0.5rem + env(safe-area-inset-top)) 0.5rem;
+  padding-inline: 0.75rem;
+  border-block-end: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.iconButton {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 2.75rem;
+  min-block-size: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--color-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.iconButton:first-child {
+  justify-self: start;
+}
+
+.iconButton:last-child {
+  justify-self: end;
+}
+
+.iconButton svg {
+  inline-size: 1.4rem;
+  block-size: 1.4rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.chromeSpacer {
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+}
+
+.progressDots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-block-size: 2.75rem;
+}
+
+.progressDots span {
+  inline-size: 0.42rem;
+  block-size: 0.42rem;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+}
+
+.progressDots span[data-current='true'] {
+  inline-size: 0.72rem;
+  block-size: 0.72rem;
+  background: var(--color-accent);
+}
+
+.content {
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding: clamp(1rem, 5vw, 1.5rem);
+}
+
+.splash {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  min-block-size: 100%;
+  gap: 1.5rem;
+  text-align: center;
+}
+
+.splash > div {
+  display: grid;
+  gap: 0.6rem;
+  justify-items: center;
+  inline-size: min(100%, 19rem);
+}
+
+.languageControl {
+  inline-size: min(100%, 17rem);
+  margin-block-start: 0.45rem;
+}
+
+.splash h1,
+.splash p,
+.stepIntroduction h1,
+.stepIntroduction p,
+.privacyCard h2,
+.privacyCard p,
+.historyEntry legend,
+.empty,
+.formError,
+.success,
+.warning,
+.version {
+  margin: 0;
+}
+
+.splash h1 {
+  font-size: clamp(2.1rem, 11vw, 3.4rem);
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.splash p,
+.stepIntroduction p,
+.privacyCard p,
+.empty,
+.fieldDescription,
+.warning {
+  color: var(--color-text-muted);
+  line-height: 1.55;
+}
+
+.logo {
+  inline-size: clamp(6.5rem, 32vw, 8.5rem);
+  block-size: auto;
+  fill: var(--color-surface);
+  stroke: var(--color-accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 5;
+  filter: drop-shadow(0 0.75rem 1.25rem rgb(70 35 50 / 14%));
+}
+
+.logoAccent {
+  fill: var(--color-marker-red);
+  stroke: none;
+}
+
+.stepBody,
+.stepIntroduction,
 .historyList,
 .historyEntry,
-.numberFields {
+.dateFields,
+.numberFields,
+.pinForm {
   display: grid;
   gap: 1rem;
 }
 
-.header h2,
-.header p,
-.section h3,
-.section p,
-.historyEntry legend,
-.formError,
-.status,
-.empty {
-  margin: 0;
+.stepBody {
+  align-content: start;
 }
 
-.header p,
-.sectionHeading p,
-.fieldDescription,
-.empty,
-.status {
-  color: var(--color-text-muted);
+.stepIntroduction {
+  gap: 0.65rem;
 }
 
-.section {
-  padding-block-start: 1.25rem;
-  border-block-start: 1px solid var(--color-border);
+.stepIntroduction h1 {
+  font-size: clamp(1.75rem, 8vw, 2.5rem);
+  letter-spacing: -0.035em;
+  line-height: 1.08;
 }
 
-.sectionHeading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
+.privacyCard,
+.historyEntry {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
 }
 
-.sectionHeading > div {
+.privacyCard {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.5rem;
+  border-inline-start: 0.35rem solid var(--color-marker-green);
+}
+
+.privacyCard h2 {
+  font-size: 1.05rem;
 }
 
 .historyEntry {
   min-inline-size: 0;
-  padding: 0.9rem;
-  border: 1px solid var(--color-border);
   border-radius: var(--radius-small);
-  background: var(--color-surface-subtle);
 }
 
 .historyEntry legend {
   padding-inline: 0.3rem;
   font-weight: 750;
-}
-
-.dateFields,
-.numberFields {
-  grid-template-columns: 1fr;
-}
-
-.dateFields {
-  display: grid;
-  gap: 0.75rem;
 }
 
 .dateFields label,
@@ -95,7 +223,7 @@
   min-block-size: 2.75rem;
   padding: 0.55rem 0.65rem;
   border: 1px solid var(--color-border-strong);
-  border-radius: 0.65rem;
+  border-radius: var(--radius-small);
   background: var(--color-surface);
   color: var(--color-text);
 }
@@ -105,18 +233,6 @@
 .orangeDays input[aria-invalid='true'] {
   border-color: var(--color-danger);
   box-shadow: inset 0 0 0 1px var(--color-danger);
-}
-
-.dateFields input:focus-visible,
-.numberFields input:focus-visible,
-.orangeDays input:focus-visible,
-.toggle input:focus-visible,
-.primaryButton:focus-visible,
-.secondaryButton:focus-visible,
-.removeButton:focus-visible,
-.skipButton:focus-visible {
-  outline: 3px solid var(--color-focus);
-  outline-offset: 2px;
 }
 
 .fieldDescription,
@@ -150,23 +266,52 @@
   max-inline-size: 18rem;
 }
 
+.pinForm {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+}
+
+.success,
+.warning,
+.formError {
+  margin-inline: 1rem;
+  padding: 0.8rem;
+  border-radius: var(--radius-small);
+  background: var(--color-surface-subtle);
+}
+
+.success {
+  border-inline-start: 0.3rem solid var(--color-marker-green);
+  color: var(--color-marker-green);
+  font-weight: 700;
+}
+
+.warning {
+  border-inline-start: 0.3rem solid var(--color-marker-orange);
+}
+
 .actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.7rem;
-  padding-block-start: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: 0.65rem;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  border-block-start: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: 0 -0.35rem 1.25rem rgb(70 35 50 / 8%);
 }
 
 .primaryButton,
 .secondaryButton,
-.removeButton,
-.skipButton {
+.removeButton {
   min-block-size: 2.75rem;
   padding: 0.65rem 1rem;
   border: 1px solid transparent;
-  border-radius: 999px;
-  cursor: pointer;
+  border-radius: var(--radius-small);
+  font: inherit;
   font-weight: 750;
+  cursor: pointer;
 }
 
 .primaryButton {
@@ -174,18 +319,28 @@
   color: var(--color-on-accent);
 }
 
-.secondaryButton,
-.skipButton {
+.secondaryButton {
   border-color: var(--color-border-strong);
   background: var(--color-surface);
   color: var(--color-text);
 }
 
+.stepBody > .secondaryButton,
 .removeButton {
   justify-self: start;
+}
+
+.removeButton {
   border-color: var(--color-danger);
   background: var(--color-danger-subtle);
   color: var(--color-danger);
+}
+
+.version {
+  padding-block-end: calc(0.55rem + env(safe-area-inset-bottom));
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  text-align: center;
 }
 
 button:disabled,
@@ -193,6 +348,27 @@ fieldset:disabled,
 input:disabled {
   cursor: not-allowed;
   opacity: 0.62;
+}
+
+.iconButton:focus-visible,
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.removeButton:focus-visible,
+.dateFields input:focus-visible,
+.numberFields input:focus-visible,
+.orangeDays input:focus-visible,
+.toggle input:focus-visible,
+.splash h1:focus-visible,
+.stepIntroduction h1:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+@media (min-width: 34rem) {
+  .onboarding {
+    border-inline: 1px solid var(--color-border);
+    box-shadow: var(--shadow-soft);
+  }
 }
 
 @media (min-width: 38rem) {
@@ -203,6 +379,24 @@ input:disabled {
 }
 
 @media (forced-colors: active) {
+  .onboarding,
+  .topBar,
+  .actions,
+  .privacyCard,
+  .historyEntry,
+  .pinForm {
+    border-color: CanvasText;
+  }
+
+  .progressDots span {
+    border: 1px solid CanvasText;
+    background: Canvas;
+  }
+
+  .progressDots span[data-current='true'] {
+    background: Highlight;
+  }
+
   .dateFields input[aria-invalid='true'],
   .numberFields input[aria-invalid='true'],
   .orangeDays input[aria-invalid='true'] {

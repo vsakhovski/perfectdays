@@ -14,32 +14,19 @@ import {
   type MobileAppShellCopy,
   type RootDestination,
 } from '../shell/MobileAppShell';
-import { TrackerDashboard, TrackerPreferences } from '../tracker/TrackerDashboard';
+import {
+  TrackerDashboard,
+  TrackerOnboardingFlow,
+  TrackerPreferences,
+} from '../tracker/TrackerDashboard';
 import { TrackerHistorySection } from '../tracker/TrackerHistorySection';
 import { TrackerInsightsSection } from '../tracker/TrackerInsightsSection';
 import styles from './HomePage.module.css';
 
 type CalendarDetailScreen = 'history' | 'insights' | null;
 
-function OnboardingHome() {
-  const { t } = useTranslation();
-
-  return (
-    <main className={styles['onboardingPage']}>
-      <header className={styles['onboardingHeader']}>
-        <p className={styles['eyebrow']}>{t(($) => $.home.eyebrow)}</p>
-        <h1>{t(($) => $.home.title)}</h1>
-        <p>{t(($) => $.home.introduction)}</p>
-      </header>
-      <PinSecurityPanel />
-      <TrackerDashboard />
-      <section className={styles['onboardingPreferences']}>
-        <ThemeControl />
-        <LanguageControl />
-      </section>
-      <footer className={styles['footer']}>{t(($) => $.home.footer)}</footer>
-    </main>
-  );
+function OnboardingHome({ payload }: { readonly payload: VaultPayload }) {
+  return <TrackerOnboardingFlow payload={payload} />;
 }
 
 function ContextScreen({ children }: { readonly children: ReactNode }) {
@@ -332,6 +319,6 @@ export function HomePage() {
   return snapshot.payload.settings.onboardingCompleted ? (
     <UnlockedMobileHome payload={snapshot.payload} />
   ) : (
-    <OnboardingHome />
+    <OnboardingHome payload={snapshot.payload} />
   );
 }

@@ -11,7 +11,7 @@ describe('browser theme store', () => {
 
     expect(browserThemeStore.clear()).toBe(true);
 
-    expect(browserThemeStore.read()).toBe('system');
+    expect(browserThemeStore.read()).toBe('light');
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
     expect(window.localStorage.getItem('perfect-days:language')).toBe('de');
   });
