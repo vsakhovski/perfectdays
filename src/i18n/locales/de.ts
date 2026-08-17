@@ -59,9 +59,15 @@ export const de = {
         empty: 'Noch keine frühere Periode hinzugefügt.',
         startDate: 'Startdatum',
         endDate: 'Enddatum (optional)',
-        add: 'Frühere Periode hinzufügen',
+        add: 'Periode hinzufügen',
         entryLabel: 'Frühere Periode {{position}}',
         removeEntry: 'Frühere Periode {{position}} entfernen',
+        datePicker: {
+          chooseDate: 'Datum auswählen',
+          previousMonth: 'Vorheriger Monat',
+          nextMonth: 'Nächster Monat',
+          calendarLabel: '{{field}} auswählen. {{month}}',
+        },
       },
       fallbacks: {
         title: 'Optionale Ausgangsschätzungen',
@@ -86,6 +92,8 @@ export const de = {
           'Lege optional eine sechsstellige PIN fest. Sie verschlüsselt das in diesem Browser gespeicherte Tagebuch und sperrt die App, wenn sie geschlossen oder im Hintergrund gelassen wird. Die PIN kann nicht wiederhergestellt werden.',
         pinLabel: 'Neue PIN',
         confirmationLabel: 'Neue PIN bestätigen',
+        showPin: '{{field}} anzeigen',
+        hidePin: '{{field}} verbergen',
         unavailable:
           'PIN-Schutz ist in diesem Browser oder über diese Verbindung nicht verfügbar. Du kannst die Einrichtung abschließen und ihn später unter Datenschutz in einem unterstützten sicheren Browser aktivieren.',
         enabled:

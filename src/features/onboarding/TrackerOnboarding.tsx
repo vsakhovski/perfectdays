@@ -1,6 +1,14 @@
-import { useEffect, useId, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  type SyntheticEvent,
+} from 'react';
 
-import { isLocalDate } from '../../domain/local-date';
 import type { LocalDate } from '../../domain/models';
 import {
   isValidTypicalBleedDuration,
@@ -10,6 +18,7 @@ import {
 } from '../../domain/tracking-settings';
 import { PinField } from '../vault/PinField';
 import { isSixDigitPin } from '../vault/pin';
+import { OnboardingDatePicker, type OnboardingDatePickerCopy } from './OnboardingDatePicker';
 import styles from './onboarding.module.css';
 
 export interface HistoricalPeriodDraft {
@@ -47,6 +56,7 @@ export interface OnboardingCopy {
     readonly add: string;
     readonly entryLabel: (position: number) => string;
     readonly removeEntry: (position: number) => string;
+    readonly datePicker: OnboardingDatePickerCopy;
   };
   readonly fallbacks: {
     readonly title: string;
@@ -66,8 +76,10 @@ export interface OnboardingCopy {
   readonly pin: {
     readonly title: string;
     readonly description: string;
+    readonly hidePin: (field: string) => string;
     readonly pinLabel: string;
     readonly confirmationLabel: string;
+    readonly showPin: (field: string) => string;
     readonly unavailable: string;
     readonly enabled: string;
   };
@@ -105,6 +117,7 @@ export interface TrackerOnboardingProps {
   readonly draft: OnboardingDraft;
   readonly errorMessage?: string;
   readonly languageControl: ReactNode;
+  readonly language: 'de' | 'en';
   readonly onAddHistory: () => void;
   readonly onChange: (draft: OnboardingDraft) => void;
   readonly onComplete: (draft: OnboardingDraft) => void;
@@ -117,6 +130,7 @@ export interface TrackerOnboardingProps {
 
 type OnboardingStep = 'splash' | 'introduction' | 'history' | 'fallbacks' | 'orange' | 'pin';
 type ValidatedStep = Extract<OnboardingStep, 'history' | 'fallbacks' | 'orange'>;
+type TransitionDirection = 'backward' | 'forward';
 type FieldErrors = ReadonlyMap<string, string>;
 
 const onboardingSteps = [
@@ -127,6 +141,30 @@ const onboardingSteps = [
   'orange',
   'pin',
 ] as const satisfies readonly OnboardingStep[];
+
+const MINIMUM_SWIPE_DISTANCE = 56;
+const SWIPE_AXIS_DOMINANCE = 1.25;
+const SWIPE_FEEDBACK_FACTOR = 0.24;
+const MAXIMUM_SWIPE_FEEDBACK = 42;
+
+interface SwipeStart {
+  readonly pointerId: number;
+  readonly x: number;
+  readonly y: number;
+}
+
+interface ScreenTransition {
+  readonly direction: TransitionDirection;
+  readonly fromStep: OnboardingStep;
+  readonly startOffset: number;
+}
+
+function isInteractiveSwipeTarget(target: EventTarget): boolean {
+  return (
+    target instanceof Element &&
+    target.closest('a, button, input, select, textarea, [contenteditable="true"]') !== null
+  );
+}
 
 function historyFieldKey(id: string, field: 'start' | 'end'): string {
   return `history:${id}:${field}`;
@@ -142,6 +180,8 @@ function validateDraftStep(
   if (step === 'history') {
     const starts = new Map<LocalDate, string[]>();
     for (const entry of draft.history) {
+      if (entry.startDate === '' && entry.endDate === '') continue;
+
       if (entry.startDate === '') {
         errors.set(historyFieldKey(entry.id, 'start'), copy.validation.startRequired);
         continue;
@@ -243,6 +283,7 @@ export function TrackerOnboarding({
   draft,
   errorMessage,
   languageControl,
+  language,
   onAddHistory,
   onChange,
   onComplete,
@@ -258,11 +299,15 @@ export function TrackerOnboarding({
   const [pinConfirmation, setPinConfirmation] = useState('');
   const [pinError, setPinError] = useState<string>();
   const [pinPending, setPinPending] = useState(false);
+  const [screenTransition, setScreenTransition] = useState<ScreenTransition | null>(null);
+  const [swipeFeedback, setSwipeFeedback] = useState(0);
+  const [swipeFeedbackActive, setSwipeFeedbackActive] = useState(false);
   const idPrefix = useId();
   const pinFormId = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const fieldRefs = useRef(new Map<string, HTMLElement>());
   const previousStepRef = useRef(step);
+  const swipeStartRef = useRef<SwipeStart | null>(null);
   const stepIndex = onboardingSteps.indexOf(step);
   const controlsDisabled = busy || pinPending;
 
@@ -279,8 +324,11 @@ export function TrackerOnboarding({
   };
 
   const moveToStep = (nextStep: OnboardingStep): void => {
+    const nextStepIndex = onboardingSteps.indexOf(nextStep);
+    const direction = nextStepIndex < stepIndex ? 'backward' : 'forward';
     setErrors(new Map());
     setPinError(undefined);
+    setScreenTransition({ direction, fromStep: step, startOffset: swipeFeedback });
     setStep(nextStep);
   };
 
@@ -302,6 +350,65 @@ export function TrackerOnboarding({
   const back = (): void => {
     const previousStep = onboardingSteps[stepIndex - 1];
     if (previousStep) moveToStep(previousStep);
+  };
+
+  const startSwipe = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (
+      controlsDisabled ||
+      (event.pointerType !== 'touch' && event.pointerType !== 'pen') ||
+      !event.isPrimary ||
+      isInteractiveSwipeTarget(event.target)
+    ) {
+      swipeStartRef.current = null;
+      setSwipeFeedback(0);
+      setSwipeFeedbackActive(false);
+      return;
+    }
+
+    swipeStartRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+    };
+    setSwipeFeedback(0);
+    setSwipeFeedbackActive(true);
+  };
+
+  const updateSwipe = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    const swipeStart = swipeStartRef.current;
+    if (swipeStart?.pointerId !== event.pointerId) return;
+
+    const horizontalDistance = event.clientX - swipeStart.x;
+    const verticalDistance = event.clientY - swipeStart.y;
+    if (Math.abs(horizontalDistance) <= Math.abs(verticalDistance)) {
+      setSwipeFeedback(0);
+      return;
+    }
+
+    const dampedDistance = horizontalDistance * SWIPE_FEEDBACK_FACTOR;
+    setSwipeFeedback(
+      Math.max(-MAXIMUM_SWIPE_FEEDBACK, Math.min(MAXIMUM_SWIPE_FEEDBACK, dampedDistance)),
+    );
+  };
+
+  const finishSwipe = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    const swipeStart = swipeStartRef.current;
+    swipeStartRef.current = null;
+    setSwipeFeedback(0);
+    setSwipeFeedbackActive(false);
+    if (swipeStart?.pointerId !== event.pointerId || controlsDisabled) return;
+
+    const horizontalDistance = event.clientX - swipeStart.x;
+    const verticalDistance = event.clientY - swipeStart.y;
+    if (
+      Math.abs(horizontalDistance) < MINIMUM_SWIPE_DISTANCE ||
+      Math.abs(horizontalDistance) < Math.abs(verticalDistance) * SWIPE_AXIS_DOMINANCE
+    ) {
+      return;
+    }
+
+    if (horizontalDistance < 0) next();
+    else back();
   };
 
   const submitPin = async (event: SyntheticEvent<HTMLFormElement>): Promise<void> => {
@@ -337,17 +444,6 @@ export function TrackerOnboarding({
         </h1>
         <p>{copy.history.description}</p>
       </div>
-      <button
-        className={styles['secondaryButton']}
-        disabled={controlsDisabled}
-        onClick={() => {
-          setErrors(new Map());
-          onAddHistory();
-        }}
-        type="button"
-      >
-        {copy.history.add}
-      </button>
       {draft.history.length === 0 ? (
         <p className={styles['empty']}>{copy.history.empty}</p>
       ) : (
@@ -368,33 +464,56 @@ export function TrackerOnboarding({
                 key={entry.id}
               >
                 <legend>{copy.history.entryLabel(position)}</legend>
+                <button
+                  aria-label={copy.history.removeEntry(position)}
+                  className={styles['removePeriodButton']}
+                  disabled={
+                    controlsDisabled ||
+                    (draft.history.length === 1 && entry.startDate === '' && entry.endDate === '')
+                  }
+                  onClick={() => {
+                    setErrors(new Map());
+                    if (draft.history.length === 1) {
+                      updateDraft({
+                        ...draft,
+                        history: [{ ...entry, startDate: '', endDate: '' }],
+                      });
+                    } else {
+                      onRemoveHistory(entry.id);
+                    }
+                  }}
+                  type="button"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="m6 6 12 12M18 6 6 18" />
+                  </svg>
+                </button>
                 <div className={styles['dateFields']}>
-                  <label>
-                    <span>{copy.history.startDate}</span>
-                    <input
-                      aria-describedby={startError ? startErrorId : undefined}
-                      aria-invalid={startError !== undefined}
-                      aria-label={copy.history.startDate}
-                      max={entry.endDate || undefined}
-                      onChange={(event) => {
-                        const value = event.currentTarget.value;
-                        if (value === '' || isLocalDate(value)) {
-                          updateDraft({
-                            ...draft,
-                            history: draft.history.map((candidate) =>
-                              candidate.id === entry.id
-                                ? { ...candidate, startDate: value }
-                                : candidate,
-                            ),
-                          });
-                        }
-                      }}
-                      ref={(node) => {
+                  <div className={styles['dateField']}>
+                    <OnboardingDatePicker
+                      {...(startError ? { ariaDescribedBy: startErrorId } : {})}
+                      buttonRef={(node) => {
                         if (node) fieldRefs.current.set(startKey, node);
                         else fieldRefs.current.delete(startKey);
                       }}
-                      required
-                      type="date"
+                      copy={copy.history.datePicker}
+                      disabled={controlsDisabled}
+                      fieldKind="start"
+                      invalid={startError !== undefined}
+                      label={copy.history.startDate}
+                      language={language}
+                      {...(entry.endDate === '' ? {} : { max: entry.endDate })}
+                      onChange={(value) => {
+                        updateDraft({
+                          ...draft,
+                          history: draft.history.map((candidate) =>
+                            candidate.id === entry.id
+                              ? { ...candidate, startDate: value }
+                              : candidate,
+                          ),
+                        });
+                      }}
+                      {...(entry.endDate === '' ? {} : { relatedDate: entry.endDate })}
                       value={entry.startDate}
                     />
                     {startError ? (
@@ -402,32 +521,32 @@ export function TrackerOnboarding({
                         {startError}
                       </span>
                     ) : null}
-                  </label>
-                  <label>
-                    <span>{copy.history.endDate}</span>
-                    <input
-                      aria-describedby={endError ? endErrorId : undefined}
-                      aria-invalid={endError !== undefined}
-                      aria-label={copy.history.endDate}
-                      min={entry.startDate || undefined}
-                      onChange={(event) => {
-                        const value = event.currentTarget.value;
-                        if (value === '' || isLocalDate(value)) {
-                          updateDraft({
-                            ...draft,
-                            history: draft.history.map((candidate) =>
-                              candidate.id === entry.id
-                                ? { ...candidate, endDate: value }
-                                : candidate,
-                            ),
-                          });
-                        }
-                      }}
-                      ref={(node) => {
+                  </div>
+                  <div className={styles['dateField']}>
+                    <OnboardingDatePicker
+                      {...(endError ? { ariaDescribedBy: endErrorId } : {})}
+                      buttonRef={(node) => {
                         if (node) fieldRefs.current.set(endKey, node);
                         else fieldRefs.current.delete(endKey);
                       }}
-                      type="date"
+                      copy={copy.history.datePicker}
+                      disabled={controlsDisabled}
+                      fieldKind="end"
+                      invalid={endError !== undefined}
+                      label={copy.history.endDate}
+                      language={language}
+                      {...(entry.startDate === '' ? {} : { min: entry.startDate })}
+                      onChange={(value) => {
+                        updateDraft({
+                          ...draft,
+                          history: draft.history.map((candidate) =>
+                            candidate.id === entry.id
+                              ? { ...candidate, endDate: value }
+                              : candidate,
+                          ),
+                        });
+                      }}
+                      {...(entry.startDate === '' ? {} : { relatedDate: entry.startDate })}
                       value={entry.endDate}
                     />
                     {endError ? (
@@ -435,24 +554,27 @@ export function TrackerOnboarding({
                         {endError}
                       </span>
                     ) : null}
-                  </label>
+                  </div>
                 </div>
-                <button
-                  aria-label={copy.history.removeEntry(position)}
-                  className={styles['removeButton']}
-                  onClick={() => {
-                    setErrors(new Map());
-                    onRemoveHistory(entry.id);
-                  }}
-                  type="button"
-                >
-                  {copy.history.removeEntry(position)}
-                </button>
               </fieldset>
             );
           })}
         </div>
       )}
+      <button
+        className={styles['secondaryButton']}
+        disabled={
+          controlsDisabled ||
+          draft.history.some((entry) => entry.startDate === '' && entry.endDate === '')
+        }
+        onClick={() => {
+          setErrors(new Map());
+          onAddHistory();
+        }}
+        type="button"
+      >
+        {copy.history.add}
+      </button>
     </div>
   );
 
@@ -605,6 +727,7 @@ export function TrackerOnboarding({
         >
           <PinField
             disabled={controlsDisabled}
+            hideValueLabel={copy.pin.hidePin(copy.pin.pinLabel)}
             invalid={pinError !== undefined}
             label={copy.pin.pinLabel}
             name="onboarding-pin"
@@ -612,10 +735,12 @@ export function TrackerOnboarding({
               setPin(value);
               setPinError(undefined);
             }}
+            showValueLabel={copy.pin.showPin(copy.pin.pinLabel)}
             value={pin}
           />
           <PinField
             disabled={controlsDisabled}
+            hideValueLabel={copy.pin.hidePin(copy.pin.confirmationLabel)}
             invalid={pinError !== undefined}
             label={copy.pin.confirmationLabel}
             name="onboarding-pin-confirmation"
@@ -623,6 +748,7 @@ export function TrackerOnboarding({
               setPinConfirmation(value);
               setPinError(undefined);
             }}
+            showValueLabel={copy.pin.showPin(copy.pin.confirmationLabel)}
             value={pinConfirmation}
           />
           {pinError ? (
@@ -639,22 +765,27 @@ export function TrackerOnboarding({
     </div>
   );
 
-  const stepContent =
-    step === 'splash' ? (
-      <div className={styles['splash']}>
-        <PlaceholderLogo />
-        <div>
-          <h1 ref={headingRef} tabIndex={-1}>
-            {copy.splash.appName}
-          </h1>
-          <p>{copy.splash.tagline}</p>
-          <div className={styles['languageControl']}>{languageControl}</div>
+  const contentForStep = (renderedStep: OnboardingStep): ReactNode =>
+    renderedStep === 'splash' ? (
+      <div className={styles['splash']} data-testid="onboarding-splash">
+        <div className={styles['splashMain']} data-testid="onboarding-splash-main">
+          <PlaceholderLogo />
+          <div className={styles['splashIdentity']}>
+            <h1 ref={renderedStep === step ? headingRef : undefined} tabIndex={-1}>
+              {copy.splash.appName}
+            </h1>
+            <p>{copy.splash.tagline}</p>
+            <div className={styles['languageControl']}>{languageControl}</div>
+          </div>
         </div>
+        <p className={styles['version']} data-testid="onboarding-splash-version">
+          {copy.splash.version(appVersion)}
+        </p>
       </div>
-    ) : step === 'introduction' ? (
+    ) : renderedStep === 'introduction' ? (
       <div className={styles['stepBody']}>
         <div className={styles['stepIntroduction']}>
-          <h1 ref={headingRef} tabIndex={-1}>
+          <h1 ref={renderedStep === step ? headingRef : undefined} tabIndex={-1}>
             {copy.introduction.title}
           </h1>
           <p>{copy.introduction.description}</p>
@@ -664,11 +795,11 @@ export function TrackerOnboarding({
           <p>{copy.introduction.privacyDescription}</p>
         </section>
       </div>
-    ) : step === 'history' ? (
+    ) : renderedStep === 'history' ? (
       historyContent
-    ) : step === 'fallbacks' ? (
+    ) : renderedStep === 'fallbacks' ? (
       fallbackContent
-    ) : step === 'orange' ? (
+    ) : renderedStep === 'orange' ? (
       orangeContent
     ) : (
       pinContent
@@ -717,7 +848,58 @@ export function TrackerOnboarding({
         </button>
       </header>
 
-      <div className={styles['content']}>{stepContent}</div>
+      <div
+        className={styles['content']}
+        data-testid="onboarding-swipe-region"
+        onPointerCancel={() => {
+          swipeStartRef.current = null;
+          setSwipeFeedback(0);
+          setSwipeFeedbackActive(false);
+        }}
+        onPointerDown={startSwipe}
+        onPointerMove={updateSwipe}
+        onPointerUp={finishSwipe}
+      >
+        <div
+          className={styles['transitionStage']}
+          data-testid="onboarding-step"
+          data-transition-direction={screenTransition?.direction ?? 'forward'}
+        >
+          <div
+            className={[styles['screenPane'], styles['swipeSurface']].join(' ')}
+            data-screen-step={step}
+            data-swipe-active={swipeFeedbackActive}
+            data-testid="onboarding-swipe-surface"
+            style={
+              {
+                '--onboarding-swipe-offset': `${String(swipeFeedback)}px`,
+              } as CSSProperties
+            }
+          >
+            {contentForStep(step)}
+          </div>
+          {screenTransition ? (
+            <div
+              aria-hidden="true"
+              className={[styles['screenPane'], styles['departingPane']].join(' ')}
+              data-screen-step={screenTransition.fromStep}
+              data-testid="onboarding-departing-screen"
+              data-transition-direction={screenTransition.direction}
+              inert
+              onAnimationEnd={() => {
+                setScreenTransition(null);
+              }}
+              style={
+                {
+                  '--onboarding-transition-start': `${String(screenTransition.startOffset)}px`,
+                } as CSSProperties
+              }
+            >
+              {contentForStep(screenTransition.fromStep)}
+            </div>
+          ) : null}
+        </div>
+      </div>
 
       {errorMessage ? (
         <p className={styles['formError']} role="alert">
@@ -771,10 +953,6 @@ export function TrackerOnboarding({
           </button>
         )}
       </footer>
-
-      {step === 'splash' ? (
-        <p className={styles['version']}>{copy.splash.version(appVersion)}</p>
-      ) : null}
     </main>
   );
 }

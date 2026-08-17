@@ -55,6 +55,11 @@
   font-weight: 700;
 }
 
+.pinInputShell {
+  position: relative;
+  min-inline-size: 0;
+}
+
 .field input {
   min-block-size: 3rem;
   inline-size: 100%;
@@ -64,6 +69,47 @@
   background: var(--color-background);
   color: var(--color-text);
   letter-spacing: 0.3em;
+}
+
+.field input.pinInputWithReveal {
+  padding-inline-end: 3.4rem;
+}
+
+.revealPinButton {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: 0.25rem;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.revealPinButton svg {
+  inline-size: 1.35rem;
+  block-size: 1.35rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.revealPinButton:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.revealPinButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .field input[aria-invalid='true'] {

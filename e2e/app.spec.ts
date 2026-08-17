@@ -6,6 +6,74 @@ async function finishOnboarding(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
 }
 
+async function swipeOnboarding(page: Page, direction: 'left' | 'right'): Promise<void> {
+  const region = page.getByTestId('onboarding-swipe-region');
+  const surface = page.getByTestId('onboarding-swipe-surface');
+  const startX = direction === 'left' ? 280 : 40;
+  const endX = direction === 'left' ? 40 : 280;
+  const feedbackX = startX + (direction === 'left' ? -100 : 100);
+  await region.dispatchEvent('pointerdown', {
+    clientX: startX,
+    clientY: 200,
+    isPrimary: true,
+    pointerId: 1,
+    pointerType: 'touch',
+  });
+  await region.dispatchEvent('pointermove', {
+    clientX: feedbackX,
+    clientY: 203,
+    isPrimary: true,
+    pointerId: 1,
+    pointerType: 'touch',
+  });
+  await expect(surface).toHaveAttribute('data-swipe-active', 'true');
+  await expect(surface).toHaveAttribute(
+    'style',
+    new RegExp(`--onboarding-swipe-offset: ${direction === 'left' ? '-' : ''}24px`),
+  );
+  await expect(surface).not.toHaveCSS('transform', 'none');
+  await region.dispatchEvent('pointerup', {
+    clientX: endX,
+    clientY: 205,
+    isPrimary: true,
+    pointerId: 1,
+    pointerType: 'touch',
+  });
+  await expect(page.getByTestId('onboarding-departing-screen')).toBeVisible();
+  await expect(page.getByTestId('onboarding-swipe-surface')).toBeVisible();
+  await expect(page.getByTestId('onboarding-departing-screen')).toBeHidden();
+}
+
+async function selectOnboardingDate(
+  page: Page,
+  fieldLabel: string,
+  targetDate: string,
+): Promise<void> {
+  await page.getByRole('button', { exact: true, name: fieldLabel }).click();
+  const picker = page.getByRole('dialog');
+
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const target = picker.locator(`[data-date="${targetDate}"]`);
+    if ((await target.count()) > 0) {
+      await target.click();
+      return;
+    }
+
+    const visibleDate = await picker
+      .locator('[data-in-current-month="true"]')
+      .first()
+      .getAttribute('data-date');
+    if (!visibleDate) throw new Error('The onboarding date picker has no visible month.');
+    await picker
+      .getByRole('button', {
+        name: targetDate < visibleDate ? 'Previous month' : 'Next month',
+      })
+      .click();
+  }
+
+  throw new Error(`The onboarding date picker did not reach ${targetDate}.`);
+}
+
 async function openRootDestination(
   page: Page,
   destination: 'Calendar' | 'Privacy' | 'Settings',
@@ -32,14 +100,13 @@ test.describe('English application shell', () => {
   });
 
   test('walks forward and back through the focused onboarding screens', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
     await page.setViewportSize({ height: 640, width: 320 });
     await page.goto('/');
 
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     const language = page.getByRole('combobox', { name: 'Select language' });
-    await expect(language).toHaveValue('en');
-    await expect(language.locator('option')).toHaveCount(2);
-    await expect(language.locator('option[value="system"]')).toHaveCount(0);
+    await expect(language).toHaveValue('English');
     await expect(language).toHaveCSS('border-radius', '6px');
     const languageControlBounds = await language.boundingBox();
     expect(languageControlBounds).not.toBeNull();
@@ -47,19 +114,106 @@ test.describe('English application shell', () => {
       expect(languageControlBounds.x).toBeGreaterThanOrEqual(0);
       expect(languageControlBounds.x + languageControlBounds.width).toBeLessThanOrEqual(320);
     }
-    await language.focus();
-    await language.selectOption('de');
-    await expect(page.getByRole('combobox', { name: 'Sprache auswählen' })).toBeFocused();
-    await page.getByRole('combobox', { name: 'Sprache auswählen' }).selectOption('en');
+    await language.click();
+    await expect(language).toHaveCSS('outline-style', 'none');
+    const languageListbox = page.getByRole('listbox', { name: 'Select language' });
+    await expect(languageListbox).toBeVisible();
+    await expect(languageListbox.getByRole('option')).toHaveCount(2);
+    await expect(languageListbox.getByRole('option', { name: 'Device language' })).toHaveCount(0);
+    await expect(languageListbox.getByRole('option', { name: 'English' })).toHaveCSS(
+      'box-shadow',
+      'none',
+    );
+    const languageListBounds = await languageListbox.boundingBox();
+    expect(languageListBounds).not.toBeNull();
+    if (languageControlBounds !== null && languageListBounds !== null) {
+      expect(Math.abs(languageListBounds.width - languageControlBounds.width)).toBeLessThanOrEqual(
+        0.5,
+      );
+      expect(languageListBounds.x).toBeGreaterThanOrEqual(0);
+      expect(languageListBounds.x + languageListBounds.width).toBeLessThanOrEqual(320);
+    }
+    await language.click();
+    await expect(languageListbox).toBeHidden();
+
+    await language.click();
+    await page.getByRole('option', { name: 'Deutsch' }).click();
+    const germanLanguage = page.getByRole('combobox', { name: 'Sprache auswählen' });
+    await expect(germanLanguage).toHaveValue('Deutsch');
+    await expect(germanLanguage).toBeFocused();
+    await germanLanguage.click();
+    await page.getByRole('option', { name: 'English' }).click();
     await expect(page.getByRole('combobox', { name: 'Select language' })).toBeFocused();
     await expect(page.getByRole('radio', { name: /light|dark|system/i })).toHaveCount(0);
-    await expect(page.getByText('Version 0.1.0')).toBeInViewport();
+    const version = page.getByText('Version 0.1.0');
+    const getStarted = page.getByRole('button', { name: 'Get started' });
+    await expect(version).toBeInViewport();
+    const versionBounds = await version.boundingBox();
+    const getStartedBounds = await getStarted.boundingBox();
+    expect(versionBounds).not.toBeNull();
+    expect(getStartedBounds).not.toBeNull();
+    if (versionBounds !== null && getStartedBounds !== null) {
+      expect(versionBounds.y + versionBounds.height).toBeLessThanOrEqual(getStartedBounds.y);
+    }
     await expect(page.getByText('Step 1 of 6')).toHaveCount(0);
     await expect(page.getByRole('progressbar', { name: 'Step 1 of 6' })).toHaveAttribute(
       'aria-valuenow',
       '1',
     );
-    await page.getByRole('button', { name: 'Get started' }).click();
+    await swipeOnboarding(page, 'left');
+    const introductionHeading = page.getByRole('heading', {
+      name: 'Understand your cycle, privately',
+    });
+    await expect(introductionHeading).toBeFocused();
+    await expect(introductionHeading).toHaveCSS('outline-style', 'none');
+    await swipeOnboarding(page, 'right');
+    const splashHeading = page.getByRole('heading', { name: 'Pattern Journal' });
+    await expect(splashHeading).toBeFocused();
+    await expect(splashHeading).toHaveCSS('outline-style', 'none');
+    const splashBeforeTransition = page.getByTestId('onboarding-splash');
+    const splashMainBeforeTransition = page.getByTestId('onboarding-splash-main');
+    const splashVersionBeforeTransition = page.getByTestId('onboarding-splash-version');
+    const splashBoundsBeforeTransition = await splashBeforeTransition.boundingBox();
+    const splashMainBoundsBeforeTransition = await splashMainBeforeTransition.boundingBox();
+    const splashVersionBoundsBeforeTransition = await splashVersionBeforeTransition.boundingBox();
+
+    await getStarted.dispatchEvent('click');
+    const departingSplash = page
+      .getByTestId('onboarding-departing-screen')
+      .getByTestId('onboarding-splash');
+    const departingSplashMain = page
+      .getByTestId('onboarding-departing-screen')
+      .getByTestId('onboarding-splash-main');
+    const departingSplashVersion = page
+      .getByTestId('onboarding-departing-screen')
+      .getByTestId('onboarding-splash-version');
+    await expect(departingSplash).toBeVisible();
+    const departingSplashBounds = await departingSplash.boundingBox();
+    const departingSplashMainBounds = await departingSplashMain.boundingBox();
+    const departingSplashVersionBounds = await departingSplashVersion.boundingBox();
+
+    expect(splashBoundsBeforeTransition).not.toBeNull();
+    expect(splashMainBoundsBeforeTransition).not.toBeNull();
+    expect(splashVersionBoundsBeforeTransition).not.toBeNull();
+    expect(departingSplashBounds).not.toBeNull();
+    expect(departingSplashMainBounds).not.toBeNull();
+    expect(departingSplashVersionBounds).not.toBeNull();
+    if (
+      splashBoundsBeforeTransition &&
+      splashMainBoundsBeforeTransition &&
+      splashVersionBoundsBeforeTransition &&
+      departingSplashBounds &&
+      departingSplashMainBounds &&
+      departingSplashVersionBounds
+    ) {
+      expect(departingSplashBounds.height).toBeCloseTo(splashBoundsBeforeTransition.height, 0);
+      expect(departingSplashMainBounds.y).toBeCloseTo(splashMainBoundsBeforeTransition.y, 0);
+      expect(departingSplashMainBounds.height).toBeCloseTo(
+        splashMainBoundsBeforeTransition.height,
+        0,
+      );
+      expect(departingSplashVersionBounds.y).toBeCloseTo(splashVersionBoundsBeforeTransition.y, 0);
+    }
     await expect(
       page.getByRole('heading', { name: 'Understand your cycle, privately' }),
     ).toBeFocused();
@@ -76,8 +230,114 @@ test.describe('English application shell', () => {
       page.getByRole('heading', { name: 'Understand your cycle, privately' }),
     ).toBeFocused();
     await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByRole('button', { name: 'Add previous period' }).click();
-    await page.getByLabel('Start date').fill('2026-07-01');
+    const previousPeriod = page.getByRole('group', { name: 'Previous period 1' });
+    const startDate = page.getByRole('button', { exact: true, name: 'Start date' });
+    const endDate = page.getByRole('button', { exact: true, name: 'End date (optional)' });
+    const removePeriod = page.getByRole('button', { name: 'Remove previous period 1' });
+    const addPeriod = page.getByRole('button', { name: 'Add period' });
+    await expect(previousPeriod).toBeVisible();
+    await expect(startDate).toBeVisible();
+    await expect(endDate).toBeVisible();
+    await expect(removePeriod).toBeDisabled();
+    await expect(removePeriod.locator('svg')).toBeVisible();
+    await expect(removePeriod).toHaveCSS('border-top-style', 'none');
+    await expect(addPeriod).toBeDisabled();
+
+    const periodTitle = previousPeriod.locator('legend');
+    const headerBounds = await Promise.all([periodTitle.boundingBox(), removePeriod.boundingBox()]);
+    const periodTitleBounds = headerBounds[0];
+    const removeBounds = headerBounds[1];
+    expect(periodTitleBounds).not.toBeNull();
+    expect(removeBounds).not.toBeNull();
+    if (periodTitleBounds && removeBounds) {
+      expect(removeBounds.width).toBeGreaterThanOrEqual(44);
+      expect(removeBounds.height).toBeGreaterThanOrEqual(44);
+      expect(removeBounds.y + removeBounds.height / 2).toBeCloseTo(
+        periodTitleBounds.y + periodTitleBounds.height / 2,
+        0,
+      );
+    }
+
+    const dateBounds = await Promise.all([startDate.boundingBox(), endDate.boundingBox()]);
+    const startBounds = dateBounds[0];
+    const endBounds = dateBounds[1];
+    expect(startBounds).not.toBeNull();
+    expect(endBounds).not.toBeNull();
+    if (startBounds && endBounds) {
+      expect(Math.abs(startBounds.y - endBounds.y)).toBeLessThanOrEqual(1);
+      expect(startBounds.x).toBeLessThan(endBounds.x);
+    }
+
+    await page.setViewportSize({ height: 568, width: 320 });
+    await startDate.click();
+    const datePicker = page.getByRole('dialog');
+    const pickerBounds = await datePicker.boundingBox();
+    expect(pickerBounds).not.toBeNull();
+    if (pickerBounds) {
+      expect(pickerBounds.x).toBeGreaterThanOrEqual(0);
+      expect(pickerBounds.y).toBeGreaterThanOrEqual(0);
+      expect(pickerBounds.x + pickerBounds.width).toBeLessThanOrEqual(320);
+      expect(pickerBounds.y + pickerBounds.height).toBeLessThanOrEqual(568);
+    }
+    const startTriggerBounds = await startDate.boundingBox();
+    expect(startTriggerBounds).not.toBeNull();
+    if (startTriggerBounds && pickerBounds) {
+      const overlapsVertically =
+        pickerBounds.y < startTriggerBounds.y + startTriggerBounds.height &&
+        pickerBounds.y + pickerBounds.height > startTriggerBounds.y;
+      const overlapsHorizontally =
+        pickerBounds.x < startTriggerBounds.x + startTriggerBounds.width &&
+        pickerBounds.x + pickerBounds.width > startTriggerBounds.x;
+      expect(
+        overlapsVertically && overlapsHorizontally,
+        JSON.stringify({ pickerBounds, startTriggerBounds }),
+      ).toBe(false);
+      await page.mouse.click(
+        startTriggerBounds.x + startTriggerBounds.width / 2,
+        startTriggerBounds.y + startTriggerBounds.height / 2,
+      );
+    }
+    await expect(datePicker).toBeHidden();
+
+    await startDate.click();
+    await page.mouse.click(2, 2);
+    await expect(datePicker).toBeHidden();
+
+    await selectOnboardingDate(page, 'Start date', '2026-06-28');
+    await expect(startDate).toContainText('Jun 28, 2026');
+
+    await endDate.click();
+    await expect(page.getByRole('dialog')).toContainText('July 2026');
+    await page.getByRole('gridcell', { name: 'Thursday, July 2, 2026' }).click();
+    await expect(removePeriod).toBeEnabled();
+    await expect(addPeriod).toBeEnabled();
+    const placementBounds = await Promise.all([
+      previousPeriod.boundingBox(),
+      addPeriod.boundingBox(),
+    ]);
+    const periodBounds = placementBounds[0];
+    const addBounds = placementBounds[1];
+    expect(periodBounds).not.toBeNull();
+    expect(addBounds).not.toBeNull();
+    if (periodBounds && addBounds) {
+      expect(addBounds.y).toBeGreaterThanOrEqual(periodBounds.y + periodBounds.height);
+    }
+
+    await removePeriod.click();
+    await expect(previousPeriod).toBeVisible();
+    await expect(startDate).toContainText('Choose date');
+    await expect(endDate).toContainText('Choose date');
+    await expect(removePeriod).toBeDisabled();
+    await expect(addPeriod).toBeDisabled();
+
+    await selectOnboardingDate(page, 'Start date', '2026-07-01');
+    await addPeriod.click();
+    const secondPeriod = page.getByRole('group', { name: 'Previous period 2' });
+    const removeSecondPeriod = page.getByRole('button', { name: 'Remove previous period 2' });
+    await expect(secondPeriod).toBeVisible();
+    await expect(removeSecondPeriod).toBeEnabled();
+    await removeSecondPeriod.click();
+    await expect(secondPeriod).toBeHidden();
     await page.getByRole('button', { name: 'Continue' }).click();
 
     await expect(page.getByRole('heading', { name: 'Optional starting estimates' })).toBeFocused();
@@ -90,7 +350,20 @@ test.describe('English application shell', () => {
     await page.getByRole('button', { name: 'Continue' }).click();
 
     await expect(page.getByRole('heading', { name: 'Protect your private journal' })).toBeFocused();
-    await expect(page.getByLabel('New PIN', { exact: true })).toBeVisible();
+    const newPin = page.getByLabel('New PIN', { exact: true });
+    const confirmPin = page.getByLabel('Confirm new PIN', { exact: true });
+    await expect(newPin).toBeVisible();
+    await newPin.fill('123456');
+    await confirmPin.fill('123456');
+    await expect(newPin).toHaveAttribute('type', 'password');
+    await page.getByRole('button', { name: 'Show New PIN' }).click();
+    await expect(newPin).toHaveAttribute('type', 'text');
+    await expect(newPin).toHaveValue('123456');
+    await page.getByRole('button', { name: 'Show Confirm new PIN' }).click();
+    await expect(confirmPin).toHaveAttribute('type', 'text');
+    await expect(confirmPin).toHaveValue('123456');
+    await page.getByRole('button', { name: 'Hide New PIN' }).click();
+    await expect(newPin).toHaveAttribute('type', 'password');
     const hasNoHorizontalOverflow = await page.evaluate<boolean>(
       'document.documentElement.scrollWidth <= document.documentElement.clientWidth',
     );
@@ -356,8 +629,8 @@ test.describe('English application shell', () => {
     await finishOnboarding(page);
     await openRootDestination(page, 'Settings');
     const languageSelect = page.getByRole('combobox', { name: 'Select language' });
-    await languageSelect.focus();
-    await languageSelect.selectOption('de');
+    await languageSelect.click();
+    await page.getByRole('option', { name: 'Deutsch' }).click();
 
     await expect(page.getByRole('heading', { level: 1, name: 'Einstellungen' })).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Sprache auswählen' })).toBeFocused();
@@ -383,7 +656,7 @@ test.describe('English application shell', () => {
       .getByRole('navigation', { name: 'Hauptnavigation' })
       .getByRole('button', { exact: true, name: 'Einstellungen' })
       .click();
-    await expect(page.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveValue('de');
+    await expect(page.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveValue('Deutsch');
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
   });
 });
@@ -669,7 +942,7 @@ test.describe('device language detection', () => {
     await page.goto('/');
 
     await expect(page.getByText('Ein privater Ort für deine Zyklusmuster.')).toBeVisible();
-    await expect(page.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveValue('de');
+    await expect(page.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveValue('Deutsch');
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
   });
 });

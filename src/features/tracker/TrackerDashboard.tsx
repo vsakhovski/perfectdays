@@ -152,12 +152,13 @@ function checkInTransitionForDate(
 
 export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayload }) {
   const { t } = useTranslation();
+  const { resolvedLanguage } = useLanguage();
   const { enablePin, journalEnvironment, pinProtectionAvailable, savePayload, snapshot } =
     useVault();
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
   const [draft, setDraft] = useState<OnboardingDraft>(() => ({
-    history: [],
+    history: [{ id: journalEnvironment.createId(), startDate: '', endDate: '' }],
     orangeEnabled: payload.settings.orangeEnabled,
     orangeDays: payload.settings.orangeDays,
     ...(payload.settings.typicalCycleLength === undefined
@@ -189,6 +190,13 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
       add: t(($) => $.tracker.onboarding.history.add),
       entryLabel: (position) => t(($) => $.tracker.onboarding.history.entryLabel, { position }),
       removeEntry: (position) => t(($) => $.tracker.onboarding.history.removeEntry, { position }),
+      datePicker: {
+        chooseDate: t(($) => $.tracker.onboarding.history.datePicker.chooseDate),
+        previousMonth: t(($) => $.tracker.onboarding.history.datePicker.previousMonth),
+        nextMonth: t(($) => $.tracker.onboarding.history.datePicker.nextMonth),
+        calendarLabel: (field, month) =>
+          t(($) => $.tracker.onboarding.history.datePicker.calendarLabel, { field, month }),
+      },
     },
     fallbacks: {
       title: t(($) => $.tracker.onboarding.fallbacks.title),
@@ -221,8 +229,10 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
     pin: {
       title: t(($) => $.tracker.onboarding.pin.title),
       description: t(($) => $.tracker.onboarding.pin.description),
+      hidePin: (field) => t(($) => $.tracker.onboarding.pin.hidePin, { field }),
       pinLabel: t(($) => $.tracker.onboarding.pin.pinLabel),
       confirmationLabel: t(($) => $.tracker.onboarding.pin.confirmationLabel),
+      showPin: (field) => t(($) => $.tracker.onboarding.pin.showPin, { field }),
       unavailable: t(($) => $.tracker.onboarding.pin.unavailable),
       enabled: t(($) => $.tracker.onboarding.pin.enabled),
     },
@@ -302,6 +312,7 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
       draft={draft}
       {...(errorMessage === undefined ? {} : { errorMessage })}
       languageControl={<LanguageControl compact />}
+      language={resolvedLanguage}
       onAddHistory={() => {
         setDraft((current) => ({
           ...current,

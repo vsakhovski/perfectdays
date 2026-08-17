@@ -23,6 +23,33 @@ import { FakeVaultController } from '../test/fake-vault-controller';
 import { App } from './App';
 import { AppProviders } from './AppProviders';
 
+function selectOnboardingDate(trigger: HTMLElement, targetDate: string): void {
+  fireEvent.click(trigger);
+  const dialog = screen.getByRole('dialog');
+
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const target = within(dialog)
+      .getAllByRole('gridcell')
+      .find((candidate) => candidate.dataset['date'] === targetDate);
+    if (target) {
+      fireEvent.click(target);
+      return;
+    }
+
+    const visibleDate = within(dialog)
+      .getAllByRole('gridcell')
+      .find((candidate) => candidate.dataset['inCurrentMonth'] === 'true')?.dataset['date'];
+    if (!visibleDate) throw new Error('The onboarding date picker has no visible month.');
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: targetDate < visibleDate ? 'Previous month' : 'Next month',
+      }),
+    );
+  }
+
+  throw new Error(`The onboarding date picker did not reach ${targetDate}.`);
+}
+
 function createThemeStore(initial: ThemePreference = 'light', clearSucceeds = true): ThemeStore {
   let preference = initial;
 
@@ -324,9 +351,12 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
     expect(screen.getByText('Version 0.1.0')).toBeVisible();
     const languageSelect = screen.getByRole('combobox', { name: 'Select language' });
-    expect(languageSelect).toHaveValue('en');
-    expect(within(languageSelect).getAllByRole('option')).toHaveLength(2);
-    expect(within(languageSelect).queryByRole('option', { name: 'Device language' })).toBeNull();
+    expect(languageSelect).toHaveValue('English');
+    fireEvent.click(languageSelect);
+    expect(screen.getAllByRole('option')).toHaveLength(2);
+    expect(screen.queryByRole('option', { name: 'Device language' })).toBeNull();
+    fireEvent.click(languageSelect);
+    expect(screen.queryByRole('listbox')).toBeNull();
     expect(screen.queryByRole('radio', { name: 'Dark' })).toBeNull();
     expect(document.documentElement).toHaveAttribute('lang', 'en');
     expect(document.title).toBe('Menstrual Pattern Tracker');
@@ -336,7 +366,8 @@ describe('App', () => {
     const user = userEvent.setup();
     const { languageStore } = await renderApp({ languagePreference: 'system' });
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Select language' }), 'de');
+    await user.click(screen.getByRole('combobox', { name: 'Select language' }));
+    await user.click(screen.getByRole('option', { name: 'Deutsch' }));
 
     expect(screen.getByText('Ein privater Ort für deine Zyklusmuster.')).toBeVisible();
     expect(screen.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveFocus();
@@ -558,16 +589,16 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await user.click(screen.getByRole('button', { name: 'Add previous period' }));
-    await user.click(screen.getByRole('button', { name: 'Add previous period' }));
+    const addPeriod = screen.getByRole('button', { name: 'Add period' });
+    const firstStart = screen.getByLabelText('Start date');
+    selectOnboardingDate(firstStart, '2026-07-01');
+    await user.click(addPeriod);
     const startDates = screen.getAllByLabelText('Start date');
-    const firstStart = startDates[0];
     const secondStart = startDates[1];
-    if (!firstStart || !secondStart) {
+    if (!secondStart) {
       throw new Error('The two historical start-date inputs were not rendered.');
     }
-    fireEvent.change(firstStart, { target: { value: '2026-07-01' } });
-    fireEvent.change(secondStart, { target: { value: '2026-07-29' } });
+    selectOnboardingDate(secondStart, '2026-07-29');
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
@@ -763,7 +794,7 @@ describe('App', () => {
     await renderApp({ languagePreference: 'system', systemLanguages: ['de-DE', 'en-US'] });
 
     expect(screen.getByText('Ein privater Ort für deine Zyklusmuster.')).toBeVisible();
-    expect(screen.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveValue('de');
+    expect(screen.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveValue('Deutsch');
     expect(document.documentElement).toHaveAttribute('lang', 'de');
     expect(document.documentElement).toHaveAttribute('dir', 'ltr');
     expect(document.title).toBe('Menstruationskalender');
@@ -775,7 +806,8 @@ describe('App', () => {
     await openRootDestination(user, 'Settings');
     const languageSelect = screen.getByRole('combobox', { name: 'Select language' });
 
-    await user.selectOptions(languageSelect, 'de');
+    await user.click(languageSelect);
+    await user.click(screen.getByRole('option', { name: 'Deutsch' }));
 
     expect(await screen.findByRole('heading', { name: 'Einstellungen' })).toBeVisible();
     expect(screen.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveFocus();

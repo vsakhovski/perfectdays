@@ -55,9 +55,15 @@ export const en = {
         empty: 'No previous periods added yet.',
         startDate: 'Start date',
         endDate: 'End date (optional)',
-        add: 'Add previous period',
+        add: 'Add period',
         entryLabel: 'Previous period {{position}}',
         removeEntry: 'Remove previous period {{position}}',
+        datePicker: {
+          chooseDate: 'Choose date',
+          previousMonth: 'Previous month',
+          nextMonth: 'Next month',
+          calendarLabel: 'Choose {{field}}. {{month}}',
+        },
       },
       fallbacks: {
         title: 'Optional starting estimates',
@@ -82,6 +88,8 @@ export const en = {
           'Optionally choose a six-digit PIN. It encrypts the journal stored in this browser and locks the app when it is closed or left in the background. There is no PIN recovery.',
         pinLabel: 'New PIN',
         confirmationLabel: 'Confirm new PIN',
+        showPin: 'Show {{field}}',
+        hidePin: 'Hide {{field}}',
         unavailable:
           'PIN protection is unavailable in this browser or connection. You can finish setup and enable it later from Privacy in a supported secure browser.',
         enabled: 'PIN protection is on. Finish setup to open your calendar.',

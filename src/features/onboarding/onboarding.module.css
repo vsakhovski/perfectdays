@@ -82,21 +82,101 @@
 
 .content {
   min-block-size: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: contain;
   padding: clamp(1rem, 5vw, 1.5rem);
+  touch-action: pan-y;
+}
+
+.transitionStage,
+.screenPane {
+  min-block-size: 100%;
+}
+
+.transitionStage {
+  position: relative;
+  isolation: isolate;
+  block-size: 100%;
+}
+
+.screenPane {
+  background: var(--color-background);
+}
+
+.screenPane[data-screen-step='splash'] {
+  block-size: 100%;
+}
+
+.swipeSurface {
+  min-block-size: 100%;
+  transform: translate3d(var(--onboarding-swipe-offset, 0), 0, 0);
+  transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.swipeSurface[data-swipe-active='true'] {
+  transition: none;
+  will-change: transform;
+}
+
+.departingPane {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  inline-size: 100%;
+  animation-duration: 300ms;
+  animation-fill-mode: forwards;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.departingPane[data-transition-direction='forward'] {
+  animation-name: leaveToLeft;
+  box-shadow: 0.8rem 0 1.5rem rgb(38 29 33 / 12%);
+}
+
+.departingPane[data-transition-direction='backward'] {
+  animation-name: leaveToRight;
+  box-shadow: -0.8rem 0 1.5rem rgb(38 29 33 / 12%);
+}
+
+@keyframes leaveToLeft {
+  from {
+    transform: translate3d(var(--onboarding-transition-start, 0), 0, 0);
+  }
+
+  to {
+    transform: translate3d(calc(-100% - 2rem), 0, 0);
+  }
+}
+
+@keyframes leaveToRight {
+  from {
+    transform: translate3d(var(--onboarding-transition-start, 0), 0, 0);
+  }
+
+  to {
+    transform: translate3d(calc(100% + 2rem), 0, 0);
+  }
 }
 
 .splash {
   display: grid;
-  place-content: center;
-  justify-items: center;
+  grid-template-rows: minmax(0, 1fr) auto;
   min-block-size: 100%;
-  gap: 1.5rem;
+  gap: 0.75rem;
   text-align: center;
 }
 
-.splash > div {
+.splashMain {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  min-block-size: 0;
+  gap: 1.5rem;
+}
+
+.splashIdentity {
   display: grid;
   gap: 0.6rem;
   justify-items: center;
@@ -199,16 +279,37 @@
 }
 
 .historyEntry {
+  position: relative;
   min-inline-size: 0;
+  gap: 0.75rem;
+  margin-block-start: 0.5rem;
   border-radius: var(--radius-small);
 }
 
-.historyEntry legend {
-  padding-inline: 0.3rem;
-  font-weight: 750;
+.historyList {
+  gap: 2rem;
 }
 
-.dateFields label,
+.historyEntry legend {
+  max-inline-size: calc(100% - 3.5rem);
+  padding-inline: 0.35rem;
+  overflow: hidden;
+  font-size: 1rem;
+  font-weight: 750;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dateFields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.dateField {
+  min-inline-size: 0;
+}
+
 .numberFields label,
 .orangeDays {
   display: grid;
@@ -216,7 +317,6 @@
   font-weight: 700;
 }
 
-.dateFields input,
 .numberFields input,
 .orangeDays input {
   inline-size: 100%;
@@ -228,7 +328,36 @@
   color: var(--color-text);
 }
 
-.dateFields input[aria-invalid='true'],
+.removePeriodButton {
+  position: absolute;
+  inset-block-start: -2rem;
+  inset-inline-end: 0.75rem;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: var(--color-danger-subtle);
+  color: var(--color-danger);
+  cursor: pointer;
+}
+
+.removePeriodButton svg {
+  inline-size: 1.4rem;
+  block-size: 1.4rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.removePeriodButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
 .numberFields input[aria-invalid='true'],
 .orangeDays input[aria-invalid='true'] {
   border-color: var(--color-danger);
@@ -303,8 +432,7 @@
 }
 
 .primaryButton,
-.secondaryButton,
-.removeButton {
+.secondaryButton {
   min-block-size: 2.75rem;
   padding: 0.65rem 1rem;
   border: 1px solid transparent;
@@ -325,19 +453,13 @@
   color: var(--color-text);
 }
 
-.stepBody > .secondaryButton,
-.removeButton {
+.stepBody > .secondaryButton {
   justify-self: start;
 }
 
-.removeButton {
-  border-color: var(--color-danger);
-  background: var(--color-danger-subtle);
-  color: var(--color-danger);
-}
-
 .version {
-  padding-block-end: calc(0.55rem + env(safe-area-inset-bottom));
+  align-self: end;
+  padding-block-start: 0.5rem;
   color: var(--color-text-muted);
   font-size: 0.75rem;
   text-align: center;
@@ -353,15 +475,17 @@ input:disabled {
 .iconButton:focus-visible,
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible,
-.removeButton:focus-visible,
-.dateFields input:focus-visible,
+.removePeriodButton:focus-visible,
 .numberFields input:focus-visible,
 .orangeDays input:focus-visible,
-.toggle input:focus-visible,
-.splash h1:focus-visible,
-.stepIntroduction h1:focus-visible {
+.toggle input:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;
+}
+
+.splash h1:focus,
+.stepIntroduction h1:focus {
+  outline: none;
 }
 
 @media (min-width: 34rem) {
@@ -372,9 +496,15 @@ input:disabled {
 }
 
 @media (min-width: 38rem) {
-  .dateFields,
   .numberFields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swipeSurface {
+    transform: none;
+    transition: none;
   }
 }
 
@@ -397,7 +527,6 @@ input:disabled {
     background: Highlight;
   }
 
-  .dateFields input[aria-invalid='true'],
   .numberFields input[aria-invalid='true'],
   .orangeDays input[aria-invalid='true'] {
     border: 3px solid Mark;
