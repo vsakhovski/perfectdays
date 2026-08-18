@@ -400,7 +400,7 @@ describe('App', () => {
     expect(checkInTrigger).toHaveFocus();
     await openRootDestination(user, 'Settings');
     expect(screen.getByRole('heading', { name: 'Settings', level: 1 })).toHaveFocus();
-    expect(screen.getByRole('heading', { name: 'Estimates and check-in window' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Estimates and pre-period window' })).toBeVisible();
 
     await openRootDestination(user, 'Calendar');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -595,9 +595,9 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
-    const addPeriod = screen.getByRole('button', { name: 'Add period' });
     const firstStart = screen.getByLabelText('Start date');
     selectOnboardingDate(firstStart, '2026-07-01');
+    const addPeriod = screen.getByRole('button', { name: 'Add period' });
     await user.click(addPeriod);
     const startDates = screen.getAllByLabelText('Start date');
     const secondStart = startDates[1];

@@ -11,12 +11,12 @@ import {
 
 const copy: TrackerSettingsCopy = {
   sectionLabel: 'Tracking preferences',
-  title: 'Estimates and check-in window',
+  title: 'Estimates and pre-period window',
   description: 'These settings change estimates, not recorded observations.',
   typicalCycleLength: 'Usual cycle length in days',
   typicalBleedDuration: 'Usual bleeding duration in days',
-  orangeEnabled: 'Show possible pre-period check-in days',
-  orangeDays: 'Check-in window length',
+  orangeEnabled: 'Show possible pre-period days',
+  orangeDays: 'Pre-period window length',
   forecastingPaused: 'Pause forecasts and predicted markers',
   optionalNumber: 'Optional whole number',
   positiveInteger: 'Enter a whole number greater than zero.',

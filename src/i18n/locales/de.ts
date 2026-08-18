@@ -85,10 +85,10 @@ export const de = {
         quickChoices: 'Schnellwerte für {{field}}',
       },
       orange: {
-        title: 'Mögliches Check-in-Fenster vor der Periode',
+        title: 'Möglicher Zeitraum vor der Periode',
         description:
-          'Diese optionale Markierung lädt zu einem persönlichen Check-in ein. Sie sagt weder Konflikte voraus noch gibt sie Entscheidungen vor.',
-        enabled: 'Mögliches Check-in-Fenster vor der Periode anzeigen',
+          'Diese optionale Markierung hebt Tage vor der geschätzten Periode hervor. Sie sagt weder Konflikte voraus noch gibt sie Entscheidungen vor.',
+        enabled: 'Möglichen Zeitraum vor der Periode anzeigen',
         days: 'Tage vor der zentralen Schätzung',
         daysDescription: 'Wähle unten einen häufigen Wert oder gib 1 bis 14 Tage ein.',
         decrease: 'Tage vor der Schätzung verringern',
@@ -161,7 +161,7 @@ export const de = {
         predictedRed: 'Geschätzter Periodentag.',
         predictedStart: 'Zentrale Schätzung des Beginns.',
         possibleStart: 'Möglicher Periodenbeginn.',
-        orange: 'Mögliches Check-in-Fenster vor der Periode.',
+        orange: 'Möglicher Zeitraum vor der Periode.',
         green: 'Höheres Selbstvertrauen aufgezeichnet.',
         spotting: 'Schmierblutung aufgezeichnet.',
         neutral: 'Keine Markierung aufgezeichnet.',
@@ -169,7 +169,7 @@ export const de = {
       markerConfidence: {
         predictedRed: 'Geschätzter Periodentag. Prognosesicherheit: {{confidence}}.',
         possibleStart: 'Möglicher Periodenbeginn. Prognosesicherheit: {{confidence}}.',
-        orange: 'Mögliches Check-in-Fenster vor der Periode. Prognosesicherheit: {{confidence}}.',
+        orange: 'Möglicher Zeitraum vor der Periode. Prognosesicherheit: {{confidence}}.',
       },
     },
     forecast: {
@@ -391,13 +391,13 @@ export const de = {
     },
     settings: {
       sectionLabel: 'Tracking-Einstellungen',
-      title: 'Schätzungen und Check-in-Fenster',
+      title: 'Schätzungen und Zeitraum vor der Periode',
       description:
         'Diese Einstellungen beeinflussen nur Schätzungen. Deine Aufzeichnungen werden nie verändert.',
       typicalCycleLength: 'Übliche Zykluslänge in Tagen',
       typicalBleedDuration: 'Übliche Blutungsdauer in Tagen',
-      orangeEnabled: 'Mögliche Check-in-Tage vor der Periode anzeigen',
-      orangeDays: 'Länge des Check-in-Fensters',
+      orangeEnabled: 'Mögliche Tage vor der Periode anzeigen',
+      orangeDays: 'Länge des Zeitraums vor der Periode',
       forecastingPaused: 'Schätzungen und geschätzte Kalendermarkierungen pausieren',
       optionalNumber: 'Optionale ganze Zahl',
       orangeRange: 'Wähle 1 bis 14 Tage.',
@@ -443,7 +443,7 @@ export const de = {
           recorded: 'Durchgehendes Band: aufgezeichnete Periode.',
           predicted: 'Gestreiftes Band: geschätzte Periode.',
           possibleStart: 'Umrandung: möglicher Periodenbeginn.',
-          checkInWindow: 'Bernsteinfarbener Balken: mögliches Check-in-Fenster vor der Periode.',
+          checkInWindow: 'Bernsteinfarbener Balken: möglicher Zeitraum vor der Periode.',
           higherConfidence: 'Grüne Markierung: höheres Selbstvertrauen aufgezeichnet.',
           spotting: 'Punkt: Schmierblutung aufgezeichnet.',
         },

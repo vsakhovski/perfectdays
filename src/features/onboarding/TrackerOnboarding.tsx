@@ -501,6 +501,9 @@ export function TrackerOnboarding({
     else setPinConfirmation((current) => current.slice(0, -1));
   };
 
+  const canAddHistory =
+    draft.history.length > 0 && draft.history.every((entry) => entry.startDate !== '');
+
   const historyContent = (
     <div className={styles['stepBody']}>
       <div className={styles['stepIntroduction']}>
@@ -626,20 +629,19 @@ export function TrackerOnboarding({
           })}
         </div>
       )}
-      <button
-        className={styles['secondaryButton']}
-        disabled={
-          controlsDisabled ||
-          draft.history.some((entry) => entry.startDate === '' && entry.endDate === '')
-        }
-        onClick={() => {
-          setErrors(new Map());
-          onAddHistory();
-        }}
-        type="button"
-      >
-        {copy.history.add}
-      </button>
+      {canAddHistory ? (
+        <button
+          className={styles['secondaryButton']}
+          disabled={controlsDisabled}
+          onClick={() => {
+            setErrors(new Map());
+            onAddHistory();
+          }}
+          type="button"
+        >
+          {copy.history.add}
+        </button>
+      ) : null}
     </div>
   );
 

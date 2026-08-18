@@ -405,8 +405,8 @@
   padding: 0;
   border: 0;
   border-radius: var(--radius-small);
-  background: var(--color-danger-subtle);
-  color: var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-on-danger);
   cursor: pointer;
 }
 
@@ -416,12 +416,14 @@
   fill: none;
   stroke: currentcolor;
   stroke-linecap: round;
-  stroke-width: 2;
+  stroke-width: 2.4;
 }
 
 .removePeriodButton:disabled {
+  background: var(--color-danger-subtle);
+  color: var(--color-danger);
   cursor: not-allowed;
-  opacity: 0.4;
+  opacity: 1;
 }
 
 .numberSpinner input[aria-invalid='true'],

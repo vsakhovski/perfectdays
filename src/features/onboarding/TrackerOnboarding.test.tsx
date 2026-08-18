@@ -52,14 +52,14 @@ const copy: OnboardingCopy = {
     quickChoices: (field) => `Quick choices for ${field}`,
   },
   orange: {
-    title: 'Pre-period check-in window',
+    title: 'Possible pre-period window',
     description: 'Optionally mark days before the estimate.',
-    enabled: 'Show the possible pre-period check-in window',
-    days: 'Number of check-in days',
+    enabled: 'Show the possible pre-period window',
+    days: 'Days before the estimate',
     daysDescription: 'Choose from 1 through 14 days',
-    decrease: 'Decrease check-in days',
-    increase: 'Increase check-in days',
-    quickChoices: 'Quick choices for check-in days',
+    decrease: 'Decrease days before the estimate',
+    increase: 'Increase days before the estimate',
+    quickChoices: 'Quick choices for days before the estimate',
   },
   pin: {
     title: 'Protect your private journal',
@@ -253,6 +253,8 @@ describe('TrackerOnboarding', () => {
 
     await chooseAvailableDate(user, copy.history.endDate);
 
+    expect(screen.queryByRole('button', { name: copy.history.add })).toBeNull();
+
     await user.click(screen.getByRole('button', { name: copy.actions.next }));
 
     expect(screen.getByText(copy.validation.startRequired)).toBeVisible();
@@ -270,17 +272,17 @@ describe('TrackerOnboarding', () => {
     const startDate = screen.getByLabelText(copy.history.startDate);
     const endDate = screen.getByLabelText(copy.history.endDate);
     const remove = screen.getByRole('button', { name: copy.history.removeEntry(1) });
-    const add = screen.getByRole('button', { name: copy.history.add });
 
     expect(startDate).toBeVisible();
     expect(endDate).toBeVisible();
     expect(remove).toBeDisabled();
     expect(remove.querySelector('svg')).not.toBeNull();
-    expect(add).toBeDisabled();
+    expect(screen.queryByRole('button', { name: copy.history.add })).toBeNull();
     expect(screen.queryByText(copy.history.removeEntry(1))).toBeNull();
 
     await chooseAvailableDate(user, copy.history.startDate);
     await chooseAvailableDate(user, copy.history.endDate);
+    const add = screen.getByRole('button', { name: copy.history.add });
     expect(remove).toBeEnabled();
     expect(add).toBeEnabled();
 
@@ -314,6 +316,7 @@ describe('TrackerOnboarding', () => {
 
     const removeSecond = screen.getByRole('button', { name: copy.history.removeEntry(2) });
     expect(removeSecond).toBeEnabled();
+    expect(screen.queryByRole('button', { name: copy.history.add })).toBeNull();
     await user.click(removeSecond);
     expect(onRemoveHistory).toHaveBeenCalledWith('two');
   });
@@ -377,7 +380,7 @@ describe('TrackerOnboarding', () => {
     expect(bleedInput).toHaveValue(12);
   });
 
-  it('uses the same compact spinner and five quick choices for the check-in window', async () => {
+  it('uses the same compact spinner and five quick choices for the pre-period window', async () => {
     const user = userEvent.setup();
     render(<Harness />);
     await goToHistory(user);
@@ -469,7 +472,7 @@ describe('TrackerOnboarding', () => {
     expect(screen.getByRole('heading', { name: copy.history.title })).toBeVisible();
   });
 
-  it('carries history, starting estimates, and the check-in window through every screen', async () => {
+  it('carries history, starting estimates, and the pre-period window through every screen', async () => {
     const user = userEvent.setup();
     const onComplete = vi.fn<TrackerOnboardingProps['onComplete']>();
     const draft: OnboardingDraft = {

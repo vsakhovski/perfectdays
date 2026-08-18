@@ -42,7 +42,7 @@ const copy: CalendarCopy = {
     predictedRed: 'Predicted period',
     predictedStart: 'Predicted start',
     possibleStart: 'Possible start',
-    orange: 'Possible check-in window',
+    orange: 'Possible pre-period window',
     green: 'Higher confidence recorded',
     spotting: 'Spotting recorded',
     neutral: 'No marker',

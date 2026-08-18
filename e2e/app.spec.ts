@@ -241,7 +241,8 @@ test.describe('English application shell', () => {
     await expect(removePeriod).toBeDisabled();
     await expect(removePeriod.locator('svg')).toBeVisible();
     await expect(removePeriod).toHaveCSS('border-top-style', 'none');
-    await expect(addPeriod).toBeDisabled();
+    await expect(removePeriod).toHaveCSS('background-color', 'rgb(255, 240, 242)');
+    await expect(addPeriod).toHaveCount(0);
 
     const periodTitle = previousPeriod.locator('legend');
     const headerBounds = await Promise.all([periodTitle.boundingBox(), removePeriod.boundingBox()]);
@@ -311,6 +312,8 @@ test.describe('English application shell', () => {
     await expect(page.getByRole('dialog')).toContainText('July 2026');
     await page.getByRole('gridcell', { name: 'Thursday, July 2, 2026' }).click();
     await expect(removePeriod).toBeEnabled();
+    await expect(removePeriod).toHaveCSS('background-color', 'rgb(155, 36, 59)');
+    await expect(removePeriod).toHaveCSS('color', 'rgb(255, 255, 255)');
     await expect(addPeriod).toBeEnabled();
     const placementBounds = await Promise.all([
       previousPeriod.boundingBox(),
@@ -329,7 +332,7 @@ test.describe('English application shell', () => {
     await expect(startDate).toContainText('Choose date');
     await expect(endDate).toContainText('Choose date');
     await expect(removePeriod).toBeDisabled();
-    await expect(addPeriod).toBeDisabled();
+    await expect(addPeriod).toHaveCount(0);
 
     await selectOnboardingDate(page, 'Start date', '2026-07-01');
     await addPeriod.click();
@@ -380,9 +383,7 @@ test.describe('English application shell', () => {
       expect(lastCycleChoiceBounds.x + lastCycleChoiceBounds.width).toBeLessThanOrEqual(320);
     }
     await page.getByRole('button', { name: 'Continue' }).click();
-    await expect(
-      page.getByRole('heading', { name: 'Possible pre-period check-in window' }),
-    ).toBeFocused();
+    await expect(page.getByRole('heading', { name: 'Possible pre-period window' })).toBeFocused();
     const windowChoices = page.getByRole('group', {
       name: 'Quick choices for days before the estimate',
     });

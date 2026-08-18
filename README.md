@@ -4,7 +4,7 @@
 
 A private, mobile-first menstrual journal that records bleeding and helps its user notice her own recurring wellbeing patterns. The product uses red, orange, and green calendar markers, but treats them as personal context rather than biological verdicts or judgments about competence.
 
-**Status:** Phase 5 mobile engineering is implemented. First use now opens a focused, skippable six-screen onboarding flow with a placeholder brand splash and language selector, dot progress, privacy introduction, optional history and estimates, pre-period check-in configuration, and optional PIN setup. After onboarding or unlock, the app opens a compact Calendar-first shell with separate Calendar, Privacy, and Settings destinations; a persistent one-tap today check-in action; an atomic **Save and done** flow; contextual Insights and Period history screens; and mobile-browser coverage. Manual contrast, software-keyboard, forced-colors, screen-reader, and real-user usability review remain open, as do episode splitting/merging, evidence-driven forecast calibration, final naming, and public-beta clinical, legal, and independent security review.
+**Status:** Phase 5 mobile engineering is implemented. First use now opens a focused, skippable six-screen onboarding flow with a placeholder brand splash and language selector, dot progress, privacy introduction, optional history and estimates, pre-period window configuration, and optional PIN setup. After onboarding or unlock, the app opens a compact Calendar-first shell with separate Calendar, Privacy, and Settings destinations; a persistent one-tap today check-in action; an atomic **Save and done** flow; contextual Insights and Period history screens; and mobile-browser coverage. Manual contrast, software-keyboard, forced-colors, screen-reader, and real-user usability review remain open, as do episode splitting/merging, evidence-driven forecast calibration, final naming, and public-beta clinical, legal, and independent security review.
 
 Store packaging, submission requirements, and release-readiness planning are tracked in [DISTRIBUTION.md](DISTRIBUTION.md).
 
@@ -14,7 +14,7 @@ The app should make it easy to:
 
 - record menstruation and spotting;
 - estimate the next period without pretending the estimate is certain;
-- add a configurable pre-period check-in window;
+- add a configurable possible pre-period window;
 - record daily confidence and energy, with the MVP's green marker tied specifically to recorded confidence;
 - understand patterns retrospectively over several cycles; and
 - keep this sensitive information private and under the user's control.
@@ -45,7 +45,7 @@ Markers may overlap. For example, a person can be menstruating and also report h
 | **Predicted red** | Estimated future menstruation | Pale striped red band joined within each calendar row and clearly labeled “predicted” |
 | **Predicted start** | Central estimated start date | Dedicated outlined or dotted start indicator and complete accessible label |
 | **Possible start** | Other dates in the estimated start range | Dashed or outlined range treatment rather than a solid fill |
-| **Orange** | Optional pre-period check-in window | Thin golden-amber bar at the top of the cell, never a warning about competence |
+| **Orange** | Optional possible pre-period window | Thin golden-amber bar at the top of the cell, never a warning about competence |
 | **Green** | A day with an explicitly logged high-confidence score | Green badge or accent; retrospective only in the MVP |
 | **Today** | The current local date | Strong blue cell border, heavier number weight, and a complete accessible “Today” label |
 | **Neutral** | Nothing recorded or insufficient evidence | Normal calendar styling |
@@ -58,7 +58,7 @@ Applied Phase 5 marker tokens:
 | Role | Light theme | Dark theme |
 | --- | --- | --- |
 | Recorded/predicted red | `#b92e49` | `#ff5f7d` |
-| Check-in amber | `#9a5b00` | `#f7c948` |
+| Pre-period amber | `#9a5b00` | `#f7c948` |
 | Retrospective green | `#35765a` | `#85c8a8` |
 | Today/focus blue | `#1c6ea4` | `#8fd2ff` |
 
@@ -66,7 +66,7 @@ These colors intentionally separate dark-mode red from amber more strongly than 
 
 Example language:
 
-- “Possible pre-period check-in window. How do you feel today?”
+- “Possible pre-period window.”
 - “You recorded higher confidence on this day.”
 - “Your next period may start August 12–15. Confidence: medium.”
 - “Based on four completed cycles.”
@@ -82,7 +82,7 @@ Language to avoid:
 
 ### 1. Onboarding
 
-- Present one focused screen at a time in this order: placeholder brand splash with the package version placed at the bottom of the main content area immediately above **Get started**; cycle-tracking and privacy introduction; previous periods; optional period estimates; pre-period check-in window; optional PIN. PIN entry starts behind an explicit **Enable PIN** action. It then uses a large on-screen number pad and one non-editable display with an eye control. The masked display reserves six left-aligned `*` placeholders and replaces entered hidden digits with stars. After the first six digits the display clears automatically and asks the user to repeat the PIN; **Enable PIN and finish** stays disabled until both six-digit entries match. A fixed-height validation area prevents mismatch feedback from shifting the number pad.
+- Present one focused screen at a time in this order: placeholder brand splash with the package version placed at the bottom of the main content area immediately above **Get started**; cycle-tracking and privacy introduction; previous periods; optional period estimates; possible pre-period window; optional PIN. PIN entry starts behind an explicit **Enable PIN** action. It then uses a large on-screen number pad and one non-editable display with an eye control. The masked display reserves six left-aligned `*` placeholders and replaces entered hidden digits with stars. After the first six digits the display clears automatically and asks the user to repeat the PIN; **Enable PIN and finish** stays disabled until both six-digit entries match. A fixed-height validation area prevents mismatch feedback from shifting the number pad.
 - Keep an icon-only back chevron available after the splash and an icon-only close/skip action available throughout, with localized accessible names. Skipping commits the existing safe defaults without partially applying the in-memory draft.
 - Show six progress dots in the top panel, enlarging the current dot. Expose the numeric step through progressbar semantics without displaying “Step X of Y” as text.
 - Explain that the app can track cycles, estimate when the next period may begin, and hold a private journal. State plainly that data stays on-device by default, that there is no account/advertising/analytics, and that local data is not encrypted until PIN protection is enabled.
@@ -198,7 +198,7 @@ The mobile screen follows this order:
 - **Go to today** sits beside the Calendar screen title, returns to the current local month, and moves the calendar's roving focus to today. It is disabled when that month is already shown.
 - At phone widths, the month toolbar contains only centered previous/next chevrons and the localized month/year. Day cells retain a square aspect ratio while the viewport changes.
 - The semantic six-week grid retains localized weekday headers and complete accessible descriptions for every date.
-- Recorded periods form solid red bands across adjacent cells with rounded range ends. Predicted periods use visibly striped bands. Possible starts retain a dashed/outlined treatment, and the optional check-in window uses a thin amber top bar.
+- Recorded periods form solid red bands across adjacent cells with rounded range ends. Predicted periods use visibly striped bands. Possible starts retain a dashed/outlined treatment, and the optional pre-period window uses a thin amber top bar.
 - The essential legend shows **Recorded**, **Predicted**, and **Today** directly below the grid. A **Marker guide** disclosure explains spotting, possible start, amber, green, overlaps, icons, and patterns.
 - Bottom content receives enough safe-area and action-bar padding that neither the check-in dock nor navigation covers a date, explanation, or control.
 
@@ -227,7 +227,7 @@ The component has explicit states:
 | Highly variable history | Keep the honest textual range but suppress predicted-period, possible-start, and amber calendar coloring |
 | Late estimate | Keep the original fixed range and explain that it has passed; do not move the date forward each day |
 
-Orange remains an optional invitation to check in, never advice about conflict or competence. Green remains a retrospective badge based only on a recorded confidence score of 4 or 5 and is never forecast into the future.
+Orange remains an optional estimated pre-period window, never advice about conflict or competence. Green remains a retrospective badge based only on a recorded confidence score of 4 or 5 and is never forecast into the future.
 
 ### Daily check-in flow
 
@@ -324,7 +324,7 @@ Initial confidence labels:
 
 - Enabled by default with `X = 5`, configurable from 1–14 days or disabled entirely.
 - Covers the `X` days immediately before the central estimated period start.
-- Is labeled as a possible check-in window, not PMS diagnosis or behavioral advice.
+- Is labeled as a possible pre-period window, not a PMS diagnosis or behavioral advice.
 - Is withheld when no usable period forecast exists.
 - If actual bleeding begins early, the recorded red state supersedes the orange forecast.
 
@@ -710,7 +710,7 @@ This is a journal and reflection tool. It is not:
 
 Premenstrual symptoms vary between people and between cycles. ACOG recommends prospective daily symptom records over multiple cycles when evaluating a possible PMS pattern. That supports personalized observations, not a universal orange window.
 
-The implemented orange copy describes an optional personal check-in window and explicitly avoids predicting conflict or advising against decisions. Green reports only a retrospective confidence rating of 4 or 5. Forecasts are deterministic heuristics with visible ranges and confidence labels; implementation and unit coverage are not evidence of clinical accuracy.
+The implemented orange copy describes an optional possible pre-period window and explicitly avoids predicting conflict or advising against decisions. Green reports only a retrospective confidence rating of 4 or 5. Forecasts are deterministic heuristics with visible ranges and confidence labels; implementation and unit coverage are not evidence of clinical accuracy.
 
 Before public beta, clinical copy should be reviewed and the app should gently direct users toward professional help for persistent unusual bleeding, very heavy or prolonged bleeding, bleeding between periods, severe symptoms, or pain that disrupts normal life. Urgent and mental-health help must be localized to the user's country rather than hard-coded to one emergency number.
 
@@ -861,7 +861,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Previous and next controls move one month; a deliberate horizontal grid swipe provides the same navigation for touch and pen without opening a day; **Go to today** returns to the current local month, is disabled there, and places roving calendar focus on today.
 - [ ] Today remains visibly and semantically distinct from keyboard focus, recorded periods, predictions, amber, green, and spotting in normal and forced-colors modes.
 - [x] System/Monday/Sunday week-start selection appears after Language in Settings, follows the device region by default, and survives reload.
-- [x] Recorded periods use joined solid red bands, predicted periods use visibly striped bands, possible starts use outlined treatment, and the check-in window uses a thin amber top bar.
+- [x] Recorded periods use joined solid red bands, predicted periods use visibly striped bands, possible starts use outlined treatment, and the pre-period window uses a thin amber top bar.
 - [x] Recorded observations override conflicting forecasts, while green can coexist as a retrospective badge and spotting remains distinct; every overlap has text/icon/pattern semantics in addition to color.
 - [x] The localized forecast summary follows the calendar and legend and leads with a range, confidence, and completed-cycle count; **Why this estimate?** reveals secondary detail.
 - [ ] Insufficient-history, paused, active, late, and highly-variable states use honest localized text; highly variable history retains text while suppressing forecast and amber calendar coloring.
@@ -932,7 +932,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 ## Validation targets
 
 - At least 90% of usability-test participants should distinguish recorded from predicted days without coaching.
-- Users should understand that orange is a check-in suggestion, not a judgment about competence.
+- Users should understand that orange is an estimated pre-period marker, not a judgment about competence.
 - The next-period range should be visible immediately below the default calendar with no navigation or disclosure required.
 - Today's check-in should open in one tap from every primary destination; a basic flow-only entry should take no more than three taps and should be completed in under 15 seconds in moderated usability testing.
 - Editing today's existing entry should be reachable in no more than two taps.
