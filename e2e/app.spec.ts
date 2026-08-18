@@ -250,8 +250,9 @@ test.describe('English application shell', () => {
     expect(periodTitleBounds).not.toBeNull();
     expect(removeBounds).not.toBeNull();
     if (periodTitleBounds && removeBounds) {
-      expect(removeBounds.width).toBeGreaterThanOrEqual(44);
-      expect(removeBounds.height).toBeGreaterThanOrEqual(44);
+      // Firefox can report a nominal 44 CSS-pixel control a tiny fraction below 44.
+      expect(Math.round(removeBounds.width)).toBeGreaterThanOrEqual(44);
+      expect(Math.round(removeBounds.height)).toBeGreaterThanOrEqual(44);
       expect(removeBounds.y + removeBounds.height / 2).toBeCloseTo(
         periodTitleBounds.y + periodTitleBounds.height / 2,
         0,
@@ -1078,8 +1079,13 @@ test.describe('Phase 5 compact mobile shell', () => {
     await confidenceFive.click();
     await expect(confidenceFive).not.toBeChecked();
 
-    await page.mouse.move(160, 400);
-    await page.mouse.wheel(0, 1200);
+    const form = dialog.locator('form');
+    await form.evaluate((element: { scrollHeight: number; scrollTop: number }) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect
+      .poll(() => form.evaluate((element: { scrollTop: number }): number => element.scrollTop))
+      .toBeGreaterThan(0);
     const headerAfterScroll = await header.boundingBox();
     expect(headerAfterScroll).not.toBeNull();
     if (headerBefore !== null && headerAfterScroll !== null) {
