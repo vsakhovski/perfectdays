@@ -910,6 +910,72 @@ test.describe('Phase 5 compact mobile shell', () => {
     await page.setViewportSize({ height: 800, width: 320 });
     await assertSquareDayCells();
 
+    const monthHeading = page
+      .getByRole('group', { name: 'Calendar month navigation' })
+      .getByRole('heading');
+    const initialMonth = await monthHeading.textContent();
+    expect(initialMonth).not.toBeNull();
+    const calendarTable = page.getByRole('table');
+    await calendarTable.dispatchEvent('pointerdown', {
+      clientX: 280,
+      clientY: 300,
+      isPrimary: true,
+      pointerId: 21,
+      pointerType: 'touch',
+    });
+    await calendarTable.dispatchEvent('pointermove', {
+      clientX: 180,
+      clientY: 305,
+      isPrimary: true,
+      pointerId: 21,
+      pointerType: 'touch',
+    });
+    await expect(page.getByTestId('calendar-current-month')).toHaveAttribute(
+      'data-swipe-active',
+      'true',
+    );
+    await expect(page.getByTestId('calendar-current-month')).toHaveAttribute(
+      'style',
+      /--calendar-swipe-offset: -24px/u,
+    );
+    await calendarTable.dispatchEvent('pointerup', {
+      clientX: 60,
+      clientY: 305,
+      isPrimary: true,
+      pointerId: 21,
+      pointerType: 'touch',
+    });
+    await expect(page.getByTestId('calendar-current-month')).toHaveAttribute(
+      'data-transition-direction',
+      'next',
+    );
+    await expect(page.getByTestId('calendar-departing-month')).toBeVisible();
+    await expect(monthHeading).not.toHaveText(initialMonth ?? '');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByTestId('calendar-departing-month')).toBeHidden();
+
+    await calendarTable.dispatchEvent('pointerdown', {
+      clientX: 60,
+      clientY: 300,
+      isPrimary: true,
+      pointerId: 22,
+      pointerType: 'touch',
+    });
+    await calendarTable.dispatchEvent('pointerup', {
+      clientX: 280,
+      clientY: 305,
+      isPrimary: true,
+      pointerId: 22,
+      pointerType: 'touch',
+    });
+    await expect(page.getByTestId('calendar-current-month')).toHaveAttribute(
+      'data-transition-direction',
+      'previous',
+    );
+    await expect(page.getByTestId('calendar-departing-month')).toBeVisible();
+    await expect(monthHeading).toHaveText(initialMonth ?? '');
+    await expect(page.getByTestId('calendar-departing-month')).toBeHidden();
+
     for (const label of ['Previous month', 'Next month']) {
       const navigationButton = page.getByRole('button', { name: label });
       const buttonBox = await navigationButton.boundingBox();

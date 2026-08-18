@@ -59,6 +59,96 @@
 
 .tableScroller {
   overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  touch-action: pan-y;
+}
+
+.monthViewport {
+  position: relative;
+  min-inline-size: 18rem;
+  overflow: hidden;
+}
+
+.monthPane {
+  inline-size: 100%;
+  transform: translate3d(var(--calendar-swipe-offset, 0), 0, 0);
+  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.monthPane[data-swipe-active='true'] {
+  transition: none;
+  will-change: transform;
+}
+
+.monthPane[data-transition-role='incoming'],
+.monthPane[data-transition-role='departing'] {
+  transition: none;
+  animation-duration: 280ms;
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.monthPane[data-transition-role='departing'] {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+}
+
+.monthPane[data-transition-role='incoming'][data-transition-direction='next'] {
+  animation-name: monthEnterFromRight;
+}
+
+.monthPane[data-transition-role='departing'][data-transition-direction='next'] {
+  animation-name: monthLeaveToLeft;
+}
+
+.monthPane[data-transition-role='incoming'][data-transition-direction='previous'] {
+  animation-name: monthEnterFromLeft;
+}
+
+.monthPane[data-transition-role='departing'][data-transition-direction='previous'] {
+  animation-name: monthLeaveToRight;
+}
+
+@keyframes monthEnterFromRight {
+  from {
+    transform: translate3d(100%, 0, 0);
+  }
+
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes monthEnterFromLeft {
+  from {
+    transform: translate3d(-100%, 0, 0);
+  }
+
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes monthLeaveToLeft {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(-100%, 0, 0);
+  }
+}
+
+@keyframes monthLeaveToRight {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(100%, 0, 0);
+  }
 }
 
 .calendarTable {
@@ -346,6 +436,10 @@
     border-spacing: 0 0.12rem;
   }
 
+  .monthViewport {
+    min-inline-size: 0;
+  }
+
   .dayButton {
     padding: 0.16rem;
     border-radius: 0.45rem;
@@ -368,6 +462,21 @@
 
   .calendarHeader {
     gap: 0.3rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .monthPane {
+    transition: none;
+  }
+
+  .monthPane[data-swipe-active='true'] {
+    transform: none;
+  }
+
+  .monthPane[data-transition-role='incoming'],
+  .monthPane[data-transition-role='departing'] {
+    animation-duration: 1ms;
   }
 }
 

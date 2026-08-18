@@ -98,6 +98,7 @@ Language to avoid:
 
 - Open the current local month after completed onboarding, reload, or unlock.
 - Provide visible previous-month and next-month controls directly above the grid, plus a **Go to today** action beside the Calendar screen title.
+- Let touch and pen users swipe left across the grid for the next month or right for the previous month. Require a deliberate predominantly horizontal gesture, suppress its trailing day-cell click, and retain the visible buttons and keyboard commands as equivalent controls. While the gesture is active, move the current calendar a short, damped distance with the pointer so recognition is immediate; settle it back smoothly when the swipe is rejected. After release, animate the displayed month completely out while the target month enters concurrently from the opposite side; keep the departing copy inert and accessibility-hidden, and disable gesture feedback while reducing the completed transition to effectively immediate when reduced motion is requested.
 - Disable **Go to today** while the current local month is already displayed, and keep today clearly identified independently of keyboard focus.
 - Show recorded bleeding, predicted bleeding, spotting, orange, green, and neutral states.
 - Keep recorded and predicted states unmistakably different.
@@ -855,7 +856,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Calendar is the default destination after completed onboarding, reload, and unlock, and it opens the current local month.
 - [x] Bottom navigation contains exactly **Calendar**, **Privacy**, and **Settings**, exposes the current destination semantically, and resets to Calendar when the unlocked shell remounts.
 - [x] **Check in today** is visually and semantically separate from navigation, is reachable in one tap from every primary destination, and always opens today regardless of the displayed month or selected date.
-- [x] Previous and next controls move one month; **Go to today** returns to the current local month, is disabled there, and places roving calendar focus on today.
+- [x] Previous and next controls move one month; a deliberate horizontal grid swipe provides the same navigation for touch and pen without opening a day; **Go to today** returns to the current local month, is disabled there, and places roving calendar focus on today.
 - [ ] Today remains visibly and semantically distinct from keyboard focus, recorded periods, predictions, amber, green, and spotting in normal and forced-colors modes.
 - [x] System/Monday/Sunday week-start selection appears after Language in Settings, follows the device region by default, and survives reload.
 - [x] Recorded periods use joined solid red bands, predicted periods use visibly striped bands, possible starts use outlined treatment, and the check-in window uses a thin amber top bar.

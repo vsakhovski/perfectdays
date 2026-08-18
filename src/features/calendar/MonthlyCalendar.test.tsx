@@ -269,6 +269,159 @@ describe('MonthlyCalendar', () => {
     });
   });
 
+  it('changes months on deliberate horizontal touch swipes without selecting a day', () => {
+    const onNextMonth = vi.fn();
+    const onPreviousMonth = vi.fn();
+    const onSelectDate = vi.fn();
+    const firstRender = renderCalendar({ onNextMonth, onPreviousMonth, onSelectDate });
+
+    const target = screen.getByRole('button', { name: /Full date 2026-05-12/u });
+
+    fireEvent.pointerDown(target, {
+      clientX: 280,
+      clientY: 180,
+      isPrimary: true,
+      pointerId: 1,
+      pointerType: 'touch',
+    });
+    fireEvent.pointerMove(target, {
+      clientX: 180,
+      clientY: 185,
+      isPrimary: true,
+      pointerId: 1,
+      pointerType: 'touch',
+    });
+    expect(screen.getByTestId('calendar-current-month')).toHaveAttribute(
+      'data-swipe-active',
+      'true',
+    );
+    expect(screen.getByTestId('calendar-current-month')).toHaveStyle(
+      '--calendar-swipe-offset: -24px',
+    );
+    fireEvent.pointerUp(target, {
+      clientX: 80,
+      clientY: 185,
+      isPrimary: true,
+      pointerId: 1,
+      pointerType: 'touch',
+    });
+    fireEvent.click(target);
+    expect(onNextMonth).toHaveBeenCalledOnce();
+    expect(onSelectDate).not.toHaveBeenCalled();
+    expect(screen.getByTestId('calendar-current-month')).toHaveAttribute(
+      'data-transition-direction',
+      'next',
+    );
+    expect(screen.getByTestId('calendar-current-month')).toHaveAttribute(
+      'data-swipe-active',
+      'false',
+    );
+    const departingNextMonth = screen.getByTestId('calendar-departing-month');
+    expect(departingNextMonth).toHaveAttribute('data-transition-direction', 'next');
+    expect(departingNextMonth).toHaveAttribute('aria-hidden', 'true');
+    firstRender.unmount();
+
+    const secondRender = renderCalendar({ onNextMonth, onPreviousMonth, onSelectDate });
+    const previousTarget = screen.getByRole('button', { name: /Full date 2026-05-12/u });
+
+    fireEvent.pointerDown(previousTarget, {
+      clientX: 80,
+      clientY: 180,
+      isPrimary: true,
+      pointerId: 2,
+      pointerType: 'pen',
+    });
+    fireEvent.pointerUp(previousTarget, {
+      clientX: 280,
+      clientY: 185,
+      isPrimary: true,
+      pointerId: 2,
+      pointerType: 'pen',
+    });
+    fireEvent.click(previousTarget);
+    expect(onPreviousMonth).toHaveBeenCalledOnce();
+    expect(onSelectDate).not.toHaveBeenCalled();
+    const departingPreviousMonth = screen.getByTestId('calendar-departing-month');
+    expect(screen.getByTestId('calendar-current-month')).toHaveAttribute(
+      'data-transition-direction',
+      'previous',
+    );
+    expect(departingPreviousMonth).toHaveAttribute('data-transition-direction', 'previous');
+
+    secondRender.unmount();
+    renderCalendar({ onNextMonth, onPreviousMonth, onSelectDate });
+    const verticalTarget = screen.getByRole('button', { name: /Full date 2026-05-12/u });
+
+    fireEvent.pointerDown(verticalTarget, {
+      clientX: 160,
+      clientY: 100,
+      isPrimary: true,
+      pointerId: 3,
+      pointerType: 'touch',
+    });
+    fireEvent.pointerMove(verticalTarget, {
+      clientX: 185,
+      clientY: 102,
+      isPrimary: true,
+      pointerId: 3,
+      pointerType: 'touch',
+    });
+    expect(screen.getByTestId('calendar-current-month')).toHaveStyle(
+      '--calendar-swipe-offset: 6px',
+    );
+    fireEvent.pointerUp(verticalTarget, {
+      clientX: 185,
+      clientY: 102,
+      isPrimary: true,
+      pointerId: 3,
+      pointerType: 'touch',
+    });
+    expect(screen.getByTestId('calendar-current-month')).toHaveAttribute(
+      'data-swipe-active',
+      'false',
+    );
+    expect(screen.getByTestId('calendar-current-month')).toHaveStyle(
+      '--calendar-swipe-offset: 0px',
+    );
+
+    fireEvent.pointerDown(verticalTarget, {
+      clientX: 160,
+      clientY: 100,
+      isPrimary: true,
+      pointerId: 4,
+      pointerType: 'touch',
+    });
+    fireEvent.pointerMove(verticalTarget, {
+      clientX: 170,
+      clientY: 220,
+      isPrimary: true,
+      pointerId: 4,
+      pointerType: 'touch',
+    });
+    expect(screen.getByTestId('calendar-current-month')).toHaveAttribute(
+      'data-swipe-active',
+      'true',
+    );
+    expect(screen.getByTestId('calendar-current-month')).toHaveStyle(
+      '--calendar-swipe-offset: 0px',
+    );
+    fireEvent.pointerUp(verticalTarget, {
+      clientX: 170,
+      clientY: 250,
+      isPrimary: true,
+      pointerId: 4,
+      pointerType: 'touch',
+    });
+    expect(screen.getByTestId('calendar-current-month')).toHaveAttribute(
+      'data-swipe-active',
+      'false',
+    );
+    fireEvent.click(verticalTarget);
+    expect(onNextMonth).toHaveBeenCalledOnce();
+    expect(onPreviousMonth).toHaveBeenCalledOnce();
+    expect(onSelectDate).toHaveBeenCalledOnce();
+  });
+
   it('selects dates through a fully named button and exposes its trigger element', async () => {
     const user = userEvent.setup();
     const onSelectDate = vi.fn();
