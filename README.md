@@ -6,6 +6,8 @@ A private, mobile-first menstrual journal that records bleeding and helps its us
 
 **Status:** Phase 5 mobile engineering is implemented. First use now opens a focused, skippable six-screen onboarding flow with a placeholder brand splash and language selector, dot progress, privacy introduction, optional history and estimates, pre-period check-in configuration, and optional PIN setup. After onboarding or unlock, the app opens a compact Calendar-first shell with separate Calendar, Privacy, and Settings destinations; a persistent one-tap today check-in action; an atomic **Save and done** flow; contextual Insights and Period history screens; and mobile-browser coverage. Manual contrast, software-keyboard, forced-colors, screen-reader, and real-user usability review remain open, as do episode splitting/merging, evidence-driven forecast calibration, final naming, and public-beta clinical, legal, and independent security review.
 
+Store packaging, submission requirements, and release-readiness planning are tracked in [DISTRIBUTION.md](DISTRIBUTION.md).
+
 ## Product goal
 
 The app should make it easy to:
