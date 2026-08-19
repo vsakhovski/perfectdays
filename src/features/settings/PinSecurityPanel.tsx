@@ -3,42 +3,19 @@ import { useTranslation } from 'react-i18next';
 
 import { useVault } from '../../app/vault/use-vault';
 import { VaultUnlockError } from '../../application/vault/vault-manager';
-import type { AutoLockDelay } from '../../domain/models';
-import { PinField } from '../vault/PinField';
+import { PinKeypad } from '../vault/PinKeypad';
 import { isSixDigitPin } from '../vault/pin';
 import formStyles from '../vault/vault-ui.module.css';
 import styles from './PinSecurityPanel.module.css';
 
-type PanelMode = 'summary' | 'setup' | 'change' | 'disable' | 'reset';
+type PanelMode = 'summary' | 'setup' | 'change' | 'disable';
 type EditablePanelMode = Exclude<PanelMode, 'summary'>;
 type FormError = 'sixDigits' | 'mismatch' | 'unlockFailed' | 'operationFailed' | null;
-type SuccessMessage = 'setup' | 'change' | 'disable' | 'reset' | null;
+type SuccessMessage = 'setup' | 'change' | 'disable' | null;
 
 interface PinFormProps {
   onCancel: () => void;
   onSuccess: () => void;
-}
-
-function FormErrorMessage({ error }: { error: FormError }) {
-  const { t } = useTranslation();
-  if (error === null) {
-    return null;
-  }
-
-  const message =
-    error === 'sixDigits'
-      ? t(($) => $.vault.security.form.sixDigits)
-      : error === 'mismatch'
-        ? t(($) => $.vault.security.form.mismatch)
-        : error === 'unlockFailed'
-          ? t(($) => $.vault.security.form.unlockFailed)
-          : t(($) => $.vault.security.form.operationFailed);
-
-  return (
-    <p className={formStyles['error']} role="alert">
-      {message}
-    </p>
-  );
 }
 
 function FormButtons({
@@ -83,10 +60,25 @@ function FormButtons({
 function SetupPinForm({ onCancel, onSuccess }: PinFormProps) {
   const { t } = useTranslation();
   const { enablePin } = useVault();
+  const titleId = useId();
   const [pin, setPin] = useState('');
   const [confirmation, setConfirmation] = useState('');
+  const [step, setStep] = useState<'pin' | 'confirmation'>('pin');
+  const [pinRevealed, setPinRevealed] = useState(false);
   const [error, setError] = useState<FormError>(null);
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || pending) return;
+      event.preventDefault();
+      onCancel();
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [onCancel, pending]);
 
   const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -109,56 +101,128 @@ function SetupPinForm({ onCancel, onSuccess }: PinFormProps) {
     } finally {
       setPin('');
       setConfirmation('');
+      setStep('pin');
+      setPinRevealed(false);
       setPending(false);
     }
   };
 
+  const displayedPin = step === 'pin' ? pin : confirmation;
+  const displayedLabel =
+    step === 'pin'
+      ? t(($) => $.vault.security.setup.pinLabel)
+      : t(($) => $.vault.security.setup.confirmationLabel);
+  const errorMessage =
+    error === null
+      ? undefined
+      : error === 'mismatch'
+        ? t(($) => $.vault.security.form.mismatch)
+        : error === 'sixDigits'
+          ? t(($) => $.vault.security.form.sixDigits)
+          : t(($) => $.vault.security.form.operationFailed);
+  const ready = isSixDigitPin(pin) && isSixDigitPin(confirmation) && pin === confirmation;
+
+  const updateDisplayedPin = (nextPin: string): void => {
+    setError(null);
+    if (step === 'pin') {
+      setPin(nextPin);
+      if (nextPin.length === 6) {
+        setConfirmation('');
+        setStep('confirmation');
+        setPinRevealed(false);
+      }
+      return;
+    }
+    if (nextPin.length === 6 && nextPin !== pin) {
+      setPin('');
+      setConfirmation('');
+      setStep('pin');
+      setPinRevealed(false);
+      setError('mismatch');
+      return;
+    }
+    setConfirmation(nextPin);
+  };
+
   return (
-    <form
-      autoComplete="off"
-      className={styles['formPanel']}
-      noValidate
-      onSubmit={(event) => void submit(event)}
-    >
-      <h3>{t(($) => $.vault.security.setup.title)}</h3>
-      <p>{t(($) => $.vault.security.setup.description)}</p>
-      <PinField
-        autoFocus
-        disabled={pending}
-        invalid={error === 'sixDigits' || error === 'mismatch'}
-        label={t(($) => $.vault.security.setup.pinLabel)}
-        name="new-pin"
-        onChange={setPin}
-        value={pin}
-      />
-      <PinField
-        disabled={pending}
-        invalid={error === 'sixDigits' || error === 'mismatch'}
-        label={t(($) => $.vault.security.setup.confirmationLabel)}
-        name="new-pin-confirmation"
-        onChange={setConfirmation}
-        value={confirmation}
-      />
-      <FormErrorMessage error={error} />
-      <FormButtons
-        cancel={t(($) => $.vault.security.form.cancel)}
-        onCancel={onCancel}
-        pending={pending}
-        submit={t(($) => $.vault.security.setup.submit)}
-        submitPending={t(($) => $.vault.security.setup.working)}
-      />
-    </form>
+    <div className={styles['dialogBackdrop']}>
+      <form
+        aria-labelledby={titleId}
+        aria-modal="true"
+        autoComplete="off"
+        className={styles['pinDialog']}
+        noValidate
+        onSubmit={(event) => void submit(event)}
+        role="dialog"
+      >
+        <header className={styles['dialogHeader']}>
+          <h3 id={titleId}>{t(($) => $.vault.security.setup.title)}</h3>
+          <button
+            aria-label={t(($) => $.vault.security.form.cancel)}
+            className={styles['dialogCloseButton']}
+            disabled={pending}
+            onClick={onCancel}
+            type="button"
+          >
+            {'\u00d7'}
+          </button>
+        </header>
+        <p>{t(($) => $.vault.security.setup.description)}</p>
+        <PinKeypad
+          autoFocus
+          deleteDigitLabel={t(($) => $.tracker.onboarding.pin.deleteDigit)}
+          disabled={pending}
+          {...(errorMessage === undefined ? {} : { error: errorMessage })}
+          hidePinLabel={t(($) => $.tracker.onboarding.pin.hidePin, {
+            field: displayedLabel,
+          })}
+          keypadLabel={t(($) => $.tracker.onboarding.pin.keypadLabel)}
+          label={displayedLabel}
+          onChange={updateDisplayedPin}
+          onRevealChange={setPinRevealed}
+          placeholder={t(($) => $.tracker.onboarding.pin.placeholder)}
+          revealed={pinRevealed}
+          showPinLabel={t(($) => $.tracker.onboarding.pin.showPin, {
+            field: displayedLabel,
+          })}
+          value={displayedPin}
+        />
+        <FormButtons
+          cancel={t(($) => $.vault.security.form.cancel)}
+          onCancel={onCancel}
+          pending={pending}
+          submit={t(($) => $.vault.security.setup.submit)}
+          submitDisabled={!ready}
+          submitPending={t(($) => $.vault.security.setup.working)}
+        />
+      </form>
+    </div>
   );
 }
 
 function ChangePinForm({ onCancel, onSuccess }: PinFormProps) {
   const { t } = useTranslation();
   const { changePin } = useVault();
+  const titleId = useId();
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmation, setConfirmation] = useState('');
+  const [step, setStep] = useState<'current' | 'new' | 'confirmation'>('current');
+  const [pinRevealed, setPinRevealed] = useState(false);
   const [error, setError] = useState<FormError>(null);
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || pending) return;
+      event.preventDefault();
+      onCancel();
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [onCancel, pending]);
 
   const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -177,68 +241,157 @@ function ChangePinForm({ onCancel, onSuccess }: PinFormProps) {
       await changePin(currentPin, newPin);
       onSuccess();
     } catch (caught) {
-      setError(caught instanceof VaultUnlockError ? 'unlockFailed' : 'operationFailed');
+      if (caught instanceof VaultUnlockError) {
+        setCurrentPin('');
+        setNewPin('');
+        setConfirmation('');
+        setStep('current');
+        setPinRevealed(false);
+        setError('unlockFailed');
+      } else {
+        setError('operationFailed');
+      }
     } finally {
       setCurrentPin('');
       setNewPin('');
       setConfirmation('');
+      setStep('current');
+      setPinRevealed(false);
       setPending(false);
     }
   };
 
+  const displayedPin = step === 'current' ? currentPin : step === 'new' ? newPin : confirmation;
+  const displayedLabel =
+    step === 'current'
+      ? t(($) => $.vault.security.change.currentPinLabel)
+      : step === 'new'
+        ? t(($) => $.vault.security.change.newPinLabel)
+        : t(($) => $.vault.security.change.confirmationLabel);
+  const errorMessage =
+    error === null
+      ? undefined
+      : error === 'mismatch'
+        ? t(($) => $.vault.security.form.mismatch)
+        : error === 'unlockFailed'
+          ? t(($) => $.vault.security.form.unlockFailed)
+          : error === 'sixDigits'
+            ? t(($) => $.vault.security.form.sixDigits)
+            : t(($) => $.vault.security.form.operationFailed);
+  const ready =
+    isSixDigitPin(currentPin) &&
+    isSixDigitPin(newPin) &&
+    isSixDigitPin(confirmation) &&
+    newPin === confirmation;
+
+  const updateDisplayedPin = (nextPin: string): void => {
+    setError(null);
+    if (step === 'current') {
+      setCurrentPin(nextPin);
+      if (nextPin.length === 6) {
+        setNewPin('');
+        setStep('new');
+        setPinRevealed(false);
+      }
+      return;
+    }
+    if (step === 'new') {
+      setNewPin(nextPin);
+      if (nextPin.length === 6) {
+        setConfirmation('');
+        setStep('confirmation');
+        setPinRevealed(false);
+      }
+      return;
+    }
+    if (nextPin.length === 6 && nextPin !== newPin) {
+      setNewPin('');
+      setConfirmation('');
+      setStep('new');
+      setPinRevealed(false);
+      setError('mismatch');
+      return;
+    }
+    setConfirmation(nextPin);
+  };
+
   return (
-    <form
-      autoComplete="off"
-      className={styles['formPanel']}
-      noValidate
-      onSubmit={(event) => void submit(event)}
-    >
-      <h3>{t(($) => $.vault.security.change.title)}</h3>
-      <p>{t(($) => $.vault.security.change.description)}</p>
-      <PinField
-        autoFocus
-        disabled={pending}
-        invalid={error === 'sixDigits' || error === 'unlockFailed'}
-        label={t(($) => $.vault.security.change.currentPinLabel)}
-        name="current-pin"
-        onChange={setCurrentPin}
-        value={currentPin}
-      />
-      <PinField
-        disabled={pending}
-        invalid={error === 'sixDigits' || error === 'mismatch'}
-        label={t(($) => $.vault.security.change.newPinLabel)}
-        name="new-pin"
-        onChange={setNewPin}
-        value={newPin}
-      />
-      <PinField
-        disabled={pending}
-        invalid={error === 'sixDigits' || error === 'mismatch'}
-        label={t(($) => $.vault.security.change.confirmationLabel)}
-        name="new-pin-confirmation"
-        onChange={setConfirmation}
-        value={confirmation}
-      />
-      <FormErrorMessage error={error} />
-      <FormButtons
-        cancel={t(($) => $.vault.security.form.cancel)}
-        onCancel={onCancel}
-        pending={pending}
-        submit={t(($) => $.vault.security.change.submit)}
-        submitPending={t(($) => $.vault.security.change.working)}
-      />
-    </form>
+    <div className={styles['dialogBackdrop']}>
+      <form
+        aria-labelledby={titleId}
+        aria-modal="true"
+        autoComplete="off"
+        className={styles['pinDialog']}
+        noValidate
+        onSubmit={(event) => void submit(event)}
+        role="dialog"
+      >
+        <header className={styles['dialogHeader']}>
+          <h3 id={titleId}>{t(($) => $.vault.security.change.title)}</h3>
+          <button
+            aria-label={t(($) => $.vault.security.form.cancel)}
+            className={styles['dialogCloseButton']}
+            disabled={pending}
+            onClick={onCancel}
+            type="button"
+          >
+            {'\u00d7'}
+          </button>
+        </header>
+        <p>{t(($) => $.vault.security.change.description)}</p>
+        <PinKeypad
+          autoFocus
+          deleteDigitLabel={t(($) => $.tracker.onboarding.pin.deleteDigit)}
+          disabled={pending}
+          {...(errorMessage === undefined ? {} : { error: errorMessage })}
+          hidePinLabel={t(($) => $.tracker.onboarding.pin.hidePin, {
+            field: displayedLabel,
+          })}
+          keypadLabel={t(($) => $.tracker.onboarding.pin.keypadLabel)}
+          label={displayedLabel}
+          onChange={updateDisplayedPin}
+          onRevealChange={setPinRevealed}
+          placeholder={t(($) => $.tracker.onboarding.pin.placeholder)}
+          revealed={pinRevealed}
+          showPinLabel={t(($) => $.tracker.onboarding.pin.showPin, {
+            field: displayedLabel,
+          })}
+          value={displayedPin}
+        />
+        <FormButtons
+          cancel={t(($) => $.vault.security.form.cancel)}
+          onCancel={onCancel}
+          pending={pending}
+          submit={t(($) => $.vault.security.change.submit)}
+          submitDisabled={!ready}
+          submitPending={t(($) => $.vault.security.change.working)}
+        />
+      </form>
+    </div>
   );
 }
 
 function DisablePinForm({ onCancel, onSuccess }: PinFormProps) {
   const { t } = useTranslation();
   const { disablePin } = useVault();
+  const titleId = useId();
   const [currentPin, setCurrentPin] = useState('');
+  const [pinRevealed, setPinRevealed] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState<FormError>(null);
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || pending) return;
+      event.preventDefault();
+      onCancel();
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [onCancel, pending]);
 
   const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -259,59 +412,114 @@ function DisablePinForm({ onCancel, onSuccess }: PinFormProps) {
       setError(caught instanceof VaultUnlockError ? 'unlockFailed' : 'operationFailed');
     } finally {
       setCurrentPin('');
+      setPinRevealed(false);
       setPending(false);
     }
   };
 
+  const currentPinLabel = t(($) => $.vault.security.disable.currentPinLabel);
+  const errorMessage =
+    error === null
+      ? undefined
+      : error === 'unlockFailed'
+        ? t(($) => $.vault.security.form.unlockFailed)
+        : error === 'sixDigits'
+          ? t(($) => $.vault.security.form.sixDigits)
+          : t(($) => $.vault.security.form.operationFailed);
+
   return (
-    <form
-      autoComplete="off"
-      className={styles['formPanel']}
-      noValidate
-      onSubmit={(event) => void submit(event)}
-    >
-      <h3>{t(($) => $.vault.security.disable.title)}</h3>
-      <p>{t(($) => $.vault.security.disable.description)}</p>
-      <PinField
-        autoFocus
-        disabled={pending}
-        invalid={error === 'sixDigits' || error === 'unlockFailed'}
-        label={t(($) => $.vault.security.disable.currentPinLabel)}
-        name="current-pin"
-        onChange={setCurrentPin}
-        value={currentPin}
-      />
-      <label className={formStyles['confirmation']}>
-        <input
-          checked={confirmed}
+    <div className={styles['dialogBackdrop']}>
+      <form
+        aria-labelledby={titleId}
+        aria-modal="true"
+        autoComplete="off"
+        className={styles['pinDialog']}
+        noValidate
+        onSubmit={(event) => void submit(event)}
+        role="dialog"
+      >
+        <header className={styles['dialogHeader']}>
+          <h3 id={titleId}>{t(($) => $.vault.security.disable.title)}</h3>
+          <button
+            aria-label={t(($) => $.vault.security.form.cancel)}
+            className={styles['dialogCloseButton']}
+            disabled={pending}
+            onClick={onCancel}
+            type="button"
+          >
+            {'\u00d7'}
+          </button>
+        </header>
+        <p>{t(($) => $.vault.security.disable.description)}</p>
+        <PinKeypad
+          autoFocus
+          deleteDigitLabel={t(($) => $.tracker.onboarding.pin.deleteDigit)}
           disabled={pending}
-          onChange={(event) => {
-            setConfirmed(event.currentTarget.checked);
+          {...(errorMessage === undefined ? {} : { error: errorMessage })}
+          hidePinLabel={t(($) => $.tracker.onboarding.pin.hidePin, {
+            field: currentPinLabel,
+          })}
+          keypadLabel={t(($) => $.tracker.onboarding.pin.keypadLabel)}
+          label={currentPinLabel}
+          onChange={(value) => {
+            setCurrentPin(value);
+            setError(null);
           }}
-          type="checkbox"
+          onRevealChange={setPinRevealed}
+          placeholder={t(($) => $.tracker.onboarding.pin.placeholder)}
+          revealed={pinRevealed}
+          showPinLabel={t(($) => $.tracker.onboarding.pin.showPin, {
+            field: currentPinLabel,
+          })}
+          value={currentPin}
         />
-        <span>{t(($) => $.vault.security.disable.confirmation)}</span>
-      </label>
-      <FormErrorMessage error={error} />
-      <FormButtons
-        cancel={t(($) => $.vault.security.form.cancel)}
-        destructive
-        onCancel={onCancel}
-        pending={pending}
-        submit={t(($) => $.vault.security.disable.submit)}
-        submitDisabled={!confirmed}
-        submitPending={t(($) => $.vault.security.disable.working)}
-      />
-    </form>
+        <label className={formStyles['confirmation']}>
+          <input
+            checked={confirmed}
+            disabled={pending}
+            onChange={(event) => {
+              setConfirmed(event.currentTarget.checked);
+            }}
+            type="checkbox"
+          />
+          <span>{t(($) => $.vault.security.disable.confirmation)}</span>
+        </label>
+        <FormButtons
+          cancel={t(($) => $.vault.security.form.cancel)}
+          destructive
+          onCancel={onCancel}
+          pending={pending}
+          submit={t(($) => $.vault.security.disable.submit)}
+          submitDisabled={!confirmed || !isSixDigitPin(currentPin)}
+          submitPending={t(($) => $.vault.security.disable.working)}
+        />
+      </form>
+    </div>
   );
 }
 
 function ResetForm({ onCancel, onSuccess }: PinFormProps) {
   const { t } = useTranslation();
-  const { eraseEverything } = useVault();
+  const { eraseEverything, snapshot, verifyCurrentPin } = useVault();
+  const titleId = useId();
+  const pinEnabled = snapshot.phase === 'unlocked' && snapshot.pinEnabled;
+  const [currentPin, setCurrentPin] = useState('');
+  const [pinRevealed, setPinRevealed] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState<FormError>(null);
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || pending) return;
+      event.preventDefault();
+      onCancel();
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [onCancel, pending]);
 
   const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -322,51 +530,159 @@ function ResetForm({ onCancel, onSuccess }: PinFormProps) {
     setError(null);
     setPending(true);
     try {
+      if (pinEnabled) {
+        if (!isSixDigitPin(currentPin)) {
+          setError('sixDigits');
+          setPending(false);
+          return;
+        }
+        await verifyCurrentPin(currentPin);
+      }
       await eraseEverything();
       onSuccess();
-    } catch {
-      setError('operationFailed');
+    } catch (caught) {
+      setError(caught instanceof VaultUnlockError ? 'unlockFailed' : 'operationFailed');
+      setCurrentPin('');
+      setPinRevealed(false);
       setPending(false);
     }
   };
 
+  const currentPinLabel = t(($) => $.vault.security.disable.currentPinLabel);
+  const errorMessage =
+    error === null
+      ? undefined
+      : error === 'unlockFailed'
+        ? t(($) => $.vault.security.form.unlockFailed)
+        : error === 'sixDigits'
+          ? t(($) => $.vault.security.form.sixDigits)
+          : t(($) => $.vault.security.form.operationFailed);
+
   return (
-    <form
-      autoComplete="off"
-      className={styles['formPanel']}
-      onSubmit={(event) => void submit(event)}
-    >
-      <h3>{t(($) => $.vault.security.reset.title)}</h3>
-      <p>{t(($) => $.vault.security.reset.description)}</p>
-      <label className={formStyles['confirmation']}>
-        <input
-          autoFocus
-          checked={confirmed}
-          disabled={pending}
-          onChange={(event) => {
-            setConfirmed(event.currentTarget.checked);
-          }}
-          type="checkbox"
+    <div className={styles['dialogBackdrop']}>
+      <form
+        aria-labelledby={titleId}
+        aria-modal="true"
+        autoComplete="off"
+        className={styles['pinDialog']}
+        onSubmit={(event) => void submit(event)}
+        role="dialog"
+      >
+        <header className={styles['dialogHeader']}>
+          <h3 id={titleId}>{t(($) => $.vault.security.reset.title)}</h3>
+          <button
+            aria-label={t(($) => $.vault.security.form.cancel)}
+            className={styles['dialogCloseButton']}
+            disabled={pending}
+            onClick={onCancel}
+            type="button"
+          >
+            {'\u00d7'}
+          </button>
+        </header>
+        <p>{t(($) => $.vault.security.reset.description)}</p>
+        {pinEnabled ? (
+          <PinKeypad
+            autoFocus
+            deleteDigitLabel={t(($) => $.tracker.onboarding.pin.deleteDigit)}
+            disabled={pending}
+            {...(errorMessage === undefined ? {} : { error: errorMessage })}
+            hidePinLabel={t(($) => $.tracker.onboarding.pin.hidePin, {
+              field: currentPinLabel,
+            })}
+            keypadLabel={t(($) => $.tracker.onboarding.pin.keypadLabel)}
+            label={currentPinLabel}
+            onChange={(value) => {
+              setCurrentPin(value);
+              setError(null);
+            }}
+            onRevealChange={setPinRevealed}
+            placeholder={t(($) => $.tracker.onboarding.pin.placeholder)}
+            revealed={pinRevealed}
+            showPinLabel={t(($) => $.tracker.onboarding.pin.showPin, {
+              field: currentPinLabel,
+            })}
+            value={currentPin}
+          />
+        ) : errorMessage === undefined ? null : (
+          <p className={formStyles['error']} role="alert">
+            {errorMessage}
+          </p>
+        )}
+        <label className={formStyles['confirmation']}>
+          <input
+            autoFocus={!pinEnabled}
+            checked={confirmed}
+            disabled={pending}
+            onChange={(event) => {
+              setConfirmed(event.currentTarget.checked);
+            }}
+            type="checkbox"
+          />
+          <span>{t(($) => $.vault.security.reset.confirmation)}</span>
+        </label>
+        <FormButtons
+          cancel={t(($) => $.vault.security.form.cancel)}
+          destructive
+          onCancel={onCancel}
+          pending={pending}
+          submit={t(($) => $.vault.security.reset.submit)}
+          submitDisabled={!confirmed || (pinEnabled && !isSixDigitPin(currentPin))}
+          submitPending={t(($) => $.vault.security.reset.working)}
         />
-        <span>{t(($) => $.vault.security.reset.confirmation)}</span>
-      </label>
-      <FormErrorMessage error={error} />
-      <FormButtons
-        cancel={t(($) => $.vault.security.form.cancel)}
-        destructive
-        onCancel={onCancel}
-        pending={pending}
-        submit={t(($) => $.vault.security.reset.submit)}
-        submitDisabled={!confirmed}
-        submitPending={t(($) => $.vault.security.reset.working)}
-      />
-    </form>
+      </form>
+    </div>
   );
 }
 
-function isAutoLockDelay(value: string): value is AutoLockDelay {
+export function EraseDataControl() {
+  const { t } = useTranslation();
+  const { resetNotice, snapshot } = useVault();
+  const [confirming, setConfirming] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const shouldRestoreFocusRef = useRef(false);
+
+  useEffect(() => {
+    if (!confirming && shouldRestoreFocusRef.current) {
+      triggerRef.current?.focus();
+      shouldRestoreFocusRef.current = false;
+    }
+  }, [confirming]);
+
+  if (snapshot.phase !== 'unlocked') {
+    return null;
+  }
+
   return (
-    value === 'immediate' || value === '1-minute' || value === '5-minutes' || value === '15-minutes'
+    <section className={styles['dangerControls']}>
+      <h3>{t(($) => $.mobile.privacy.danger.title)}</h3>
+      <p>{t(($) => $.mobile.privacy.danger.description)}</p>
+      {resetNotice === 'preferences-retained' ? (
+        <p className={styles['success']} role="status">
+          {t(($) => $.vault.security.reset.partialSuccess)}
+        </p>
+      ) : null}
+      {confirming ? (
+        <ResetForm
+          onCancel={() => {
+            shouldRestoreFocusRef.current = true;
+            setConfirming(false);
+          }}
+          onSuccess={() => undefined}
+        />
+      ) : (
+        <button
+          className={formStyles['dangerButton']}
+          onClick={() => {
+            setConfirming(true);
+          }}
+          ref={triggerRef}
+          type="button"
+        >
+          {t(($) => $.vault.security.actions.eraseEverything)}
+        </button>
+      )}
+    </section>
   );
 }
 
@@ -380,19 +696,13 @@ export function PinSecurityPanel({
   setupRequest = 0,
 }: PinSecurityPanelProps) {
   const { t } = useTranslation();
-  const { lock, pinProtectionAvailable, resetNotice, snapshot, updateAutoLockDelay } = useVault();
+  const { pinProtectionAvailable, snapshot } = useVault();
   const [mode, setMode] = useState<PanelMode>('summary');
   const [success, setSuccess] = useState<SuccessMessage>(null);
-  const [autoLockPending, setAutoLockPending] = useState(false);
-  const [autoLockFailed, setAutoLockFailed] = useState(false);
-  const [dangerOpen, setDangerOpen] = useState(false);
-  const dangerControlsId = useId();
   const returnFocusModeRef = useRef<EditablePanelMode | null>(null);
-  const lockTriggerRef = useRef<HTMLButtonElement>(null);
   const setupTriggerRef = useRef<HTMLButtonElement>(null);
   const changeTriggerRef = useRef<HTMLButtonElement>(null);
   const disableTriggerRef = useRef<HTMLButtonElement>(null);
-  const resetTriggerRef = useRef<HTMLButtonElement>(null);
   const handledSetupRequestRef = useRef(0);
 
   useEffect(() => {
@@ -428,15 +738,9 @@ export function PinSecurityPanel({
         ? setupTriggerRef.current
         : returnMode === 'change'
           ? changeTriggerRef.current
-          : returnMode === 'disable'
-            ? disableTriggerRef.current
-            : resetTriggerRef.current;
+          : disableTriggerRef.current;
     const fallbackTarget =
-      lockTriggerRef.current ??
-      setupTriggerRef.current ??
-      changeTriggerRef.current ??
-      disableTriggerRef.current ??
-      resetTriggerRef.current;
+      setupTriggerRef.current ?? changeTriggerRef.current ?? disableTriggerRef.current;
 
     (preferredTarget ?? fallbackTarget)?.focus();
     returnFocusModeRef.current = null;
@@ -470,22 +774,11 @@ export function PinSecurityPanel({
         ? t(($) => $.vault.security.change.success)
         : success === 'disable'
           ? t(($) => $.vault.security.disable.success)
-          : success === 'reset'
-            ? resetNotice === 'preferences-retained'
-              ? t(($) => $.vault.security.reset.partialSuccess)
-              : t(($) => $.vault.security.reset.success)
-            : null;
-  const autoLockOptions = [
-    { value: 'immediate', label: t(($) => $.vault.security.autoLock.options.immediate) },
-    { value: '1-minute', label: t(($) => $.vault.security.autoLock.options.oneMinute) },
-    { value: '5-minutes', label: t(($) => $.vault.security.autoLock.options.fiveMinutes) },
-    { value: '15-minutes', label: t(($) => $.vault.security.autoLock.options.fifteenMinutes) },
-  ] as const satisfies readonly { value: AutoLockDelay; label: string }[];
+          : null;
 
   return (
     <section className={styles['panel']} aria-labelledby="security-title">
       <div className={styles['heading']}>
-        <p className={styles['eyebrow']}>{t(($) => $.vault.security.eyebrow)}</p>
         <h2 id="security-title">{t(($) => $.vault.security.title)}</h2>
         <p>{t(($) => $.vault.security.description)}</p>
       </div>
@@ -511,55 +804,9 @@ export function PinSecurityPanel({
             {successMessage}
           </p>
         ) : null}
-        {successMessage === null && resetNotice === 'preferences-retained' ? (
-          <p className={styles['success']} role="status">
-            {t(($) => $.vault.security.reset.partialSuccess)}
-          </p>
-        ) : null}
         {!pinProtectionAvailable && !snapshot.pinEnabled ? (
           <p className={styles['warning']} role="status">
             {t(($) => $.vault.security.cryptoUnavailable)}
-          </p>
-        ) : null}
-
-        {snapshot.pinEnabled ? (
-          <label className={styles['selectField']}>
-            <span>{t(($) => $.vault.security.autoLock.label)}</span>
-            <select
-              disabled={autoLockPending}
-              onChange={(event) => {
-                const delay = event.currentTarget.value;
-                if (!isAutoLockDelay(delay)) {
-                  return;
-                }
-                setAutoLockFailed(false);
-                setAutoLockPending(true);
-                void updateAutoLockDelay(delay)
-                  .catch(() => {
-                    setAutoLockFailed(true);
-                  })
-                  .finally(() => {
-                    setAutoLockPending(false);
-                  });
-              }}
-              value={snapshot.payload.settings.autoLockDelay}
-            >
-              {autoLockOptions.map(({ value, label }) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
-        {autoLockPending ? (
-          <p className={styles['secondaryStatus']} aria-live="polite">
-            {t(($) => $.vault.security.autoLock.saving)}
-          </p>
-        ) : null}
-        {autoLockFailed ? (
-          <p className={formStyles['error']} role="alert">
-            {t(($) => $.vault.security.autoLock.failed)}
           </p>
         ) : null}
 
@@ -567,14 +814,6 @@ export function PinSecurityPanel({
           <div className={styles['actions']}>
             {snapshot.pinEnabled ? (
               <>
-                <button
-                  className={formStyles['primaryButton']}
-                  onClick={lock}
-                  ref={lockTriggerRef}
-                  type="button"
-                >
-                  {t(($) => $.vault.security.protected.lockNow)}
-                </button>
                 <button
                   className={formStyles['secondaryButton']}
                   onClick={() => {
@@ -611,40 +850,6 @@ export function PinSecurityPanel({
           </div>
         ) : null}
 
-        {mode === 'summary' ? (
-          <div className={styles['dangerDisclosure']}>
-            <button
-              aria-controls={dangerControlsId}
-              aria-expanded={dangerOpen}
-              className={formStyles['secondaryButton']}
-              onClick={() => {
-                setDangerOpen((current) => !current);
-              }}
-              type="button"
-            >
-              {dangerOpen
-                ? t(($) => $.mobile.privacy.danger.hide)
-                : t(($) => $.mobile.privacy.danger.show)}
-            </button>
-            {dangerOpen ? (
-              <section className={styles['dangerControls']} id={dangerControlsId}>
-                <h3>{t(($) => $.mobile.privacy.danger.title)}</h3>
-                <p>{t(($) => $.mobile.privacy.danger.description)}</p>
-                <button
-                  className={formStyles['dangerButton']}
-                  onClick={() => {
-                    open('reset');
-                  }}
-                  ref={resetTriggerRef}
-                  type="button"
-                >
-                  {t(($) => $.vault.security.actions.eraseEverything)}
-                </button>
-              </section>
-            ) : null}
-          </div>
-        ) : null}
-
         {mode === 'setup' ? (
           <SetupPinForm
             onCancel={cancel}
@@ -666,14 +871,6 @@ export function PinSecurityPanel({
             onCancel={cancel}
             onSuccess={() => {
               complete('disable');
-            }}
-          />
-        ) : null}
-        {mode === 'reset' ? (
-          <ResetForm
-            onCancel={cancel}
-            onSuccess={() => {
-              complete('reset');
             }}
           />
         ) : null}

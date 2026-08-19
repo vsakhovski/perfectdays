@@ -516,8 +516,6 @@ export const de = {
           'Heruntergeladene Sicherungen und Exporte liegen außerhalb der App und werden durch „Alles löschen“ nicht entfernt.',
       },
       danger: {
-        show: 'Optionen zum Löschen anzeigen',
-        hide: 'Optionen zum Löschen ausblenden',
         title: 'Daten endgültig löschen',
         description:
           'Beim Löschen werden dieses Tagebuch und seine App-Einstellungen dauerhaft aus diesem Browser entfernt.',
@@ -609,7 +607,6 @@ export const de = {
         'Das Entsperren per PIN ist in diesem Browser oder über diese Verbindung nicht verfügbar. Deine gespeicherten Daten wurden nicht verändert. Öffne die App in einem unterstützten sicheren Browser, bevor du ein Zurücksetzen erwägst.',
       pinLabel: 'PIN',
       pinHint: 'Gib sechs Ziffern ein.',
-      unlock: 'Entsperren',
       unlocking: 'Wird entsperrt…',
       failed: 'Die App konnte nicht entsperrt werden. Prüfe die PIN und versuche es erneut.',
       forgotPin: 'PIN vergessen?',
@@ -624,10 +621,8 @@ export const de = {
         failed:
           'Die lokalen Daten konnten nicht gelöscht werden. Es wurde nichts absichtlich entfernt.',
       },
-      preferences: 'Einstellungen auf dem Sperrbildschirm',
     },
     backup: {
-      sectionLabel: 'Datenübertragung',
       title: 'Tagebuch sichern oder wiederherstellen',
       description:
         'Verschlüsselte Sicherungen bleiben durch ihre Sicherungs-PIN geschützt. Heruntergeladene Dateien liegen außerhalb dieser App und werden durch „Alles löschen“ nicht entfernt.',
@@ -639,17 +634,15 @@ export const de = {
         title: 'Verschlüsselte Sicherung',
         description:
           'Lade eine übertragbare verschlüsselte Kopie herunter. Sie bleibt durch die jetzt verwendete PIN geschützt, auch wenn du die App-PIN später änderst.',
-        action: 'Verschlüsselte Sicherung herunterladen',
+        action: 'Verschlüsselte Sicherung exportieren',
         working: 'Verschlüsselte Sicherung wird vorbereitet…',
         pinRequired: 'Aktiviere den PIN-Schutz, bevor du eine verschlüsselte Sicherung erstellst.',
         enablePin: 'PIN-Schutz einrichten',
         enablingPin: 'PIN-Einrichtung wird geöffnet…',
       },
       plaintext: {
-        title: 'Lesbarer Export',
-        description:
-          'Eine lesbare JSON-Kopie ist nur nach einem gesonderten Datenschutzhinweis verfügbar.',
-        reviewWarning: 'Warnung zum lesbaren Export prüfen',
+        title: 'Menschenlesbarer Export',
+        reviewWarning: 'Menschenlesbaren Export herunterladen',
         warningTitle: 'Diese Datei enthält lesbare sensible Daten',
         warning:
           'Jede Person mit Zugriff auf diese unverschlüsselte Datei kann alle Periodendaten, Bewertungen und privaten Notizen darin lesen. Bewahre und teile sie mit größter Sorgfalt.',
@@ -658,6 +651,7 @@ export const de = {
         action: 'Lesbare Daten exportieren',
         working: 'Lesbarer Export wird vorbereitet…',
         cancel: 'Lesbaren Export abbrechen',
+        close: 'Dialog für menschenlesbaren Export schließen',
       },
       restore: {
         title: 'Verschlüsselte Sicherung wiederherstellen',
@@ -674,15 +668,21 @@ export const de = {
         pinHint: 'Gib die sechsstellige PIN ein, die beim Erstellen dieser Sicherung galt.',
         confirmation:
           'Ich verstehe, dass eine bestätigte Wiederherstellung mein aktuelles lokales Tagebuch ersetzt.',
-        action: 'Prüfen und aktuelles Tagebuch ersetzen',
+        action: 'Aus ausgewählter Sicherung wiederherstellen',
         working: 'Verschlüsselte Sicherung wird geprüft…',
-        clear: 'Wiederherstellungsformular leeren',
+        clear: 'Wiederherstellung abbrechen',
+        close: 'Wiederherstellungsdialog schließen',
+        verifyPin: 'Sicherungs-PIN prüfen',
+        verifyingPin: 'Sicherungs-PIN wird geprüft...',
         validation: {
           fileRequired: 'Wähle eine verschlüsselte JSON-Sicherung aus.',
           jsonRequired: 'Wähle eine Datei, deren Name auf .json endet.',
           fileTooLarge: 'Wähle eine Sicherung mit höchstens {{maximumMegabytes}} MB.',
+          invalidBackup: 'Wähle eine gültige verschlüsselte JSON-Sicherung aus dieser App.',
           pinRequired: 'Gib die Sicherungs-PIN ein.',
           pinInvalid: 'Gib genau sechs Ziffern ein.',
+          verificationFailed:
+            'Die Sicherung oder PIN konnte nicht bestÃ¤tigt werden. Versuche es erneut.',
           confirmationRequired: 'Bestätige, dass das aktuelle Tagebuch ersetzt wird.',
         },
       },
@@ -700,34 +700,21 @@ export const de = {
       },
     },
     security: {
-      eyebrow: 'Datenschutz',
-      title: 'PIN-Sperre und lokaler Datentresor',
+      title: 'PIN-Schutz',
       description:
-        'Eine PIN schützt das Tagebuch, wenn diese App geschlossen oder im Hintergrund gelassen wird.',
+        'Eine PIN verschlüsselt das Tagebuch und sperrt es sofort, sobald die App in den Hintergrund wechselt.',
       cryptoUnavailable:
         'Der PIN-Schutz ist nicht verfügbar, weil dieser Browser oder diese Verbindung die Prüfung der sicheren Verschlüsselung nicht bestanden hat.',
       protected: {
         status: 'PIN-Schutz ist aktiviert',
         description:
           'Die Tagebuchdaten sind in diesem Browser verschlüsselt gespeichert. Die PIN kann nicht wiederhergestellt werden.',
-        lockNow: 'Jetzt sperren',
       },
       unprotected: {
         status: 'PIN-Schutz ist deaktiviert',
         description:
           'Die Tagebuchdaten werden derzeit ohne Verschlüsselung durch die App und ohne Zugangssperre gespeichert.',
         recommendation: 'PIN einrichten',
-      },
-      autoLock: {
-        label: 'Nach Verlassen der App sperren',
-        options: {
-          immediate: 'Sofort',
-          oneMinute: 'Nach 1 Minute',
-          fiveMinutes: 'Nach 5 Minuten',
-          fifteenMinutes: 'Nach 15 Minuten',
-        },
-        saving: 'Einstellung für automatische Sperre wird gespeichert…',
-        failed: 'Die Einstellung für die automatische Sperre konnte nicht gespeichert werden.',
       },
       actions: {
         changePin: 'PIN ändern',

@@ -16,6 +16,7 @@ import {
   MAX_TYPICAL_CYCLE_LENGTH,
 } from '../../domain/tracking-settings';
 import { isSixDigitPin } from '../vault/pin';
+import { PinKeypad } from '../vault/PinKeypad';
 import { OnboardingDatePicker, type OnboardingDatePickerCopy } from './OnboardingDatePicker';
 import styles from './onboarding.module.css';
 
@@ -159,8 +160,6 @@ const MAXIMUM_SWIPE_FEEDBACK = 42;
 const TYPICAL_CYCLE_LENGTHS = [26, 27, 28, 29, 30] as const;
 const TYPICAL_BLEED_DURATIONS = [3, 4, 5, 6, 7] as const;
 const TYPICAL_ORANGE_DAYS = [3, 4, 5, 6, 7] as const;
-const PIN_DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
-const PIN_ZERO = '0';
 
 type OptionalEstimateField = 'typicalCycleLength' | 'typicalBleedDuration';
 
@@ -470,12 +469,11 @@ export function TrackerOnboarding({
     setPinSetupStarted(true);
   };
 
-  const enterPinDigit = (digit: string): void => {
+  const updateDisplayedPin = (nextValue: string): void => {
     setPinError(undefined);
     if (pinEntryStep === 'first') {
-      const nextPin = `${pin}${digit}`.slice(0, 6);
-      setPin(nextPin);
-      if (nextPin.length === 6) {
+      setPin(nextValue);
+      if (nextValue.length === 6) {
         setPinConfirmation('');
         setPinEntryStep('confirmation');
         setPinRevealed(false);
@@ -483,8 +481,7 @@ export function TrackerOnboarding({
       return;
     }
 
-    const nextConfirmation = `${pinConfirmation}${digit}`.slice(0, 6);
-    if (nextConfirmation.length === 6 && nextConfirmation !== pin) {
+    if (nextValue.length === 6 && nextValue !== pin) {
       setPin('');
       setPinConfirmation('');
       setPinEntryStep('first');
@@ -492,13 +489,7 @@ export function TrackerOnboarding({
       setPinError(copy.validation.pinMismatch);
       return;
     }
-    setPinConfirmation(nextConfirmation);
-  };
-
-  const deletePinDigit = (): void => {
-    setPinError(undefined);
-    if (pinEntryStep === 'first') setPin((current) => current.slice(0, -1));
-    else setPinConfirmation((current) => current.slice(0, -1));
+    setPinConfirmation(nextValue);
   };
 
   const canAddHistory =
@@ -897,99 +888,20 @@ export function TrackerOnboarding({
         </p>
       ) : pinProtectionAvailable ? (
         pinSetupStarted ? (
-          <div className={styles['pinEntry']}>
-            <p aria-live="polite" className={styles['pinPrompt']} id={`${idPrefix}-pin-prompt`}>
-              {displayedPinLabel}
-            </p>
-            <div className={styles['pinDisplayShell']}>
-              <input
-                aria-describedby={pinError ? `${idPrefix}-pin-error` : undefined}
-                aria-invalid={pinError !== undefined}
-                aria-labelledby={`${idPrefix}-pin-prompt`}
-                autoComplete="off"
-                className={styles['pinDisplay']}
-                data-masked={!pinRevealed || displayedPin.length === 0}
-                placeholder={copy.pin.placeholder}
-                readOnly
-                tabIndex={-1}
-                type="text"
-                value={
-                  pinRevealed ? displayedPin : copy.pin.placeholder.slice(0, displayedPin.length)
-                }
-              />
-              {pinRevealed && displayedPin.length > 0 ? null : (
-                <span aria-hidden="true" className={styles['pinMask']}>
-                  <span className={styles['pinMaskText']}>
-                    {displayedPin.length === 0
-                      ? copy.pin.placeholder
-                      : copy.pin.placeholder.slice(0, displayedPin.length)}
-                  </span>
-                </span>
-              )}
-              <button
-                aria-label={
-                  pinRevealed
-                    ? copy.pin.hidePin(displayedPinLabel)
-                    : copy.pin.showPin(displayedPinLabel)
-                }
-                aria-pressed={pinRevealed}
-                className={styles['pinRevealButton']}
-                disabled={controlsDisabled}
-                onClick={() => {
-                  setPinRevealed((current) => !current);
-                }}
-                type="button"
-              >
-                <svg aria-hidden="true" viewBox="0 0 24 24">
-                  <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
-                  <circle cx="12" cy="12" r="2.75" />
-                  {pinRevealed ? <path d="m4 4 16 16" /> : null}
-                </svg>
-              </button>
-            </div>
-            <div className={styles['pinValidationSlot']}>
-              {pinError ? (
-                <p className={styles['fieldError']} id={`${idPrefix}-pin-error`} role="alert">
-                  {pinError}
-                </p>
-              ) : null}
-            </div>
-            <div aria-label={copy.pin.keypadLabel} className={styles['pinKeypad']} role="group">
-              {PIN_DIGITS.map((digit) => (
-                <button
-                  disabled={controlsDisabled || displayedPin.length >= 6}
-                  key={digit}
-                  onClick={() => {
-                    enterPinDigit(digit);
-                  }}
-                  type="button"
-                >
-                  {digit}
-                </button>
-              ))}
-              <span aria-hidden="true" className={styles['pinKeypadSpacer']} />
-              <button
-                disabled={controlsDisabled || displayedPin.length >= 6}
-                onClick={() => {
-                  enterPinDigit(PIN_ZERO);
-                }}
-                type="button"
-              >
-                {PIN_ZERO}
-              </button>
-              <button
-                aria-label={copy.pin.deleteDigit}
-                disabled={controlsDisabled || displayedPin.length === 0}
-                onClick={deletePinDigit}
-                type="button"
-              >
-                <svg aria-hidden="true" viewBox="0 0 24 24">
-                  <path d="m10 7-5 5 5 5h9V7h-9Z" />
-                  <path d="m13 10 4 4m0-4-4 4" />
-                </svg>
-              </button>
-            </div>
-          </div>
+          <PinKeypad
+            deleteDigitLabel={copy.pin.deleteDigit}
+            disabled={controlsDisabled}
+            {...(pinError === undefined ? {} : { error: pinError })}
+            hidePinLabel={copy.pin.hidePin(displayedPinLabel)}
+            keypadLabel={copy.pin.keypadLabel}
+            label={displayedPinLabel}
+            onChange={updateDisplayedPin}
+            onRevealChange={setPinRevealed}
+            placeholder={copy.pin.placeholder}
+            revealed={pinRevealed}
+            showPinLabel={copy.pin.showPin(displayedPinLabel)}
+            value={displayedPin}
+          />
         ) : (
           <button
             className={[styles['primaryButton'], styles['startPinButton']].join(' ')}

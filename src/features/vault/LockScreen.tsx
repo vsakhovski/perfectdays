@@ -2,20 +2,16 @@ import { useId, useRef, useState, type SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useVault } from '../../app/vault/use-vault';
-import { LanguageControl } from '../settings/LanguageControl';
-import { ThemeControl } from '../settings/ThemeControl';
-import { PinField } from './PinField';
-import { isSixDigitPin } from './pin';
+import { PinKeypad } from './PinKeypad';
 import styles from './vault-ui.module.css';
-
-type UnlockError = 'invalid' | 'failed' | null;
 
 export function LockScreen() {
   const { t } = useTranslation();
   const { eraseEverything, pinProtectionAvailable, unlock } = useVault();
   const [pin, setPin] = useState('');
+  const [pinRevealed, setPinRevealed] = useState(false);
   const [pending, setPending] = useState(false);
-  const [unlockError, setUnlockError] = useState<UnlockError>(null);
+  const [unlockFailed, setUnlockFailed] = useState(false);
   const [showReset, setShowReset] = useState(false);
   const [resetConfirmed, setResetConfirmed] = useState(false);
   const [resetPending, setResetPending] = useState(false);
@@ -24,24 +20,24 @@ export function LockScreen() {
   const resetPanelTitleId = useId();
   const resetToggleRef = useRef<HTMLButtonElement>(null);
 
-  const submitUnlock = async (event: SyntheticEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setUnlockError(null);
-
-    if (!isSixDigitPin(pin)) {
-      setUnlockError('invalid');
-      return;
-    }
-
+  const submitPin = async (nextPin: string): Promise<void> => {
+    if (pending || nextPin.length !== 6) return;
     setPending(true);
     try {
-      await unlock(pin);
+      await unlock(nextPin);
     } catch {
-      setUnlockError('failed');
+      setUnlockFailed(true);
     } finally {
       setPin('');
+      setPinRevealed(false);
       setPending(false);
     }
+  };
+
+  const updatePin = (nextPin: string): void => {
+    setUnlockFailed(false);
+    setPin(nextPin);
+    if (nextPin.length === 6) void submitPin(nextPin);
   };
 
   const submitReset = async (event: SyntheticEvent<HTMLFormElement>) => {
@@ -87,33 +83,33 @@ export function LockScreen() {
         </p>
 
         {pinProtectionAvailable ? (
-          <form
-            autoComplete="off"
-            className={styles['form']}
-            noValidate
-            onSubmit={(event) => void submitUnlock(event)}
-          >
-            <PinField
+          <div className={styles['lockPinEntry']}>
+            <PinKeypad
               autoFocus
+              deleteDigitLabel={t(($) => $.tracker.onboarding.pin.deleteDigit)}
               disabled={pending}
-              invalid={unlockError !== null}
+              {...(unlockFailed ? { error: t(($) => $.vault.lock.failed) } : {})}
+              hidePinLabel={t(($) => $.tracker.onboarding.pin.hidePin, {
+                field: t(($) => $.vault.lock.pinLabel),
+              })}
+              keypadLabel={t(($) => $.tracker.onboarding.pin.keypadLabel)}
               label={t(($) => $.vault.lock.pinLabel)}
-              name="pin"
-              onChange={setPin}
+              onChange={updatePin}
+              onRevealChange={setPinRevealed}
+              placeholder={t(($) => $.tracker.onboarding.pin.placeholder)}
+              revealed={pinRevealed}
+              showPinLabel={t(($) => $.tracker.onboarding.pin.showPin, {
+                field: t(($) => $.vault.lock.pinLabel),
+              })}
               value={pin}
             />
             <p className={styles['hint']}>{t(($) => $.vault.lock.pinHint)}</p>
-            {unlockError !== null ? (
-              <p className={styles['error']} role="alert">
-                {unlockError === 'invalid'
-                  ? t(($) => $.vault.security.form.sixDigits)
-                  : t(($) => $.vault.lock.failed)}
+            {pending ? (
+              <p aria-live="polite" className={styles['hint']} role="status">
+                {t(($) => $.vault.lock.unlocking)}
               </p>
             ) : null}
-            <button className={styles['primaryButton']} disabled={pending} type="submit">
-              {pending ? t(($) => $.vault.lock.unlocking) : t(($) => $.vault.lock.unlock)}
-            </button>
-          </form>
+          </div>
         ) : null}
 
         <button
@@ -174,14 +170,6 @@ export function LockScreen() {
             </div>
           </form>
         ) : null}
-      </section>
-
-      <section className={styles['lockPreferences']} aria-labelledby="lock-preferences-title">
-        <h2 id="lock-preferences-title">{t(($) => $.vault.lock.preferences)}</h2>
-        <div className={styles['preferenceGrid']}>
-          <ThemeControl />
-          <LanguageControl />
-        </div>
       </section>
     </main>
   );

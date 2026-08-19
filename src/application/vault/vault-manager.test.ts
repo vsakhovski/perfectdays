@@ -718,6 +718,27 @@ describe('VaultManager', () => {
     });
   });
 
+  it('verifies the current PIN without changing the protected vault', async () => {
+    const target = harness();
+    const originalId = await seedEncrypted(target, payload());
+    await target.manager.load();
+    await target.manager.unlock('123456');
+
+    await expect(target.manager.verifyCurrentPin('000000')).rejects.toMatchObject({
+      code: 'unlock-failed',
+    });
+    await target.manager.verifyCurrentPin('123456');
+
+    expect(target.store.activeRecord()).toMatchObject({
+      id: originalId,
+      representation: 'encrypted',
+    });
+    expect(target.manager.getSnapshot()).toMatchObject({
+      phase: 'unlocked',
+      pinEnabled: true,
+    });
+  });
+
   it('leaves no plaintext candidate when disabling protection is interrupted', async () => {
     const target = harness();
     const originalId = await seedEncrypted(target, payload());
@@ -893,6 +914,29 @@ describe('VaultManager', () => {
     await expect(target.manager.unlock('123456')).rejects.toBeInstanceOf(VaultUnlockError);
     await target.manager.unlock('654321');
     expect(target.manager.getSnapshot().payload).toEqual(restored);
+  });
+
+  it('preflights an encrypted backup without changing the active journal', async () => {
+    const target = harness();
+    const current = payload();
+    const candidate = payload('2026-08-08T15:15:00.000Z');
+    const backup = await backupJson(target, candidate, '654321');
+    await seedEncrypted(target, current, '123456');
+    await target.manager.load();
+    await target.manager.unlock('123456');
+    const activeBefore = target.store.activeRecord();
+    const snapshotBefore = target.manager.getSnapshot();
+    const stageCallsBefore = target.store.stageCalls;
+
+    await target.manager.verifyEncryptedBackup(backup, '654321');
+
+    expect(target.store.activeRecord()).toEqual(activeBefore);
+    expect(target.manager.getSnapshot()).toBe(snapshotBefore);
+    expect(target.store.stageCalls).toBe(stageCallsBefore);
+    await expect(target.manager.verifyEncryptedBackup(backup, '000000')).rejects.toBeInstanceOf(
+      VaultUnlockError,
+    );
+    expect(target.store.activeRecord()).toEqual(activeBefore);
   });
 
   it('reprotects a legacy backup with the current KDF policy and fresh key material', async () => {

@@ -19,7 +19,7 @@ import {
 } from '../../application/vault/auto-lock-controller';
 import { VaultManagerError } from '../../application/vault/vault-manager';
 import type { JournalMutationContext } from '../../domain/journal';
-import type { AutoLockDelay, VaultPayload } from '../../domain/models';
+import type { VaultPayload } from '../../domain/models';
 import { synchronizeDocumentVaultState } from '../../i18n/synchronize-document';
 import { useLanguage } from '../i18n/use-language';
 import { VaultContext, type ResetNotice } from './vault-context';
@@ -118,13 +118,10 @@ export function VaultProvider({
     );
   }, [i18n, resolvedLanguage, snapshot.phase, synchronizing, unavailable]);
 
-  const protectedAutoLockDelay =
-    snapshot.phase === 'unlocked' && snapshot.pinEnabled
-      ? snapshot.payload.settings.autoLockDelay
-      : null;
+  const autoLockEnabled = snapshot.phase === 'unlocked' && snapshot.pinEnabled;
 
   useEffect(() => {
-    if (protectedAutoLockDelay === null) {
+    if (!autoLockEnabled) {
       autoLockController.current?.stop();
       autoLockController.current = null;
       return;
@@ -140,13 +137,11 @@ export function VaultProvider({
         },
         lifecycle,
         clock: autoLockClock,
-        delay: protectedAutoLockDelay,
+        delay: 'immediate',
       });
       autoLockController.current.start();
-    } else {
-      autoLockController.current.setDelay(protectedAutoLockDelay);
     }
-  }, [autoLockClock, controller, lifecycle, protectedAutoLockDelay, vaultInvalidationChannel]);
+  }, [autoLockClock, autoLockEnabled, controller, lifecycle, vaultInvalidationChannel]);
 
   useEffect(
     () => () => {
@@ -196,6 +191,12 @@ export function VaultProvider({
     },
     [controller, vaultInvalidationChannel],
   );
+  const verifyCurrentPin = useCallback(
+    async (currentPin: string) => {
+      await controller.verifyCurrentPin(currentPin);
+    },
+    [controller],
+  );
   const lock = useCallback(() => {
     controller.lock();
     vaultInvalidationChannel.publish();
@@ -223,6 +224,12 @@ export function VaultProvider({
       mimeType: 'application/json',
     });
   }, [controller, nowIso, textFileDownloader]);
+  const verifyEncryptedBackup = useCallback(
+    async (backupJson: string, backupPin: string) => {
+      await controller.verifyEncryptedBackup(backupJson, backupPin);
+    },
+    [controller],
+  );
   const restoreEncryptedBackup = useCallback(
     async (backupJson: string, backupPin: string) => {
       try {
@@ -239,26 +246,6 @@ export function VaultProvider({
       }
     },
     [controller, reloadPage, vaultInvalidationChannel],
-  );
-
-  const updateAutoLockDelay = useCallback(
-    async (delay: AutoLockDelay) => {
-      const current = controller.getSnapshot();
-      if (current.phase !== 'unlocked') {
-        throw new Error('The vault must be unlocked before changing auto-lock.');
-      }
-
-      await controller.save({
-        ...current.payload,
-        settings: {
-          ...current.payload.settings,
-          autoLockDelay: delay,
-        },
-        updatedAt: nowIso(),
-      });
-      vaultInvalidationChannel.publish();
-    },
-    [controller, nowIso, vaultInvalidationChannel],
   );
 
   const eraseEverything = useCallback(async () => {
@@ -312,9 +299,10 @@ export function VaultProvider({
       eraseEverything,
       lock,
       savePayload,
+      verifyEncryptedBackup,
+      verifyCurrentPin,
       restoreEncryptedBackup,
       unlock,
-      updateAutoLockDelay,
     }),
     [
       journalEnvironment,
@@ -331,9 +319,10 @@ export function VaultProvider({
       eraseEverything,
       lock,
       savePayload,
+      verifyEncryptedBackup,
+      verifyCurrentPin,
       restoreEncryptedBackup,
       unlock,
-      updateAutoLockDelay,
     ],
   );
 

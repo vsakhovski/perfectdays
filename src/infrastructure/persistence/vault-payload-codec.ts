@@ -282,7 +282,7 @@ export function createEmptyVaultPayload(nowIso: string): VaultPayload {
       orangeEnabled: true,
       orangeDays: 5,
       forecastingPaused: false,
-      autoLockDelay: '1-minute',
+      autoLockDelay: 'immediate',
     },
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -297,7 +297,7 @@ function migrateVersionZero(input: unknown): unknown {
     schemaVersion: 1,
     settings: {
       ...payload.settings,
-      autoLockDelay: '1-minute',
+      autoLockDelay: 'immediate',
     },
   };
 }

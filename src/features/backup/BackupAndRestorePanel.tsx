@@ -8,6 +8,8 @@ import {
 } from 'react';
 
 import { MAX_BACKUP_JSON_LENGTH } from '../../application/backup/backup-json';
+import { decodeEncryptedVaultBackup } from '../../application/backup/encrypted-vault-backup-codec';
+import { PinKeypad } from '../vault/PinKeypad';
 import styles from './BackupAndRestorePanel.module.css';
 
 export type BackupOperation =
@@ -17,12 +19,11 @@ export type BackupOperation =
 export const MAX_BACKUP_FILE_BYTES = MAX_BACKUP_JSON_LENGTH;
 
 export interface RestoreEncryptedBackupRequest {
-  readonly file: File;
+  readonly backupJson: string;
   readonly backupPin: string;
 }
 
 export interface BackupAndRestoreCopy {
-  readonly sectionLabel: string;
   readonly title: string;
   readonly description: string;
   readonly locked: string;
@@ -38,7 +39,6 @@ export interface BackupAndRestoreCopy {
   };
   readonly plaintext: {
     readonly title: string;
-    readonly description: string;
     readonly reviewWarning: string;
     readonly warningTitle: string;
     readonly warning: string;
@@ -46,6 +46,15 @@ export interface BackupAndRestoreCopy {
     readonly action: string;
     readonly working: string;
     readonly cancel: string;
+    readonly close: string;
+    readonly pinLabel: string;
+    readonly pinPlaceholder: string;
+    readonly showPin: string;
+    readonly hidePin: string;
+    readonly keypadLabel: string;
+    readonly deleteDigit: string;
+    readonly verifyingPin: string;
+    readonly verificationFailed: string;
   };
   readonly restore: {
     readonly title: string;
@@ -58,16 +67,26 @@ export interface BackupAndRestoreCopy {
     readonly selectedFile: (fileName: string) => string;
     readonly pinLabel: string;
     readonly pinHint: string;
+    readonly pinPlaceholder: string;
+    readonly showPin: string;
+    readonly hidePin: string;
+    readonly keypadLabel: string;
+    readonly deleteDigit: string;
     readonly confirmation: string;
     readonly action: string;
     readonly working: string;
     readonly clear: string;
+    readonly close: string;
+    readonly verifyPin: string;
+    readonly verifyingPin: string;
     readonly validation: {
       readonly fileRequired: string;
       readonly jsonRequired: string;
       readonly fileTooLarge: (maximumBytes: number) => string;
+      readonly invalidBackup: string;
       readonly pinRequired: string;
       readonly pinInvalid: string;
+      readonly verificationFailed: string;
       readonly confirmationRequired: string;
     };
   };
@@ -85,7 +104,9 @@ export interface BackupAndRestorePanelProps {
   readonly enablePin: () => void;
   readonly requestEncryptedBackup: () => void;
   readonly requestPlaintextExport: () => void;
-  readonly restoreEncryptedBackup: (request: RestoreEncryptedBackupRequest) => void;
+  readonly verifyCurrentPin: (currentPin: string) => Promise<void>;
+  readonly verifyEncryptedBackup: (request: RestoreEncryptedBackupRequest) => Promise<void>;
+  readonly restoreEncryptedBackup: (request: RestoreEncryptedBackupRequest) => Promise<boolean>;
 }
 
 interface RestoreErrors {
@@ -101,6 +122,10 @@ function describedBy(...ids: readonly (string | undefined)[]): string | undefine
   return value === '' ? undefined : value;
 }
 
+function classNames(...names: readonly (string | undefined)[]): string {
+  return names.filter((name): name is string => name !== undefined).join(' ');
+}
+
 export function BackupAndRestorePanel({
   busyOperation,
   copy,
@@ -112,6 +137,8 @@ export function BackupAndRestorePanel({
   requestEncryptedBackup,
   requestPlaintextExport,
   restoreEncryptedBackup,
+  verifyCurrentPin,
+  verifyEncryptedBackup,
   statusMessage,
   vaultUnlocked,
 }: BackupAndRestorePanelProps) {
@@ -119,32 +146,36 @@ export function BackupAndRestorePanel({
   const encryptedTitleId = useId();
   const plaintextTitleId = useId();
   const plaintextWarningTitleId = useId();
-  const plaintextWarningId = useId();
+  const plaintextDialogTitleId = useId();
   const restoreTitleId = useId();
   const restoreWarningTitleId = useId();
   const restoreWarningId = useId();
   const fileDescriptionId = useId();
   const fileErrorId = useId();
-  const pinInputId = useId();
-  const pinHintId = useId();
-  const pinErrorId = useId();
   const confirmationErrorId = useId();
   const plaintextTriggerRef = useRef<HTMLButtonElement>(null);
   const plaintextConfirmationRef = useRef<HTMLInputElement>(null);
   const restoreFileRef = useRef<HTMLInputElement>(null);
-  const restorePinRef = useRef<HTMLInputElement>(null);
   const restoreConfirmationRef = useRef<HTMLInputElement>(null);
   const restorePlaintextTriggerFocus = useRef(false);
   const [plaintextWarningOpen, setPlaintextWarningOpen] = useState(false);
   const [plaintextConfirmed, setPlaintextConfirmed] = useState(false);
+  const [plaintextPin, setPlaintextPin] = useState('');
+  const [plaintextPinRevealed, setPlaintextPinRevealed] = useState(false);
+  const [plaintextPinError, setPlaintextPinError] = useState<string>();
+  const [verifyingPlaintextPin, setVerifyingPlaintextPin] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File>();
+  const [selectedBackupJson, setSelectedBackupJson] = useState<string>();
   const [backupPin, setBackupPin] = useState('');
+  const [pinRevealed, setPinRevealed] = useState(false);
+  const [restoreStage, setRestoreStage] = useState<'file' | 'pin' | 'confirmed'>('file');
+  const [verifyingPin, setVerifyingPin] = useState(false);
   const [restoreConfirmed, setRestoreConfirmed] = useState(false);
   const [restoreErrors, setRestoreErrors] = useState<RestoreErrors>({});
   const busy = busyOperation !== undefined;
 
   useLayoutEffect(() => {
-    if (plaintextWarningOpen) {
+    if (plaintextWarningOpen && !pinEnabled) {
       plaintextConfirmationRef.current?.focus();
       return;
     }
@@ -163,78 +194,117 @@ export function BackupAndRestorePanel({
     ) {
       trigger.focus();
     }
-  }, [busy, plaintextWarningOpen, vaultUnlocked]);
+  }, [busy, pinEnabled, plaintextWarningOpen, vaultUnlocked]);
 
   const closePlaintextWarning = (): void => {
     restorePlaintextTriggerFocus.current = true;
     setPlaintextConfirmed(false);
+    setPlaintextPin('');
+    setPlaintextPinRevealed(false);
+    setPlaintextPinError(undefined);
     setPlaintextWarningOpen(false);
   };
 
-  const exportPlaintext = (): void => {
-    if (!plaintextConfirmed || busy || !vaultUnlocked) return;
-    requestPlaintextExport();
-    closePlaintextWarning();
+  const exportPlaintext = async (): Promise<void> => {
+    if (!plaintextConfirmed || busy || verifyingPlaintextPin || !vaultUnlocked) return;
+    if (pinEnabled && !SIX_DIGIT_PIN.test(plaintextPin)) return;
+
+    setPlaintextPinError(undefined);
+    setVerifyingPlaintextPin(true);
+    try {
+      if (pinEnabled) await verifyCurrentPin(plaintextPin);
+      requestPlaintextExport();
+      closePlaintextWarning();
+    } catch {
+      setPlaintextPin('');
+      setPlaintextPinRevealed(false);
+      setPlaintextPinError(copy.plaintext.verificationFailed);
+    } finally {
+      setVerifyingPlaintextPin(false);
+    }
   };
 
-  const selectFile = (event: ChangeEvent<HTMLInputElement>): void => {
+  const selectFile = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
     const file = event.currentTarget.files?.item(0) ?? undefined;
     event.currentTarget.value = '';
-    setSelectedFile(file);
     setRestoreErrors({});
+    if (file === undefined) return;
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      setRestoreErrors({ file: copy.restore.validation.jsonRequired });
+      return;
+    }
+    if (file.size > maxBackupFileBytes) {
+      setRestoreErrors({ file: copy.restore.validation.fileTooLarge(maxBackupFileBytes) });
+      return;
+    }
+    try {
+      const json = await file.text();
+      decodeEncryptedVaultBackup(json);
+      setSelectedFile(file);
+      setSelectedBackupJson(json);
+      setBackupPin('');
+      setPinRevealed(false);
+      setRestoreConfirmed(false);
+      setRestoreStage('pin');
+    } catch {
+      setRestoreErrors({ file: copy.restore.validation.invalidBackup });
+    }
   };
 
   const clearRestoreForm = (): void => {
     setSelectedFile(undefined);
+    setSelectedBackupJson(undefined);
     setBackupPin('');
+    setPinRevealed(false);
     setRestoreConfirmed(false);
     setRestoreErrors({});
+    setRestoreStage('file');
     if (restoreFileRef.current !== null) restoreFileRef.current.value = '';
   };
 
-  const submitRestore = (event: SyntheticEvent<HTMLFormElement>): void => {
+  const submitRestore = async (event: SyntheticEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (busy || !vaultUnlocked) return;
 
+    if (restoreStage === 'pin') {
+      if (!SIX_DIGIT_PIN.test(backupPin)) {
+        setRestoreErrors({ pin: copy.restore.validation.pinInvalid });
+        return;
+      }
+      if (selectedBackupJson === undefined) return;
+      setVerifyingPin(true);
+      setRestoreErrors({});
+      try {
+        await verifyEncryptedBackup({ backupJson: selectedBackupJson, backupPin });
+        setPinRevealed(false);
+        setRestoreStage('confirmed');
+      } catch {
+        setRestoreErrors({ pin: copy.restore.validation.verificationFailed });
+      } finally {
+        setVerifyingPin(false);
+      }
+      return;
+    }
+
+    if (restoreStage !== 'confirmed') return;
+
     const errors: RestoreErrors = {
-      ...(selectedFile === undefined
-        ? { file: copy.restore.validation.fileRequired }
-        : !selectedFile.name.toLowerCase().endsWith('.json')
-          ? { file: copy.restore.validation.jsonRequired }
-          : selectedFile.size > maxBackupFileBytes
-            ? { file: copy.restore.validation.fileTooLarge(maxBackupFileBytes) }
-            : {}),
-      ...(backupPin === ''
-        ? { pin: copy.restore.validation.pinRequired }
-        : !SIX_DIGIT_PIN.test(backupPin)
-          ? { pin: copy.restore.validation.pinInvalid }
-          : {}),
       ...(!restoreConfirmed ? { confirmation: copy.restore.validation.confirmationRequired } : {}),
     };
     setRestoreErrors(errors);
 
-    if (errors.file !== undefined) {
-      restoreFileRef.current?.focus();
-      return;
-    }
-    if (errors.pin !== undefined) {
-      restorePinRef.current?.focus();
-      return;
-    }
     if (errors.confirmation !== undefined) {
       restoreConfirmationRef.current?.focus();
       return;
     }
-    if (selectedFile === undefined) return;
-
-    restoreEncryptedBackup({ file: selectedFile, backupPin });
-    clearRestoreForm();
+    if (selectedBackupJson === undefined) return;
+    const restored = await restoreEncryptedBackup({ backupJson: selectedBackupJson, backupPin });
+    if (restored) clearRestoreForm();
   };
 
   return (
     <section aria-busy={busy} aria-labelledby={headingId} className={styles['panel']}>
       <header className={styles['heading']}>
-        <p className={styles['eyebrow']}>{copy.sectionLabel}</p>
         <h2 id={headingId}>{copy.title}</h2>
         <p>{copy.description}</p>
       </header>
@@ -279,55 +349,107 @@ export function BackupAndRestorePanel({
           )}
         </section>
 
-        <section aria-labelledby={plaintextTitleId} className={styles['card']}>
+        <section
+          aria-labelledby={plaintextTitleId}
+          className={classNames(styles['card'], styles['plaintextCard'])}
+        >
           <header className={styles['cardHeader']}>
             <h3 id={plaintextTitleId}>{copy.plaintext.title}</h3>
-            <p>{copy.plaintext.description}</p>
           </header>
+          <div className={styles['warning']} role="note">
+            <h4 id={plaintextWarningTitleId}>{copy.plaintext.warningTitle}</h4>
+            <p>{copy.plaintext.warning}</p>
+          </div>
           {!vaultUnlocked ? (
             <p className={styles['muted']}>{copy.locked}</p>
           ) : plaintextWarningOpen ? (
-            <div
-              aria-labelledby={plaintextWarningTitleId}
-              className={styles['warningFlow']}
-              role="group"
-            >
-              <div className={styles['warning']} role="note">
-                <h4 id={plaintextWarningTitleId}>{copy.plaintext.warningTitle}</h4>
-                <p id={plaintextWarningId}>{copy.plaintext.warning}</p>
-              </div>
-              <label className={styles['confirmation']}>
-                <input
-                  aria-describedby={plaintextWarningId}
-                  checked={plaintextConfirmed}
-                  disabled={busy}
-                  onChange={(event) => {
-                    setPlaintextConfirmed(event.currentTarget.checked);
-                  }}
-                  ref={plaintextConfirmationRef}
-                  type="checkbox"
-                />
-                <span>{copy.plaintext.confirmation}</span>
-              </label>
-              <div className={styles['actions']}>
-                <button
-                  className={styles['dangerButton']}
-                  disabled={busy || !plaintextConfirmed}
-                  onClick={exportPlaintext}
-                  type="button"
-                >
-                  {busyOperation === 'plaintext-export'
-                    ? copy.plaintext.working
-                    : copy.plaintext.action}
-                </button>
-                <button
-                  className={styles['secondaryButton']}
-                  disabled={busy}
-                  onClick={closePlaintextWarning}
-                  type="button"
-                >
-                  {copy.plaintext.cancel}
-                </button>
+            <div className={styles['dialogBackdrop']}>
+              <div
+                aria-busy={verifyingPlaintextPin}
+                aria-labelledby={plaintextDialogTitleId}
+                aria-modal="true"
+                className={styles['restoreDialog']}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape' && !busy && !verifyingPlaintextPin) {
+                    event.preventDefault();
+                    closePlaintextWarning();
+                  }
+                }}
+                role="dialog"
+              >
+                <header className={styles['dialogHeader']}>
+                  <h3 id={plaintextDialogTitleId}>{copy.plaintext.title}</h3>
+                  <button
+                    aria-label={copy.plaintext.close}
+                    className={styles['closeButton']}
+                    disabled={busy || verifyingPlaintextPin}
+                    onClick={closePlaintextWarning}
+                    type="button"
+                  >
+                    {'\u00d7'}
+                  </button>
+                </header>
+                <div className={styles['warningFlow']}>
+                  {pinEnabled ? (
+                    <PinKeypad
+                      autoFocus
+                      deleteDigitLabel={copy.plaintext.deleteDigit}
+                      disabled={busy || verifyingPlaintextPin}
+                      {...(plaintextPinError === undefined ? {} : { error: plaintextPinError })}
+                      hidePinLabel={copy.plaintext.hidePin}
+                      keypadLabel={copy.plaintext.keypadLabel}
+                      label={copy.plaintext.pinLabel}
+                      onChange={(value) => {
+                        setPlaintextPin(value);
+                        setPlaintextPinError(undefined);
+                      }}
+                      onRevealChange={setPlaintextPinRevealed}
+                      placeholder={copy.plaintext.pinPlaceholder}
+                      revealed={plaintextPinRevealed}
+                      showPinLabel={copy.plaintext.showPin}
+                      value={plaintextPin}
+                    />
+                  ) : null}
+                  <label className={styles['confirmation']}>
+                    <input
+                      checked={plaintextConfirmed}
+                      disabled={busy || verifyingPlaintextPin}
+                      onChange={(event) => {
+                        setPlaintextConfirmed(event.currentTarget.checked);
+                      }}
+                      ref={plaintextConfirmationRef}
+                      type="checkbox"
+                    />
+                    <span>{copy.plaintext.confirmation}</span>
+                  </label>
+                  <div className={styles['actions']}>
+                    <button
+                      className={styles['dangerButton']}
+                      disabled={
+                        busy ||
+                        verifyingPlaintextPin ||
+                        !plaintextConfirmed ||
+                        (pinEnabled && !SIX_DIGIT_PIN.test(plaintextPin))
+                      }
+                      onClick={() => void exportPlaintext()}
+                      type="button"
+                    >
+                      {verifyingPlaintextPin
+                        ? copy.plaintext.verifyingPin
+                        : busyOperation === 'plaintext-export'
+                          ? copy.plaintext.working
+                          : copy.plaintext.action}
+                    </button>
+                    <button
+                      className={styles['secondaryButton']}
+                      disabled={busy || verifyingPlaintextPin}
+                      onClick={closePlaintextWarning}
+                      type="button"
+                    >
+                      {copy.plaintext.cancel}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
@@ -346,7 +468,10 @@ export function BackupAndRestorePanel({
           )}
         </section>
 
-        <section aria-labelledby={restoreTitleId} className={styles['card']}>
+        <section
+          aria-labelledby={restoreTitleId}
+          className={classNames(styles['card'], styles['restoreCard'])}
+        >
           <header className={styles['cardHeader']}>
             <h3 id={restoreTitleId}>{copy.restore.title}</h3>
             <p>{copy.restore.description}</p>
@@ -361,7 +486,7 @@ export function BackupAndRestorePanel({
               aria-labelledby={restoreTitleId}
               className={styles['restoreForm']}
               noValidate
-              onSubmit={submitRestore}
+              onSubmit={(event) => void submitRestore(event)}
             >
               <div className={styles['warning']} role="note">
                 <h4 id={restoreWarningTitleId}>{copy.restore.warningTitle}</h4>
@@ -380,7 +505,7 @@ export function BackupAndRestorePanel({
                     aria-invalid={restoreErrors.file !== undefined}
                     aria-label={copy.restore.fileLabel}
                     disabled={busy}
-                    onChange={selectFile}
+                    onChange={(event) => void selectFile(event)}
                     ref={restoreFileRef}
                     type="file"
                   />
@@ -398,83 +523,116 @@ export function BackupAndRestorePanel({
                 ) : null}
               </div>
 
-              <div className={styles['field']}>
-                <label className={styles['fieldLabel']} htmlFor={pinInputId}>
-                  {copy.restore.pinLabel}
-                </label>
-                <span className={styles['fieldHint']} id={pinHintId}>
-                  {copy.restore.pinHint}
-                </span>
-                <input
-                  aria-describedby={describedBy(
-                    pinHintId,
-                    restoreErrors.pin === undefined ? undefined : pinErrorId,
-                  )}
-                  aria-invalid={restoreErrors.pin !== undefined}
-                  autoComplete="off"
-                  disabled={busy}
-                  id={pinInputId}
-                  inputMode="numeric"
-                  maxLength={6}
-                  onChange={(event) => {
-                    setBackupPin(event.currentTarget.value);
-                    setRestoreErrors({});
-                  }}
-                  ref={restorePinRef}
-                  type="password"
-                  value={backupPin}
-                />
-                {restoreErrors.pin !== undefined ? (
-                  <span className={styles['fieldError']} id={pinErrorId}>
-                    {restoreErrors.pin}
-                  </span>
-                ) : null}
-              </div>
-
-              <div>
-                <label className={styles['confirmation']}>
-                  <input
-                    aria-describedby={describedBy(
-                      restoreWarningId,
-                      restoreErrors.confirmation === undefined ? undefined : confirmationErrorId,
+              {restoreStage !== 'file' ? (
+                <div className={styles['dialogBackdrop']}>
+                  <div
+                    aria-labelledby={restoreTitleId}
+                    aria-modal="true"
+                    className={styles['restoreDialog']}
+                    role="dialog"
+                  >
+                    <header className={styles['dialogHeader']}>
+                      <h3>{copy.restore.title}</h3>
+                      <button
+                        aria-label={copy.restore.close}
+                        className={styles['closeButton']}
+                        disabled={busy || verifyingPin}
+                        onClick={clearRestoreForm}
+                        type="button"
+                      >
+                        {'\u00d7'}
+                      </button>
+                    </header>
+                    {restoreStage === 'pin' ? (
+                      <>
+                        <p className={styles['fieldHint']}>{copy.restore.pinHint}</p>
+                        <PinKeypad
+                          autoFocus
+                          deleteDigitLabel={copy.restore.deleteDigit}
+                          disabled={verifyingPin}
+                          {...(restoreErrors.pin === undefined ? {} : { error: restoreErrors.pin })}
+                          hidePinLabel={copy.restore.hidePin}
+                          keypadLabel={copy.restore.keypadLabel}
+                          label={copy.restore.pinLabel}
+                          onChange={(value) => {
+                            setBackupPin(value);
+                            setRestoreErrors({});
+                          }}
+                          onRevealChange={setPinRevealed}
+                          placeholder={copy.restore.pinPlaceholder}
+                          revealed={pinRevealed}
+                          showPinLabel={copy.restore.showPin}
+                          value={backupPin}
+                        />
+                        <div className={styles['actions']}>
+                          <button
+                            className={styles['primaryButton']}
+                            disabled={verifyingPin || backupPin.length !== 6}
+                            type="submit"
+                          >
+                            {verifyingPin ? copy.restore.verifyingPin : copy.restore.verifyPin}
+                          </button>
+                          <button
+                            className={styles['secondaryButton']}
+                            disabled={verifyingPin}
+                            onClick={clearRestoreForm}
+                            type="button"
+                          >
+                            {copy.restore.clear}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <label className={styles['confirmation']}>
+                          <input
+                            aria-describedby={describedBy(
+                              restoreWarningId,
+                              restoreErrors.confirmation === undefined
+                                ? undefined
+                                : confirmationErrorId,
+                            )}
+                            aria-invalid={restoreErrors.confirmation !== undefined}
+                            checked={restoreConfirmed}
+                            disabled={busy}
+                            onChange={(event) => {
+                              setRestoreConfirmed(event.currentTarget.checked);
+                              setRestoreErrors({});
+                            }}
+                            ref={restoreConfirmationRef}
+                            type="checkbox"
+                          />
+                          <span>{copy.restore.confirmation}</span>
+                        </label>
+                        {restoreErrors.confirmation !== undefined ? (
+                          <span className={styles['fieldError']} id={confirmationErrorId}>
+                            {restoreErrors.confirmation}
+                          </span>
+                        ) : null}
+                        <div className={styles['actions']}>
+                          <button
+                            className={styles['dangerButton']}
+                            disabled={busy || !restoreConfirmed}
+                            type="submit"
+                          >
+                            {busyOperation === 'encrypted-restore'
+                              ? copy.restore.working
+                              : copy.restore.action}
+                          </button>
+                          <button
+                            className={styles['secondaryButton']}
+                            disabled={busy}
+                            onClick={clearRestoreForm}
+                            type="button"
+                          >
+                            {copy.restore.clear}
+                          </button>
+                        </div>
+                      </>
                     )}
-                    aria-invalid={restoreErrors.confirmation !== undefined}
-                    checked={restoreConfirmed}
-                    disabled={busy}
-                    onChange={(event) => {
-                      setRestoreConfirmed(event.currentTarget.checked);
-                      setRestoreErrors({});
-                    }}
-                    ref={restoreConfirmationRef}
-                    type="checkbox"
-                  />
-                  <span>{copy.restore.confirmation}</span>
-                </label>
-                {restoreErrors.confirmation !== undefined ? (
-                  <span className={styles['fieldError']} id={confirmationErrorId}>
-                    {restoreErrors.confirmation}
-                  </span>
-                ) : null}
-              </div>
-
-              <div className={styles['actions']}>
-                <button className={styles['dangerButton']} disabled={busy} type="submit">
-                  {busyOperation === 'encrypted-restore'
-                    ? copy.restore.working
-                    : copy.restore.action}
-                </button>
-                <button
-                  className={styles['secondaryButton']}
-                  disabled={busy}
-                  onClick={() => {
-                    clearRestoreForm();
-                    restoreFileRef.current?.focus();
-                  }}
-                  type="button"
-                >
-                  {copy.restore.clear}
-                </button>
-              </div>
+                  </div>
+                </div>
+              ) : null}
             </form>
           )}
         </section>

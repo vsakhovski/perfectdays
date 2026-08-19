@@ -74,7 +74,7 @@ describe('vault payload codec', () => {
         orangeEnabled: true,
         orangeDays: 5,
         forecastingPaused: false,
-        autoLockDelay: '1-minute',
+        autoLockDelay: 'immediate',
       },
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -153,7 +153,7 @@ describe('vault payload codec', () => {
       settings: {
         ...current.settings,
         onboardingCompleted: false,
-        autoLockDelay: '1-minute',
+        autoLockDelay: 'immediate',
       },
     });
   });

@@ -2,7 +2,7 @@ import { createContext } from 'react';
 
 import type { VaultSnapshot } from '../../application/vault/vault-controller';
 import type { JournalMutationContext } from '../../domain/journal';
-import type { AutoLockDelay, VaultPayload } from '../../domain/models';
+import type { VaultPayload } from '../../domain/models';
 
 export type ResetNotice =
   | 'none'
@@ -25,9 +25,10 @@ export interface VaultContextValue {
   readonly eraseEverything: () => Promise<void>;
   readonly lock: () => void;
   readonly savePayload: (payload: VaultPayload) => Promise<void>;
+  readonly verifyEncryptedBackup: (backupJson: string, backupPin: string) => Promise<void>;
+  readonly verifyCurrentPin: (currentPin: string) => Promise<void>;
   readonly restoreEncryptedBackup: (backupJson: string, backupPin: string) => Promise<void>;
   readonly unlock: (pin: string) => Promise<void>;
-  readonly updateAutoLockDelay: (delay: AutoLockDelay) => Promise<void>;
 }
 
 export const VaultContext = createContext<VaultContextValue | null>(null);

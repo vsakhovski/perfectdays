@@ -1,0 +1,169 @@
+.pinEntry {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+}
+
+.pinPrompt {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 750;
+  text-align: center;
+}
+
+.pinDisplayShell {
+  position: relative;
+  inline-size: min(100%, 17rem);
+}
+
+.pinDisplay {
+  inline-size: 100%;
+  block-size: 3rem;
+  padding: 0 3.25rem 0 1.25rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  letter-spacing: 0.4em;
+  line-height: calc(3rem - 2px);
+  pointer-events: none;
+  text-align: start;
+}
+
+.pinDisplay::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.45;
+}
+
+.pinDisplay[data-masked='true'] {
+  color: transparent;
+}
+
+.pinDisplay[data-masked='true']::placeholder {
+  color: transparent;
+}
+
+.pinMask {
+  position: absolute;
+  inset-block: 0;
+  inset-inline: 1.25rem 3.25rem;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 2rem;
+  font-weight: 750;
+  letter-spacing: 0.4em;
+  line-height: 1;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.pinDisplay:placeholder-shown + .pinMask {
+  color: var(--color-text-muted);
+  opacity: 0.45;
+}
+
+.pinMaskText {
+  transform: translateY(0.2em);
+}
+
+.pinRevealButton {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: 50%;
+  inset-inline-end: 0.35rem;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--color-accent);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.pinRevealButton svg,
+.pinKeypad button svg {
+  inline-size: 1.4rem;
+  block-size: 1.4rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.pinKeypad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(2.75rem, 1fr));
+  gap: 0.4rem;
+  inline-size: min(100%, 17rem);
+}
+
+.pinValidationSlot {
+  min-block-size: 1.25rem;
+  color: var(--color-danger);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.pinValidationSlot p {
+  margin: 0;
+}
+
+.fieldError {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.pinKeypad button {
+  display: inline-grid;
+  place-items: center;
+  min-block-size: 2.75rem;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1.4rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.pinKeypadSpacer {
+  min-block-size: 2.75rem;
+}
+
+.pinRevealButton:focus-visible,
+.pinKeypad button:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.pinRevealButton:disabled,
+.pinKeypad button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (forced-colors: active) {
+  .pinDisplay,
+  .pinKeypad button {
+    border: 1px solid CanvasText;
+  }
+
+  .pinDisplay[aria-invalid='true'] {
+    border: 3px solid Mark;
+  }
+}

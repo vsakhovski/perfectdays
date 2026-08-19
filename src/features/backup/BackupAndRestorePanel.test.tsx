@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
+import { encodeEncryptedVaultBackup } from '../../application/backup/encrypted-vault-backup-codec';
 import {
   BackupAndRestorePanel,
   type BackupAndRestoreCopy,
@@ -9,7 +10,6 @@ import {
 } from './BackupAndRestorePanel';
 
 const copy: BackupAndRestoreCopy = {
-  sectionLabel: 'Data portability',
   title: 'Back up or restore your journal',
   description: 'Keep a portable copy or replace this journal from an encrypted backup.',
   locked: 'Unlock the local vault before using backup or restore tools.',
@@ -17,7 +17,7 @@ const copy: BackupAndRestoreCopy = {
   encrypted: {
     title: 'Encrypted backup',
     description: 'Create a protected JSON backup of the journal.',
-    action: 'Download encrypted backup',
+    action: 'Export encrypted backup',
     working: 'Preparing encrypted backup',
     pinRequired: 'Encrypted backups require PIN protection.',
     enablePin: 'Enable PIN protection',
@@ -25,7 +25,6 @@ const copy: BackupAndRestoreCopy = {
   },
   plaintext: {
     title: 'Readable export',
-    description: 'Export a readable copy only when you understand the privacy risk.',
     reviewWarning: 'Review readable-export warning',
     warningTitle: 'Sensitive readable data',
     warning: 'This file is not encrypted and can reveal every journal entry.',
@@ -33,6 +32,15 @@ const copy: BackupAndRestoreCopy = {
     action: 'Export readable data',
     working: 'Exporting readable data',
     cancel: 'Cancel readable export',
+    close: 'Close readable export dialog',
+    pinLabel: 'Current PIN',
+    pinPlaceholder: '******',
+    showPin: 'Show Current PIN',
+    hidePin: 'Hide Current PIN',
+    keypadLabel: 'PIN number pad',
+    deleteDigit: 'Delete last digit',
+    verifyingPin: 'Verifying PIN',
+    verificationFailed: 'The PIN could not be verified.',
   },
   restore: {
     title: 'Restore encrypted backup',
@@ -46,17 +54,27 @@ const copy: BackupAndRestoreCopy = {
     selectedFile: (fileName) => `Selected backup: ${fileName}`,
     pinLabel: 'Backup PIN',
     pinHint: 'Enter the six-digit PIN used to protect this backup.',
+    pinPlaceholder: '******',
+    showPin: 'Show Backup PIN',
+    hidePin: 'Hide Backup PIN',
+    keypadLabel: 'PIN number pad',
+    deleteDigit: 'Delete last digit',
     confirmation: 'I understand that a verified restore replaces my current local journal.',
     action: 'Verify and replace current journal',
     working: 'Verifying encrypted backup',
     clear: 'Clear restore form',
+    close: 'Close restore dialog',
+    verifyPin: 'Verify backup PIN',
+    verifyingPin: 'Verifying backup PIN',
     validation: {
       fileRequired: 'Choose an encrypted JSON backup.',
       jsonRequired: 'Choose a file whose name ends in .json.',
       fileTooLarge: (maximumBytes) =>
         `Choose a backup no larger than ${String(maximumBytes)} bytes.`,
+      invalidBackup: 'Choose a valid encrypted backup.',
       pinRequired: 'Enter the backup PIN.',
       pinInvalid: 'Enter exactly six digits.',
+      verificationFailed: 'The file or PIN could not be verified.',
       confirmationRequired: 'Confirm that the current journal will be replaced.',
     },
   },
@@ -71,10 +89,37 @@ function renderPanel(overrides: Partial<BackupAndRestorePanelProps> = {}) {
     enablePin: vi.fn(),
     requestEncryptedBackup: vi.fn(),
     requestPlaintextExport: vi.fn(),
-    restoreEncryptedBackup: vi.fn(),
+    verifyCurrentPin: vi.fn(() => Promise.resolve()),
+    restoreEncryptedBackup: vi.fn(() => Promise.resolve(true)),
+    verifyEncryptedBackup: vi.fn(() => Promise.resolve()),
     ...overrides,
   };
   return { ...render(<BackupAndRestorePanel {...props} />), props };
+}
+
+function encryptedBackupFile(name = 'journal-backup.json'): File {
+  const bytes = (value: number) => new Uint8Array([value, value + 1]);
+  return new File(
+    [
+      encodeEncryptedVaultBackup({
+        formatVersion: 1,
+        keyDerivation: { algorithm: 'PBKDF2-SHA-256', iterations: 600_000, salt: bytes(1) },
+        wrappedDataKey: bytes(3),
+        wrappedDataKeyIv: bytes(5),
+        payloadCiphertext: bytes(7),
+        payloadIv: bytes(9),
+      }),
+    ],
+    name,
+    { type: 'application/json' },
+  );
+}
+
+async function enterPinWithKeypad(user: ReturnType<typeof userEvent.setup>, pin: string) {
+  const keypad = screen.getByRole('group', { name: copy.restore.keypadLabel });
+  for (const digit of pin) {
+    await user.click(within(keypad).getByRole('button', { name: digit }));
+  }
 }
 
 describe('BackupAndRestorePanel', () => {
@@ -90,6 +135,8 @@ describe('BackupAndRestorePanel', () => {
         requestEncryptedBackup={requestEncryptedBackup}
         requestPlaintextExport={vi.fn()}
         restoreEncryptedBackup={vi.fn()}
+        verifyCurrentPin={vi.fn()}
+        verifyEncryptedBackup={vi.fn()}
         vaultUnlocked={false}
       />,
     );
@@ -104,6 +151,8 @@ describe('BackupAndRestorePanel', () => {
         requestEncryptedBackup={requestEncryptedBackup}
         requestPlaintextExport={vi.fn()}
         restoreEncryptedBackup={vi.fn()}
+        verifyCurrentPin={vi.fn()}
+        verifyEncryptedBackup={vi.fn()}
         vaultUnlocked
       />,
     );
@@ -152,7 +201,7 @@ describe('BackupAndRestorePanel', () => {
   it('requires a focused second-step confirmation before readable export', async () => {
     const user = userEvent.setup();
     const requestPlaintextExport = vi.fn();
-    renderPanel({ requestPlaintextExport });
+    renderPanel({ pinEnabled: false, requestPlaintextExport });
     const trigger = screen.getByRole('button', { name: copy.plaintext.reviewWarning });
 
     await user.click(trigger);
@@ -165,13 +214,14 @@ describe('BackupAndRestorePanel', () => {
     await user.click(confirmation);
     await user.click(exportButton);
     expect(requestPlaintextExport).toHaveBeenCalledOnce();
-    expect(screen.queryByText(copy.plaintext.warning)).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: copy.plaintext.title })).not.toBeInTheDocument();
+    expect(screen.getByText(copy.plaintext.warning)).toBeVisible();
     expect(screen.getByRole('button', { name: copy.plaintext.reviewWarning })).toHaveFocus();
   });
 
   it('cancels readable export, resets its confirmation, and restores trigger focus', async () => {
     const user = userEvent.setup();
-    renderPanel();
+    renderPanel({ pinEnabled: false });
     await user.click(screen.getByRole('button', { name: copy.plaintext.reviewWarning }));
     await user.click(screen.getByRole('checkbox', { name: copy.plaintext.confirmation }));
     await user.click(screen.getByRole('button', { name: copy.plaintext.cancel }));
@@ -182,57 +232,107 @@ describe('BackupAndRestorePanel', () => {
     expect(screen.getByRole('checkbox', { name: copy.plaintext.confirmation })).not.toBeChecked();
   });
 
-  it('validates restore inputs together and focuses the first invalid control', async () => {
+  it('verifies the current PIN before exporting readable data from a protected vault', async () => {
     const user = userEvent.setup();
-    renderPanel();
+    const requestPlaintextExport = vi.fn();
+    const verifyCurrentPin = vi.fn(() => Promise.resolve());
+    renderPanel({ requestPlaintextExport, verifyCurrentPin });
 
-    await user.click(screen.getByRole('button', { name: copy.restore.action }));
+    await user.click(screen.getByRole('button', { name: copy.plaintext.reviewWarning }));
+    expect(screen.getByRole('dialog', { name: copy.plaintext.title })).toBeVisible();
+    expect(screen.getByRole('button', { name: '1' })).toHaveFocus();
+    await user.click(screen.getByRole('checkbox', { name: copy.plaintext.confirmation }));
+    const exportButton = screen.getByRole('button', { name: copy.plaintext.action });
+    expect(exportButton).toBeDisabled();
 
-    const fileInput = screen.getByLabelText(copy.restore.fileLabel);
-    expect(screen.getByText(copy.restore.validation.fileRequired)).toBeVisible();
-    expect(screen.getByText(copy.restore.validation.pinRequired)).toBeVisible();
-    expect(screen.getByText(copy.restore.validation.confirmationRequired)).toBeVisible();
-    expect(fileInput).toHaveFocus();
-    expect(fileInput).toHaveAccessibleDescription(
-      expect.stringContaining(copy.restore.validation.fileRequired),
-    );
+    await enterPinWithKeypad(user, '246810');
+    expect(exportButton).toBeEnabled();
+    await user.click(exportButton);
+
+    expect(verifyCurrentPin).toHaveBeenCalledWith('246810');
+    expect(requestPlaintextExport).toHaveBeenCalledOnce();
+    expect(screen.queryByLabelText(copy.plaintext.pinLabel)).not.toBeInTheDocument();
   });
 
-  it('rejects a non-JSON file and an invalid backup PIN', async () => {
+  it('keeps readable data private when current-PIN verification fails', async () => {
+    const user = userEvent.setup();
+    const requestPlaintextExport = vi.fn();
+    const verifyCurrentPin = vi.fn(() => Promise.reject(new Error('wrong PIN')));
+    renderPanel({ requestPlaintextExport, verifyCurrentPin });
+
+    await user.click(screen.getByRole('button', { name: copy.plaintext.reviewWarning }));
+    await enterPinWithKeypad(user, '000000');
+    await user.click(screen.getByRole('checkbox', { name: copy.plaintext.confirmation }));
+    await user.click(screen.getByRole('button', { name: copy.plaintext.action }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(copy.plaintext.verificationFailed);
+    expect(requestPlaintextExport).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(copy.plaintext.pinLabel)).toHaveValue('');
+  });
+
+  it('rejects files that are not encrypted backups before asking for a PIN', async () => {
     const user = userEvent.setup({ applyAccept: false });
     renderPanel();
     const fileInput = screen.getByLabelText(copy.restore.fileLabel);
-    const pinInput = screen.getByLabelText(copy.restore.pinLabel);
 
     await user.upload(fileInput, new File(['not a backup'], 'journal.txt', { type: 'text/plain' }));
-    await user.type(pinInput, '123');
-    await user.click(screen.getByRole('checkbox', { name: copy.restore.confirmation }));
-    await user.click(screen.getByRole('button', { name: copy.restore.action }));
-
     expect(screen.getByText(copy.restore.validation.jsonRequired)).toBeVisible();
-    expect(screen.getByText(copy.restore.validation.pinInvalid)).toBeVisible();
-    expect(fileInput).toHaveFocus();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    await user.upload(fileInput, new File(['{}'], 'journal.json', { type: 'application/json' }));
+    expect(screen.getByText(copy.restore.validation.invalidBackup)).toBeVisible();
   });
 
-  it('passes the selected File to integration and clears the PIN and confirmation after submit', async () => {
+  it('verifies the selected backup and PIN before revealing destructive confirmation', async () => {
     const user = userEvent.setup();
-    const restoreEncryptedBackup = vi.fn();
-    renderPanel({ restoreEncryptedBackup });
-    const backup = new File(['{"encrypted":true}'], 'journal-backup.json', {
-      type: 'application/json',
-    });
-    const pinInput = screen.getByLabelText(copy.restore.pinLabel);
-    const confirmation = screen.getByRole('checkbox', { name: copy.restore.confirmation });
+    const verifyEncryptedBackup = vi.fn(() => Promise.resolve());
+    const restoreEncryptedBackup = vi.fn(() => Promise.resolve(true));
+    renderPanel({ restoreEncryptedBackup, verifyEncryptedBackup });
+    const backup = encryptedBackupFile();
 
     await user.upload(screen.getByLabelText(copy.restore.fileLabel), backup);
-    await user.type(pinInput, '246810');
+    const dialog = await screen.findByRole('dialog', { name: copy.restore.title });
+    await enterPinWithKeypad(user, '246810');
+    expect(within(dialog).getByLabelText(copy.restore.pinLabel)).toHaveValue('******');
+    expect(
+      screen.queryByRole('checkbox', { name: copy.restore.confirmation }),
+    ).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: copy.restore.verifyPin }));
+
+    expect(verifyEncryptedBackup).toHaveBeenCalledWith({
+      backupJson: await backup.text(),
+      backupPin: '246810',
+    });
+    const confirmation = await screen.findByRole('checkbox', {
+      name: copy.restore.confirmation,
+    });
     await user.click(confirmation);
     await user.click(screen.getByRole('button', { name: copy.restore.action }));
 
-    expect(restoreEncryptedBackup).toHaveBeenCalledWith({ file: backup, backupPin: '246810' });
-    expect(pinInput).toHaveValue('');
-    expect(confirmation).not.toBeChecked();
+    expect(restoreEncryptedBackup).toHaveBeenCalledWith({
+      backupJson: await backup.text(),
+      backupPin: '246810',
+    });
     expect(screen.getByText(copy.restore.noFileSelected)).toBeVisible();
+  });
+
+  it('keeps the current journal untouched when backup PIN verification fails', async () => {
+    const user = userEvent.setup();
+    const verifyEncryptedBackup = vi.fn(() => Promise.reject(new Error('verification failed')));
+    const restoreEncryptedBackup = vi.fn(() => Promise.resolve(true));
+    renderPanel({ restoreEncryptedBackup, verifyEncryptedBackup });
+
+    await user.upload(screen.getByLabelText(copy.restore.fileLabel), encryptedBackupFile());
+    await enterPinWithKeypad(user, '000000');
+    await user.click(screen.getByRole('button', { name: copy.restore.verifyPin }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      copy.restore.validation.verificationFailed,
+    );
+    expect(
+      screen.queryByRole('checkbox', { name: copy.restore.confirmation }),
+    ).not.toBeInTheDocument();
+    expect(restoreEncryptedBackup).not.toHaveBeenCalled();
   });
 
   it('rejects oversized files and resets the native picker so the same file can be chosen again', async () => {
@@ -243,31 +343,11 @@ describe('BackupAndRestorePanel', () => {
 
     await user.upload(fileInput, backup);
     expect(fileInput).toHaveValue('');
-    await user.type(screen.getByLabelText(copy.restore.pinLabel), '246810');
-    await user.click(screen.getByRole('checkbox', { name: copy.restore.confirmation }));
-    await user.click(screen.getByRole('button', { name: copy.restore.action }));
     expect(screen.getByText(copy.restore.validation.fileTooLarge(4))).toBeVisible();
 
     await user.upload(fileInput, backup);
-    expect(screen.getByText(copy.restore.selectedFile(backup.name))).toBeVisible();
+    expect(screen.getByText(copy.restore.validation.fileTooLarge(4))).toBeVisible();
     expect(fileInput).toHaveValue('');
-  });
-
-  it('clears selected restore secrets and returns focus to the file picker on request', async () => {
-    const user = userEvent.setup();
-    renderPanel();
-    const fileInput = screen.getByLabelText(copy.restore.fileLabel);
-    const pinInput = screen.getByLabelText(copy.restore.pinLabel);
-
-    await user.upload(fileInput, new File(['{}'], 'journal.json', { type: 'application/json' }));
-    await user.type(pinInput, '246810');
-    await user.click(screen.getByRole('checkbox', { name: copy.restore.confirmation }));
-    await user.click(screen.getByRole('button', { name: copy.restore.clear }));
-
-    expect(screen.getByText(copy.restore.noFileSelected)).toBeVisible();
-    expect(pinInput).toHaveValue('');
-    expect(screen.getByRole('checkbox', { name: copy.restore.confirmation })).not.toBeChecked();
-    expect(fileInput).toHaveFocus();
   });
 
   it('renders parent feedback and exposes operation-specific busy states', () => {
@@ -279,12 +359,11 @@ describe('BackupAndRestorePanel', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('not accepted');
     expect(screen.getByRole('status')).toHaveTextContent('was downloaded');
-    expect(screen.getByRole('button', { name: copy.restore.working })).toBeDisabled();
     expect(screen.getByLabelText(copy.restore.fileLabel)).toBeDisabled();
     expect(screen.getByRole('button', { name: copy.encrypted.action })).toBeDisabled();
   });
 
-  it('keeps long localized copy and filenames inside semantic sections', async () => {
+  it('keeps long valid filenames in the restore card and out of the compact PIN dialog', async () => {
     const user = userEvent.setup();
     renderPanel();
     const restoreSection = screen
@@ -295,8 +374,10 @@ describe('BackupAndRestorePanel', () => {
 
     await user.upload(
       within(restoreSection).getByLabelText(copy.restore.fileLabel),
-      new File(['{}'], longName, { type: 'application/json' }),
+      encryptedBackupFile(longName),
     );
+    const dialog = await screen.findByRole('dialog', { name: copy.restore.title });
     expect(within(restoreSection).getByText(copy.restore.selectedFile(longName))).toBeVisible();
+    expect(within(dialog).queryByText(copy.restore.selectedFile(longName))).not.toBeInTheDocument();
   });
 });

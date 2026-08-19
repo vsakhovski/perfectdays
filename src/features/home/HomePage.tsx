@@ -6,7 +6,7 @@ import { calculateForecast } from '../../domain/forecast';
 import type { VaultPayload } from '../../domain/models';
 import { BackupAndRestoreSettings } from '../backup/BackupAndRestoreSettings';
 import { LanguageControl } from '../settings/LanguageControl';
-import { PinSecurityPanel } from '../settings/PinSecurityPanel';
+import { EraseDataControl, PinSecurityPanel } from '../settings/PinSecurityPanel';
 import { ThemeControl } from '../settings/ThemeControl';
 import { WeekStartControl } from '../settings/WeekStartControl';
 import {
@@ -145,6 +145,7 @@ function PrivacyDestination({
         <h2>{t(($) => $.mobile.privacy.storage.title)}</h2>
         <p>{t(($) => $.mobile.privacy.storage.description)}</p>
         <p>{t(($) => $.mobile.privacy.storage.downloads)}</p>
+        <EraseDataControl />
       </section>
       <PinSecurityPanel
         onSetupRequestHandled={onPinSetupRequestHandled}

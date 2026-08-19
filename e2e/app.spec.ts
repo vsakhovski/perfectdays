@@ -85,6 +85,13 @@ async function openRootDestination(
   ).toBeVisible();
 }
 
+async function enterLockPin(page: Page, pin: string): Promise<void> {
+  const keypad = page.getByRole('group', { name: 'PIN number pad' });
+  for (const digit of pin) {
+    await keypad.getByRole('button', { exact: true, name: digit }).click();
+  }
+}
+
 test.describe('English application shell', () => {
   test.use({ locale: 'en-US' });
 
@@ -631,48 +638,48 @@ test.describe('English application shell', () => {
     await finishOnboarding(page);
     await openRootDestination(page, 'Privacy');
     await page.getByRole('button', { name: 'Set up a PIN' }).click();
-    await page.getByLabel('New PIN', { exact: true }).fill(firstPin);
-    await page.getByLabel('Confirm new PIN', { exact: true }).fill(firstPin);
-    await page.getByRole('button', { name: 'Enable PIN protection' }).click();
+    const setupDialog = page.getByRole('dialog', { name: 'Set up a six-digit PIN' });
+    await enterLockPin(page, firstPin);
+    await enterLockPin(page, firstPin);
+    await setupDialog.getByRole('button', { name: 'Enable PIN protection' }).click();
     await expect(page.getByText('PIN protection is now on.')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Lock now' }).click();
+    await page.evaluate("window.dispatchEvent(new Event('pagehide'))");
     await expect(page.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
     await expect(page).toHaveTitle('Private app — locked');
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 
-    await page.getByLabel('PIN').fill('000000');
-    await page.getByRole('button', { name: 'Unlock' }).click();
+    await enterLockPin(page, '000000');
     await expect(page.getByRole('alert')).toContainText('could not be unlocked');
 
-    await page.getByLabel('PIN').fill(firstPin);
-    await page.getByRole('button', { name: 'Unlock' }).click();
+    await enterLockPin(page, firstPin);
     await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
 
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
-    await page.getByLabel('PIN').fill(firstPin);
-    await page.getByRole('button', { name: 'Unlock' }).click();
+    await enterLockPin(page, firstPin);
     await openRootDestination(page, 'Privacy');
     await expect(page.getByRole('button', { name: 'Change PIN', exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Change PIN', exact: true }).click();
-    await page.getByLabel('Current PIN').fill(firstPin);
-    await page.getByLabel('New PIN', { exact: true }).fill(secondPin);
-    await page.getByLabel('Confirm new PIN', { exact: true }).fill(secondPin);
-    await page.getByRole('button', { name: 'Change PIN', exact: true }).click();
+    const changeDialog = page.getByRole('dialog', { name: 'Change PIN' });
+    await expect(changeDialog).toBeVisible();
+    await enterLockPin(page, firstPin);
+    await enterLockPin(page, secondPin);
+    await enterLockPin(page, secondPin);
+    await changeDialog.getByRole('button', { name: 'Change PIN', exact: true }).click();
     await expect(page.getByText('The PIN was changed.')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Lock now' }).click();
-    await page.getByLabel('PIN').fill(firstPin);
-    await page.getByRole('button', { name: 'Unlock' }).click();
+    await page.getByRole('button', { name: 'Lock', exact: true }).click();
+    await enterLockPin(page, firstPin);
     await expect(page.getByRole('alert')).toContainText('could not be unlocked');
-    await page.getByLabel('PIN').fill(secondPin);
-    await page.getByRole('button', { name: 'Unlock' }).click();
+    await enterLockPin(page, secondPin);
 
     await openRootDestination(page, 'Privacy');
     await page.getByRole('button', { name: 'Turn off PIN protection' }).click();
-    await page.getByLabel('Current PIN').fill(secondPin);
+    const disableDialog = page.getByRole('dialog', { name: 'Turn off PIN protection?' });
+    await expect(disableDialog).toBeVisible();
+    await enterLockPin(page, secondPin);
     await page
       .getByLabel('I understand that the journal will be stored without PIN protection.')
       .check();
@@ -702,19 +709,19 @@ test.describe('English application shell', () => {
 
     await openRootDestination(page, 'Privacy');
     await page.getByRole('button', { name: 'Set up a PIN' }).click();
-    await page.getByLabel('New PIN', { exact: true }).fill(pin);
-    await page.getByLabel('Confirm new PIN', { exact: true }).fill(pin);
-    await page.getByRole('button', { name: 'Enable PIN protection' }).click();
+    const setupDialog = page.getByRole('dialog', { name: 'Set up a six-digit PIN' });
+    await enterLockPin(page, pin);
+    await enterLockPin(page, pin);
+    await setupDialog.getByRole('button', { name: 'Enable PIN protection' }).click();
     await expect(page.getByText('PIN protection is now on.')).toBeVisible();
 
     await expect(secondPage.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
     await expect(secondPage.getByRole('heading', { level: 1, name: 'Calendar' })).not.toBeVisible();
 
-    await secondPage.getByLabel('PIN').fill(pin);
-    await secondPage.getByRole('button', { name: 'Unlock' }).click();
+    await enterLockPin(secondPage, pin);
     await expect(secondPage.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Lock now' }).click();
+    await page.getByRole('button', { name: 'Lock', exact: true }).click();
     await expect(secondPage.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
     await expect(secondPage.getByRole('heading', { level: 1, name: 'Calendar' })).not.toBeVisible();
   });
@@ -1142,7 +1149,7 @@ test.describe('narrow dark German shell', () => {
     ).toBeVisible();
 
     const warningTrigger = page.getByRole('button', {
-      name: 'Warnung zum lesbaren Export prüfen',
+      name: 'Menschenlesbaren Export herunterladen',
     });
     await warningTrigger.focus();
     await warningTrigger.press('Enter');

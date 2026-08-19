@@ -8,6 +8,8 @@ export class FakeVaultController implements VaultController {
     enablePin: [] as string[],
     exportEncryptedBackup: 0,
     exportPlaintextBackup: 0,
+    verifyEncryptedBackup: [] as { backupJson: string; backupPin: string }[],
+    verifyCurrentPin: [] as string[],
     restoreEncryptedBackup: [] as { backupJson: string; backupPin: string }[],
     unlock: [] as string[],
   };
@@ -89,6 +91,11 @@ export class FakeVaultController implements VaultController {
     );
   }
 
+  verifyEncryptedBackup(backupJson: string, backupPin: string): Promise<void> {
+    this.calls.verifyEncryptedBackup.push({ backupJson, backupPin });
+    return Promise.resolve();
+  }
+
   restoreEncryptedBackup(backupJson: string, backupPin: string): Promise<void> {
     this.calls.restoreEncryptedBackup.push({ backupJson, backupPin });
     this.publish({ phase: 'unlocked', pinEnabled: true, payload: this.requirePayload() });
@@ -109,6 +116,11 @@ export class FakeVaultController implements VaultController {
 
   changePin(currentPin: string, newPin: string): Promise<void> {
     this.calls.changePin.push({ currentPin, newPin });
+    return Promise.resolve();
+  }
+
+  verifyCurrentPin(currentPin: string): Promise<void> {
+    this.calls.verifyCurrentPin.push(currentPin);
     return Promise.resolve();
   }
 

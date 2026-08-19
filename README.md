@@ -133,12 +133,12 @@ Language to avoid:
 ### 5. Privacy
 
 - Show protection and storage status in plain language.
-- Keep **Lock now** readily available and group auto-lock and PIN controls in this destination.
+- Keep the shell's **Lock** action readily available and group PIN controls in this destination.
 - Enable, disable, or change the local PIN.
-- Auto-lock timing: immediately, 1 minute, 5 minutes, or 15 minutes after backgrounding. Default: 1 minute.
+- A PIN-protected journal locks immediately whenever the app enters the background. This safety behavior is not configurable. A future inactivity timer, if added, is a separate setting for locking while the app remains in the foreground.
 - Export an encrypted backup and restore it later when PIN protection is enabled; restoring requires the PIN used when that backup was created.
 - Offer readable export only behind a prominent sensitivity warning; do not imply that readable import exists.
-- Nest **Erase everything** inside a collapsed danger area and require explicit confirmation.
+- Place **Erase everything** inside **Stored on this device** and require explicit confirmation before deletion. When the unlocked journal is PIN-protected, also verify the current PIN in a modal keypad before erasing it.
 - Explain what is stored, what is not collected, and the limitations of browser storage.
 
 ### 6. Settings
@@ -160,7 +160,7 @@ This section describes the implemented Phase 5 mobile foundation and the remaini
 | Surface | Responsibility |
 | --- | --- |
 | **Calendar** | Default destination; current month, recorded observations, predictions, forecast summary, day access, and contextual history |
-| **Privacy** | Lock, PIN, auto-lock, encrypted backup and restore, warned readable export, storage explanation, and nested erasure controls |
+| **Privacy** | PIN protection, encrypted backup and verified restore, warned human-readable export, storage explanation, and confirmed erasure controls |
 | **Settings** | Tracking and forecast preferences, orange-window configuration, appearance, language, calendar week start, and About/non-medical information |
 | **Check in today** | Persistent primary action above the navigation; opens or edits today's entry and is not a destination |
 
@@ -369,7 +369,7 @@ type ThemePreference = "system" | "light" | "dark";
 type SupportedLanguage = "en" | "de";
 type LanguagePreference = "system" | SupportedLanguage;
 type WeekStartPreference = "system" | "monday" | "sunday";
-type AutoLockDelay = "immediate" | "1-minute" | "5-minutes" | "15-minutes";
+type LegacyAutoLockDelay = "immediate" | "1-minute" | "5-minutes" | "15-minutes";
 
 type UserSettings = {
   theme: ThemePreference;
@@ -382,7 +382,7 @@ type UserSettings = {
   typicalBleedDuration?: number;
   forecastingPaused: boolean;
   pinEnabled: boolean;
-  autoLockDelay: AutoLockDelay;
+  autoLockDelay: LegacyAutoLockDelay;
 };
 
 type VaultPayload = {
@@ -408,6 +408,8 @@ type Forecast = {
   calendarMarkersSuppressed: boolean;
 };
 ```
+
+`autoLockDelay` remains in the versioned payload only for backward-compatible decoding of existing vaults and backups. New payloads write `"immediate"`, and runtime behavior always locks immediately on background regardless of a legacy stored value. It is not exposed as a user preference.
 
 Cycles, marker combinations, insights, and forecasts are derived. They are not persisted as authoritative health observations.
 
@@ -448,12 +450,15 @@ The PIN is a local app lock, not an online login. There is no username, email ad
 
 ### User experience
 
-- PIN setup is optional but prominently recommended during onboarding.
+- PIN setup is optional but prominently recommended during onboarding. When initiated later from Privacy or the encrypted-backup requirement, setup opens in a modal and uses the same two-stage keypad.
 - Use a six-digit PIN entered twice for confirmation through the onboarding number pad. A mismatch clears both transient entries and restarts the first-entry step; neither PIN is persisted or sent anywhere before successful vault protection.
-- Require the PIN when the PWA is opened and after the configured background timeout.
+- Reuse that same large, touch-friendly number pad on the neutral lock screen. The sixth digit triggers verification automatically, so there is no separate Unlock button. A failed attempt shows only generic guidance and clears the transient digits for another attempt.
+- Keep theme and language controls out of the lock screen; their previously selected non-sensitive preferences still determine its appearance and localized copy before unlock.
+- Require the PIN when the PWA is opened and lock immediately when it enters the background.
 - Lock or reload every open tab when another tab changes protection state, resets the vault, or requests a manual/automatic lock.
 - Apply increasing delays after repeated incorrect attempts.
 - Allow PIN changes only while the current vault is unlocked.
+- Change PIN in a modal through the same keypad in three explicit stages: current PIN, new PIN, then repeat the new PIN. The final action remains disabled until both new entries are six digits and match; a mismatch restarts the new-PIN stage without discarding the entered current PIN. Turning off PIN protection opens a separate modal confirmation flow and verifies the current PIN through the same keypad before removing encryption.
 - “Forgot PIN” explains that recovery is impossible and offers destructive local reset.
 - Export, restore, PIN changes, and deletion require an unlocked vault.
 - Use a neutral lock screen that does not reveal menstrual information.
@@ -507,8 +512,8 @@ A longer passphrase and platform passkey/biometric unlock may be added later, bu
 - With PIN protection disabled, the app asks the user to enable a PIN before creating an encrypted backup. A plaintext export remains possible only after an explicit sensitivity warning.
 - Backup files use a strict, versioned JSON wrapper and canonical base64 for binary envelope fields. The current parser rejects documents larger than 32 MiB before parsing.
 - Restore authenticates and decodes the backup, migrates and validates the logical payload and journal relationships, then protects it again with the current calibrated KDF policy, a fresh salt and data key, and fresh wrapping/payload IVs. It rereads and authenticates the staged candidate before atomically replacing the active record. A wrong PIN, malformed file, corrupt ciphertext, failed reread, or stale active pointer leaves the current vault unchanged.
-- A restored vault is protected by the backup PIN. Restore works from either an unlocked protected or unlocked unprotected local vault, making recovery onto a fresh installation possible.
-- The optional readable JSON export has a versioned machine warning code, while the localized UI provides the prominent human warning. There is deliberately no readable-import path.
+- A restored vault is protected by the backup PIN. Restore works from either an unlocked protected or unlocked unprotected local vault, making recovery onto a fresh installation possible. Backup PIN entry uses the same accessible on-screen keypad as onboarding, unlock, and PIN changes, including masked display, reveal control, and digit deletion.
+- The optional readable JSON export has a versioned machine warning code. Its prominent human warning remains visible in the Privacy card, while a compact **Human-readable export** modal contains the acknowledgement and download controls. When PIN protection is enabled, that modal also requires the current PIN through the shared keypad before the download begins. There is deliberately no readable-import path.
 - Downloaded files are controlled by the user and cannot be removed by the app's **Erase everything** action.
 
 ## Light and dark themes
@@ -647,7 +652,7 @@ app -> composition of all layers
 - Opaque, closeable crypto sessions for encrypted saves and PIN rewrapping without exposing `CryptoKey` objects to React or rewriting payload ciphertext during a PIN change.
 - Local PIN setup, unlock, manual lock, PIN change, protection disable, generic delayed failure, and explicitly confirmed destructive-reset flows.
 - A neutral localized loading/lock/unavailable experience whose document title and description do not reveal menstrual information before the vault is confirmed unlocked.
-- Best-effort lifecycle auto-lock through visibility, `pagehide`, and elapsed-time checks after suspended background timers.
+- Immediate best-effort lifecycle lock through visibility and `pagehide` whenever PIN protection is enabled.
 - Cross-tab invalidation through BroadcastChannel plus a persisted opaque revision, with storage-event, foreground, and BFCache reconciliation and authoritative unlock revalidation.
 - Concurrent first-run recovery when two tabs race to create the initial vault.
 - Reset reporting that distinguishes failed deletion, fully completed reset, retained UI preferences, and deletion followed by failed empty-vault recreation.
@@ -667,7 +672,7 @@ app -> composition of all layers
 - A localized, accessible period-history list and modal correction editor for changing one episode's start, explicit known/unknown/active end state, and start-day flow without weakening journal invariants, converting start-only history into invented durations, or silently deleting unrelated daily observations.
 - A pure expanding-window backtest evaluator that holds out each later episode start in turn and reports per-sample signed and absolute start error, range inclusion, training-history variability band, skipped targets, aggregate median absolute error, empirical range coverage, and the same aggregate metrics segmented by variability for developer evaluation only.
 - Vault-backed saves for tracker observations and preferences, with a real-browser test covering setup, period/check-in entry, and IndexedDB persistence across reloads in all configured Playwright projects.
-- A localized backup/restore panel that gates encrypted export on PIN protection, routes directly to PIN setup, requires a two-step confirmation for readable export, validates restore file type/size/PIN/consent, clears submitted secrets, and reports generic non-destructive failures.
+- A localized backup/restore panel that gates encrypted export on PIN protection, routes directly to PIN setup, requires a two-step confirmation for human-readable export, validates an encrypted backup before opening a PIN dialog, reveals replacement consent only after successful decryption, clears submitted secrets, and reports generic non-destructive failures.
 - Strict encrypted-backup and readable-export codecs plus manager operations that require an unlocked/current vault, keep cryptographic material outside React, and preserve the old vault on every tested authentication, validation, persistence, or compare-and-swap failure.
 - A neutral installable manifest with the provisional product name, no locale-specific descriptive prose, 192- and 512-pixel maskable-capable icons, dynamic light/dark browser theme color, and an external pre-render theme bootstrap compatible with the production Content Security Policy.
 - A generated, auto-updating service worker with nine current static precache entries, no runtime cache rules, no external assets, and an offline navigation fallback limited to the application shell.
@@ -819,7 +824,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Add visible month navigation and **Go to today**, revised recorded/predicted bands and amber marker, a compact legend, and the forecast summary below the calendar.
 - [x] Keep forecast reasoning, recent patterns, and history/correction contextually reachable without a **Patterns** bottom destination.
 - [x] Present Insights and Period history as focused secondary screens with one title, a top-bar close action, restored trigger focus, and no bottom chrome.
-- [x] Move PIN, auto-lock, backup/restore, readable export, storage explanation, and confirmed erasure into Privacy; move tracking, appearance, language, calendar week start, and About into Settings.
+- [x] Move PIN protection, backup/restore, human-readable export, storage explanation, and confirmed erasure into Privacy; move tracking, appearance, language, calendar week start, and About into Settings.
 - [x] Add all new English and German copy, component/unit coverage, mobile browser flows, and navigation/check-in privacy-leakage assertions.
 - [x] Refactor onboarding into focused consecutive screens with icon-only Back/Skip controls, accessible dot progress, horizontal swipe navigation, directional slide-and-fade transitions, a placeholder logo, package version and a resolved English/Deutsch language selector, light-mode/device-language resolution defaults, touch-friendly hybrid period-estimate controls, and optional PIN as the final step. During a horizontal gesture the current screen follows the finger by a short, damped distance before the transition begins, or settles back when the gesture is rejected. Forward navigation enters from the right and backward navigation from the left; all gesture and transition movement is disabled for `prefers-reduced-motion`. Programmatic heading focus still announces the destination to assistive technology without drawing a focus border on the non-interactive heading; interactive controls retain visible focus indicators. Swipe-left follows the same per-step validation as Continue, swipe-right returns to the preceding step, and vertical scrolling or gestures beginning on form controls are not treated as navigation.
 - [ ] Complete manual contrast, software-keyboard, forced-colors, screen-reader, real-device, and real-user usability validation and address findings.
@@ -872,7 +877,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Check-in uses stable sticky top and bottom panels; opening optional details does not resize the action panel, and its open/closed state is reused for later check-ins in the unlocked session.
 - [x] Activating an already-selected rating clears it without inserting a separate control or moving the rating scale.
 - [ ] Future dates are read-only, successful saves update Calendar immediately, and canceling or locking discards unsaved drafts.
-- [x] Privacy contains PIN, auto-lock, encrypted backup/restore, warned readable export, storage explanation, and explicitly confirmed erasure without implying a readable-import path.
+- [x] Privacy contains PIN protection, encrypted backup/verified restore, warned human-readable export, storage explanation, and explicitly confirmed erasure without implying a readable-import path.
 - [x] Settings contains tracking and forecast preferences, appearance, language, persisted calendar week start, and non-medical product information.
 - [ ] Fixed bottom controls do not obscure content at 320 CSS pixels, large text, browser zoom, with an open software keyboard, or across device safe-area insets.
 - [ ] Month, **Today**, navigation, check-in, and sticky action controls have localized accessible names and targets of at least 44 × 44 CSS pixels.
@@ -899,9 +904,9 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 ### PIN and security
 
-- [x] When PIN protection is enabled, the correct PIN unlocks the vault after a reload.
+- [x] When PIN protection is enabled, entering the sixth correct digit on the shared PIN keypad unlocks the vault automatically after a reload.
 - [x] A failed UI unlock renders no health records.
-- [x] Auto-lock works through supported page-lifecycle events after the configured background timeout and through the manual lock action.
+- [x] A PIN-protected journal locks immediately through supported background lifecycle events and through the shell's manual lock action.
 - [x] When PIN protection is enabled, no PIN, plaintext record, or unwrapped data key is persisted.
 - [x] PIN enable/disable migrations verify the new representation before removing the previous one and recover safely from an interrupted migration.
 - [x] Every AES-GCM encryption uses a fresh IV.
@@ -1009,7 +1014,7 @@ Add a message to `src/i18n/locales/en.ts` first, then add the matching key and p
 - Final product name deferred
 - Light theme by default; System and Dark remain available in Settings
 - Optional six-digit PIN
-- One-minute default auto-lock after backgrounding
+- Immediate, non-configurable locking when a PIN-protected app enters the background; foreground inactivity locking remains a separate future enhancement
 - Five-day default orange window
 - Confidence as the initial green metric
 - Retrospective green markers only

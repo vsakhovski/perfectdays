@@ -21,6 +21,13 @@ function createRuntimePin(excluded?: string): string {
   return pin;
 }
 
+async function enterLockPin(page: Page, pin: string): Promise<void> {
+  const keypad = page.getByRole('group', { name: 'PIN number pad' });
+  for (const digit of pin) {
+    await keypad.getByRole('button', { exact: true, name: digit }).click();
+  }
+}
+
 function containsAnySecret(values: readonly string[], secrets: readonly string[]): boolean {
   const tokens = secrets.flatMap((secret) => [secret, encodeURIComponent(secret)]);
   return values.some((value) => tokens.some((token) => value.includes(token)));
@@ -188,13 +195,14 @@ test.describe('Phase 4 production boundaries', () => {
 
     await openPrivacy(page);
     await page.getByRole('button', { name: 'Set up a PIN', exact: true }).click();
-    await page.getByLabel('New PIN', { exact: true }).fill(originalPin);
-    await page.getByLabel('Confirm new PIN', { exact: true }).fill(originalPin);
-    await page.getByRole('button', { name: 'Enable PIN protection' }).click();
+    const setupDialog = page.getByRole('dialog', { name: 'Set up a six-digit PIN' });
+    await enterLockPin(page, originalPin);
+    await enterLockPin(page, originalPin);
+    await setupDialog.getByRole('button', { name: 'Enable PIN protection' }).click();
     await expect(page.getByText('PIN protection is now on.')).toBeVisible();
 
     const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Download encrypted backup' }).click();
+    await page.getByRole('button', { name: 'Export encrypted backup' }).click();
     const download = await downloadPromise;
     const backupPath = testInfo.outputPath('encrypted-round-trip.json');
     await download.saveAs(backupPath);
@@ -203,35 +211,34 @@ test.describe('Phase 4 production boundaries', () => {
     expect(containsAnySecret([backupContents], secrets)).toBe(false);
 
     await page.getByRole('button', { name: 'Change PIN', exact: true }).click();
-    await page.getByLabel('Current PIN').fill(originalPin);
-    await page.getByLabel('New PIN', { exact: true }).fill(changedPin);
-    await page.getByLabel('Confirm new PIN', { exact: true }).fill(changedPin);
+    await enterLockPin(page, originalPin);
+    await enterLockPin(page, changedPin);
+    await enterLockPin(page, changedPin);
     await page.getByRole('button', { name: 'Change PIN', exact: true }).click();
     await expect(page.getByText('The PIN was changed.')).toBeVisible();
     await updateTodayNote(page, mutatedNote);
 
     await openPrivacy(page);
     await page.getByLabel('Encrypted JSON backup').setInputFiles(backupPath);
-    await page.getByLabel('Backup PIN').fill(originalPin);
+    await enterLockPin(page, originalPin);
+    await page.getByRole('button', { name: 'Verify backup PIN' }).click();
     await page
       .getByRole('checkbox', {
         name: 'I understand that a verified restore replaces my current local journal.',
       })
       .check();
-    await page.getByRole('button', { name: 'Verify and replace current journal' }).click();
+    await page.getByRole('button', { name: 'Restore from selected backup' }).click();
     await expect(
       page.getByText(
         'The encrypted backup was restored. This journal is now protected by the backup PIN.',
       ),
     ).toBeVisible();
 
-    await page.getByRole('button', { name: 'Lock now' }).click();
+    await page.getByRole('button', { name: 'Lock', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
-    await page.getByLabel('PIN').fill(changedPin);
-    await page.getByRole('button', { name: 'Unlock' }).click();
+    await enterLockPin(page, changedPin);
     await expect(page.getByRole('alert')).toContainText('could not be unlocked');
-    await page.getByLabel('PIN').fill(originalPin);
-    await page.getByRole('button', { name: 'Unlock' }).click();
+    await enterLockPin(page, originalPin);
     await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
 
     await page.getByRole('button', { name: "Edit today's check-in" }).click();
@@ -260,15 +267,29 @@ test.describe('Phase 4 production boundaries', () => {
 
     await openPrivacy(page);
     await page.getByRole('button', { name: 'Set up a PIN', exact: true }).click();
-    await page.getByLabel('New PIN', { exact: true }).fill(pin);
-    await page.getByLabel('Confirm new PIN', { exact: true }).fill(pin);
-    await page.getByRole('button', { name: 'Enable PIN protection' }).click();
+    const setupDialog = page.getByRole('dialog', { name: 'Set up a six-digit PIN' });
+    await enterLockPin(page, pin);
+    await enterLockPin(page, pin);
+    await setupDialog.getByRole('button', { name: 'Enable PIN protection' }).click();
     await expect(page.getByText('PIN protection is now on.')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Show erase controls' }).click();
+    await page.getByRole('button', { name: 'Download human-readable export' }).click();
+    await enterLockPin(page, pin);
+    await page
+      .getByRole('checkbox', {
+        name: 'I understand that this export is not encrypted and contains readable sensitive data.',
+      })
+      .check();
+    const readableDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export readable data' }).click();
+    await readableDownload;
+
     await page.getByRole('button', { name: 'Erase everything' }).click();
+    const eraseDialog = page.getByRole('dialog', { name: 'Erase all local data?' });
+    await expect(eraseDialog).toBeVisible();
+    await enterLockPin(page, pin);
     await page.getByRole('checkbox', { name: 'I understand that this cannot be undone.' }).check();
-    await page.getByRole('button', { name: 'Erase everything' }).click();
+    await eraseDialog.getByRole('button', { name: 'Erase everything' }).click();
 
     await expect(page.getByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
 
@@ -330,7 +351,7 @@ test.describe('Phase 4 download portability', () => {
     await finishOnboarding(page);
     await openPrivacy(page);
 
-    await page.getByRole('button', { name: 'Review readable-export warning' }).click();
+    await page.getByRole('button', { name: 'Download human-readable export' }).click();
     await page
       .getByRole('checkbox', {
         name: 'I understand that this export is not encrypted and contains readable sensitive data.',

@@ -304,6 +304,28 @@ export class VaultManager implements VaultController {
     });
   }
 
+  async verifyEncryptedBackup(backupJson: string, backupPin: string): Promise<void> {
+    await this.exclusive(async () => {
+      this.requirePin(backupPin);
+      this.requireUnlockedPayload();
+      const activeRecord = this.requireActiveRecord();
+      await this.assertActiveRecordIsCurrent(activeRecord);
+      const backupEnvelope = decodeEncryptedVaultBackup(backupJson);
+      let preflightSession: VaultSession | null = null;
+      let normalizedPayload: Uint8Array | null = null;
+
+      try {
+        const preflight = await this.unlockBackupForRestore(backupEnvelope, backupPin);
+        preflightSession = preflight.session;
+        normalizedPayload = this.encodeAndValidate(preflight.payload);
+        this.failedUnlockAttempts = 0;
+      } finally {
+        normalizedPayload?.fill(0);
+        closeSession(preflightSession);
+      }
+    });
+  }
+
   async restoreEncryptedBackup(backupJson: string, backupPin: string): Promise<void> {
     await this.exclusive(async () => {
       this.requirePin(backupPin);
@@ -448,6 +470,19 @@ export class VaultManager implements VaultController {
       } finally {
         encoded.fill(0);
       }
+    });
+  }
+
+  async verifyCurrentPin(currentPin: string): Promise<void> {
+    await this.exclusive(async () => {
+      this.requirePin(currentPin);
+      this.requireProtectedPayload();
+      const record = this.requireEncryptedRecord();
+      await this.assertActiveRecordIsCurrent(record);
+
+      const authenticated = await this.unlockForUser(record.envelope, currentPin);
+      closeSession(authenticated.session);
+      this.failedUnlockAttempts = 0;
     });
   }
 

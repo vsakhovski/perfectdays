@@ -31,6 +31,8 @@ export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettin
     downloadPlaintextExport,
     pinProtectionAvailable,
     restoreEncryptedBackup,
+    verifyEncryptedBackup,
+    verifyCurrentPin,
     snapshot,
   } = useVault();
   const activeOperation = useRef<BackupOperation | undefined>(undefined);
@@ -38,7 +40,6 @@ export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettin
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   const copy: BackupAndRestoreCopy = {
-    sectionLabel: t(($) => $.vault.backup.sectionLabel),
     title: t(($) => $.vault.backup.title),
     description: t(($) => $.vault.backup.description),
     locked: t(($) => $.vault.backup.locked),
@@ -54,7 +55,6 @@ export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettin
     },
     plaintext: {
       title: t(($) => $.vault.backup.plaintext.title),
-      description: t(($) => $.vault.backup.plaintext.description),
       reviewWarning: t(($) => $.vault.backup.plaintext.reviewWarning),
       warningTitle: t(($) => $.vault.backup.plaintext.warningTitle),
       warning: t(($) => $.vault.backup.plaintext.warning),
@@ -62,6 +62,19 @@ export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettin
       action: t(($) => $.vault.backup.plaintext.action),
       working: t(($) => $.vault.backup.plaintext.working),
       cancel: t(($) => $.vault.backup.plaintext.cancel),
+      close: t(($) => $.vault.backup.plaintext.close),
+      pinLabel: t(($) => $.vault.security.disable.currentPinLabel),
+      pinPlaceholder: t(($) => $.tracker.onboarding.pin.placeholder),
+      showPin: t(($) => $.tracker.onboarding.pin.showPin, {
+        field: t(($) => $.vault.security.disable.currentPinLabel),
+      }),
+      hidePin: t(($) => $.tracker.onboarding.pin.hidePin, {
+        field: t(($) => $.vault.security.disable.currentPinLabel),
+      }),
+      keypadLabel: t(($) => $.tracker.onboarding.pin.keypadLabel),
+      deleteDigit: t(($) => $.tracker.onboarding.pin.deleteDigit),
+      verifyingPin: t(($) => $.vault.backup.restore.verifyingPin),
+      verificationFailed: t(($) => $.vault.security.form.unlockFailed),
     },
     restore: {
       title: t(($) => $.vault.backup.restore.title),
@@ -74,10 +87,22 @@ export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettin
       selectedFile: (fileName) => t(($) => $.vault.backup.restore.selectedFile, { fileName }),
       pinLabel: t(($) => $.vault.backup.restore.pinLabel),
       pinHint: t(($) => $.vault.backup.restore.pinHint),
+      pinPlaceholder: t(($) => $.tracker.onboarding.pin.placeholder),
+      showPin: t(($) => $.tracker.onboarding.pin.showPin, {
+        field: t(($) => $.vault.backup.restore.pinLabel),
+      }),
+      hidePin: t(($) => $.tracker.onboarding.pin.hidePin, {
+        field: t(($) => $.vault.backup.restore.pinLabel),
+      }),
+      keypadLabel: t(($) => $.tracker.onboarding.pin.keypadLabel),
+      deleteDigit: t(($) => $.tracker.onboarding.pin.deleteDigit),
       confirmation: t(($) => $.vault.backup.restore.confirmation),
       action: t(($) => $.vault.backup.restore.action),
       working: t(($) => $.vault.backup.restore.working),
       clear: t(($) => $.vault.backup.restore.clear),
+      close: t(($) => $.vault.backup.restore.close),
+      verifyPin: t(($) => $.vault.backup.restore.verifyPin),
+      verifyingPin: t(($) => $.vault.backup.restore.verifyingPin),
       validation: {
         fileRequired: t(($) => $.vault.backup.restore.validation.fileRequired),
         jsonRequired: t(($) => $.vault.backup.restore.validation.jsonRequired),
@@ -85,8 +110,10 @@ export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettin
           t(($) => $.vault.backup.restore.validation.fileTooLarge, {
             maximumMegabytes: Math.floor(maximumBytes / (1024 * 1024)),
           }),
+        invalidBackup: t(($) => $.vault.backup.restore.validation.invalidBackup),
         pinRequired: t(($) => $.vault.backup.restore.validation.pinRequired),
         pinInvalid: t(($) => $.vault.backup.restore.validation.pinInvalid),
+        verificationFailed: t(($) => $.vault.backup.restore.validation.verificationFailed),
         confirmationRequired: t(($) => $.vault.backup.restore.validation.confirmationRequired),
       },
     },
@@ -98,8 +125,8 @@ export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettin
       action: () => Promise<void>,
       successCode: Extract<Feedback, { kind: 'status' }>['code'],
       errorCode: Extract<Feedback, { kind: 'error' }>['code'],
-    ) => {
-      if (activeOperation.current !== undefined) return;
+    ): Promise<boolean> => {
+      if (activeOperation.current !== undefined) return false;
 
       activeOperation.current = operation;
       setBusyOperation(operation);
@@ -107,8 +134,10 @@ export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettin
       try {
         await action();
         setFeedback({ kind: 'status', code: successCode });
+        return true;
       } catch {
         setFeedback({ kind: 'error', code: errorCode });
+        return false;
       } finally {
         activeOperation.current = undefined;
         setBusyOperation(undefined);
@@ -133,17 +162,15 @@ export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettin
       'plaintextFailed',
     );
   };
-  const requestRestore = ({ file, backupPin }: RestoreEncryptedBackupRequest) => {
-    void runOperation(
+  const requestRestore = ({ backupJson, backupPin }: RestoreEncryptedBackupRequest) =>
+    runOperation(
       'encrypted-restore',
-      async () => {
-        const backupJson = await file.text();
-        await restoreEncryptedBackup(backupJson, backupPin);
-      },
+      () => restoreEncryptedBackup(backupJson, backupPin),
       'restored',
       'restoreFailed',
     );
-  };
+  const verifyRestore = ({ backupJson, backupPin }: RestoreEncryptedBackupRequest) =>
+    verifyEncryptedBackup(backupJson, backupPin);
 
   const feedbackMessage =
     feedback === null
@@ -176,6 +203,8 @@ export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettin
       requestEncryptedBackup={requestEncryptedBackup}
       requestPlaintextExport={requestPlaintextExport}
       restoreEncryptedBackup={requestRestore}
+      verifyCurrentPin={verifyCurrentPin}
+      verifyEncryptedBackup={verifyRestore}
       {...(feedback?.kind === 'status' && feedbackMessage !== undefined
         ? { statusMessage: feedbackMessage }
         : {})}

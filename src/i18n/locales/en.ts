@@ -497,8 +497,6 @@ export const en = {
           'Downloaded backups and exports are outside this app and are not removed by Erase everything.',
       },
       danger: {
-        show: 'Show erase controls',
-        hide: 'Hide erase controls',
         title: 'Permanently erase data',
         description:
           'Erasing permanently removes this journal and its app preferences from this browser.',
@@ -587,7 +585,6 @@ export const en = {
         'PIN unlocking is unavailable in this browser or connection. Your stored data was not changed. Try this app in a supported secure browser before considering a reset.',
       pinLabel: 'PIN',
       pinHint: 'Enter six digits.',
-      unlock: 'Unlock',
       unlocking: 'Unlocking…',
       failed: 'The app could not be unlocked. Check the PIN and try again.',
       forgotPin: 'Forgot PIN?',
@@ -601,10 +598,8 @@ export const en = {
         cancel: 'Keep my data',
         failed: 'The local data could not be erased. Nothing was intentionally removed.',
       },
-      preferences: 'Lock-screen preferences',
     },
     backup: {
-      sectionLabel: 'Data portability',
       title: 'Back up or restore your journal',
       description:
         'Encrypted backups stay protected by their backup PIN. Downloaded files are outside this app and are not removed by Erase everything.',
@@ -615,16 +610,15 @@ export const en = {
         title: 'Encrypted backup',
         description:
           'Download a portable encrypted copy. It stays protected by the PIN in use now, even if you change the app PIN later.',
-        action: 'Download encrypted backup',
+        action: 'Export encrypted backup',
         working: 'Preparing encrypted backup…',
         pinRequired: 'Turn on PIN protection before creating an encrypted backup.',
         enablePin: 'Set up PIN protection',
         enablingPin: 'Opening PIN setup…',
       },
       plaintext: {
-        title: 'Readable export',
-        description: 'A readable JSON copy is available only after a separate privacy warning.',
-        reviewWarning: 'Review readable-export warning',
+        title: 'Human-readable export',
+        reviewWarning: 'Download human-readable export',
         warningTitle: 'This file contains readable sensitive data',
         warning:
           'Anyone who gets this unencrypted file can read every period date, rating, and private note in it. Store and share it with great care.',
@@ -633,6 +627,7 @@ export const en = {
         action: 'Export readable data',
         working: 'Preparing readable export…',
         cancel: 'Cancel readable export',
+        close: 'Close human-readable export dialog',
       },
       restore: {
         title: 'Restore encrypted backup',
@@ -648,15 +643,20 @@ export const en = {
         pinLabel: 'Backup PIN',
         pinHint: 'Enter the six-digit PIN used when this backup was created.',
         confirmation: 'I understand that a verified restore replaces my current local journal.',
-        action: 'Verify and replace current journal',
+        action: 'Restore from selected backup',
         working: 'Verifying encrypted backup…',
-        clear: 'Clear restore form',
+        clear: 'Cancel restoration from backup',
+        close: 'Close restore dialog',
+        verifyPin: 'Verify backup PIN',
+        verifyingPin: 'Verifying backup PIN...',
         validation: {
           fileRequired: 'Choose an encrypted JSON backup.',
           jsonRequired: 'Choose a file whose name ends in .json.',
           fileTooLarge: 'Choose a backup no larger than {{maximumMegabytes}} MB.',
+          invalidBackup: 'Choose a valid encrypted JSON backup created by this app.',
           pinRequired: 'Enter the backup PIN.',
           pinInvalid: 'Enter exactly six digits.',
+          verificationFailed: 'The backup or PIN could not be verified. Try again.',
           confirmationRequired: 'Confirm that the current journal will be replaced.',
         },
       },
@@ -672,33 +672,21 @@ export const en = {
       },
     },
     security: {
-      eyebrow: 'Privacy',
-      title: 'PIN lock and local vault',
-      description: 'A PIN protects the journal when this app is closed or left in the background.',
+      title: 'PIN protection',
+      description:
+        'A PIN encrypts the journal and locks it immediately when the app enters the background.',
       cryptoUnavailable:
         'PIN protection is unavailable because this browser or connection did not pass the secure-cryptography check.',
       protected: {
         status: 'PIN protection is on',
         description:
           'Journal data is encrypted at rest in this browser. The PIN cannot be recovered.',
-        lockNow: 'Lock now',
       },
       unprotected: {
         status: 'PIN protection is off',
         description:
           'Journal data is currently stored without app-level encryption or an access gate.',
         recommendation: 'Set up a PIN',
-      },
-      autoLock: {
-        label: 'Lock after leaving the app',
-        options: {
-          immediate: 'Immediately',
-          oneMinute: 'After 1 minute',
-          fiveMinutes: 'After 5 minutes',
-          fifteenMinutes: 'After 15 minutes',
-        },
-        saving: 'Saving auto-lock preference…',
-        failed: 'The auto-lock preference could not be saved.',
       },
       actions: {
         changePin: 'Change PIN',

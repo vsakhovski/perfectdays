@@ -13,6 +13,7 @@ import type {
 } from '../application/vault/auto-lock-controller';
 import type { VaultSnapshot } from '../application/vault/vault-controller';
 import { VaultManagerError } from '../application/vault/vault-manager';
+import { encodeEncryptedVaultBackup } from '../application/backup/encrypted-vault-backup-codec';
 import type { LanguagePreference, ThemePreference, VaultPayload } from '../domain/models';
 import { asLocalDate } from '../domain/local-date';
 import { createAppI18n } from '../i18n/create-i18n';
@@ -48,6 +49,13 @@ function selectOnboardingDate(trigger: HTMLElement, targetDate: string): void {
   }
 
   throw new Error(`The onboarding date picker did not reach ${targetDate}.`);
+}
+
+async function enterPinWithKeypad(user: ReturnType<typeof userEvent.setup>, pin: string) {
+  const keypad = screen.getByRole('group', { name: 'PIN number pad' });
+  for (const digit of pin) {
+    await user.click(within(keypad).getByRole('button', { name: digit }));
+  }
 }
 
 function createThemeStore(initial: ThemePreference = 'light', clearSucceeds = true): ThemeStore {
@@ -139,6 +147,7 @@ function createSystemLanguageSource(initialLanguages: readonly string[]): TestSy
 }
 
 interface RenderAppOptions {
+  autoLockDelay?: VaultPayload['settings']['autoLockDelay'];
   languagePreference?: LanguagePreference;
   systemLanguages?: readonly string[];
   themePreference?: ThemePreference;
@@ -151,6 +160,7 @@ interface RenderAppOptions {
 }
 
 async function renderApp({
+  autoLockDelay = 'immediate',
   languagePreference = 'en',
   systemLanguages = ['en-US'],
   themePreference = 'system',
@@ -185,6 +195,7 @@ async function renderApp({
           ...payload,
           settings: {
             ...payload.settings,
+            autoLockDelay,
             onboardingCompleted: true,
           },
         }
@@ -199,9 +210,16 @@ async function renderApp({
       payload: initialPayload,
     },
   );
+  let lifecycleState: ReturnType<ApplicationLifecycleSource['getState']> = 'foreground';
+  const lifecycleListeners = new Set<Parameters<ApplicationLifecycleSource['subscribe']>[0]>();
   const lifecycle: ApplicationLifecycleSource = {
-    getState: () => 'foreground',
-    subscribe: () => () => undefined,
+    getState: () => lifecycleState,
+    subscribe: (listener) => {
+      lifecycleListeners.add(listener);
+      return () => {
+        lifecycleListeners.delete(listener);
+      };
+    },
   };
   const autoLockClock: AutoLockClock = {
     now: () => 0,
@@ -248,6 +266,10 @@ async function renderApp({
     vaultInvalidation,
     reloadPage,
     downloadedFiles,
+    backgroundApp: () => {
+      lifecycleState = 'background';
+      for (const listener of lifecycleListeners) listener(lifecycleState);
+    },
   };
 }
 
@@ -861,10 +883,10 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Set up PIN protection' }));
 
-    expect(screen.getByLabelText('New PIN')).toHaveFocus();
-    expect(screen.getByRole('heading', { name: 'Set up a six-digit PIN' })).toBeVisible();
+    expect(screen.getByRole('dialog', { name: 'Set up a six-digit PIN' })).toBeVisible();
+    expect(screen.getByRole('button', { name: '1' })).toHaveFocus();
 
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.keyboard('{Escape}');
     await openRootDestination(user, 'Settings');
     await openRootDestination(user, 'Privacy');
     expect(screen.queryByLabelText('New PIN')).not.toBeInTheDocument();
@@ -879,7 +901,7 @@ describe('App', () => {
 
     await openRootDestination(user, 'Privacy');
 
-    await user.click(screen.getByRole('button', { name: 'Download encrypted backup' }));
+    await user.click(screen.getByRole('button', { name: 'Export encrypted backup' }));
     await waitFor(() => {
       expect(downloadedFiles).toHaveLength(1);
     });
@@ -889,7 +911,9 @@ describe('App', () => {
       mimeType: 'application/json',
     });
 
-    await user.click(screen.getByRole('button', { name: 'Review readable-export warning' }));
+    await user.click(screen.getByRole('button', { name: 'Download human-readable export' }));
+    expect(screen.getByRole('dialog', { name: 'Human-readable export' })).toBeVisible();
+    await enterPinWithKeypad(user, '246810');
     await user.click(
       screen.getByRole('checkbox', {
         name: 'I understand that this export is not encrypted and contains readable sensitive data.',
@@ -900,6 +924,7 @@ describe('App', () => {
       expect(downloadedFiles).toHaveLength(2);
     });
     expect(vaultController.calls.exportPlaintextBackup).toBe(1);
+    expect(vaultController.calls.verifyCurrentPin).toEqual(['246810']);
     expect(downloadedFiles[1]).toMatchObject({
       fileName: 'private-journal-unencrypted-export-2026-08-08.json',
       mimeType: 'application/json',
@@ -924,11 +949,12 @@ describe('App', () => {
     vi.spyOn(vaultController, 'exportPlaintextBackup')
       .mockReturnValueOnce(firstExport)
       .mockReturnValueOnce(secondExport);
-    const reviewWarning = 'Review readable-export warning';
+    const reviewWarning = 'Download human-readable export';
     const confirmation =
       'I understand that this export is not encrypted and contains readable sensitive data.';
 
     await user.click(screen.getByRole('button', { name: reviewWarning }));
+    await enterPinWithKeypad(user, '246810');
     await user.click(screen.getByRole('checkbox', { name: confirmation }));
     await user.click(screen.getByRole('button', { name: 'Export readable data' }));
 
@@ -945,6 +971,7 @@ describe('App', () => {
     });
 
     await user.click(screen.getByRole('button', { name: reviewWarning }));
+    await enterPinWithKeypad(user, '246810');
     await user.click(screen.getByRole('checkbox', { name: confirmation }));
     await user.click(screen.getByRole('button', { name: 'Export readable data' }));
     const settingsDestination = screen.getByRole('button', { name: 'Settings' });
@@ -963,20 +990,32 @@ describe('App', () => {
     const user = userEvent.setup();
     const { vaultController, vaultInvalidation } = await renderApp({ onboardingCompleted: true });
     await openRootDestination(user, 'Privacy');
-    const backupJson =
-      '{"kind":"perfect-days/encrypted-vault-backup","formatVersion":1,"envelope":{}}';
+    const bytes = (value: number) => new Uint8Array([value, value + 1]);
+    const backupJson = encodeEncryptedVaultBackup({
+      formatVersion: 1,
+      keyDerivation: { algorithm: 'PBKDF2-SHA-256', iterations: 600_000, salt: bytes(1) },
+      wrappedDataKey: bytes(3),
+      wrappedDataKeyIv: bytes(5),
+      payloadCiphertext: bytes(7),
+      payloadIv: bytes(9),
+    });
     const backupFile = new File([backupJson], 'private-journal-backup.json', {
       type: 'application/json',
     });
 
     await user.upload(screen.getByLabelText('Encrypted JSON backup'), backupFile);
-    await user.type(screen.getByLabelText('Backup PIN'), '246810');
+    await screen.findByLabelText('Backup PIN');
+    await enterPinWithKeypad(user, '246810');
+    await user.click(screen.getByRole('button', { name: 'Verify backup PIN' }));
+    expect(vaultController.calls.verifyEncryptedBackup).toEqual([
+      { backupJson, backupPin: '246810' },
+    ]);
     await user.click(
       screen.getByRole('checkbox', {
         name: 'I understand that a verified restore replaces my current local journal.',
       }),
     );
-    await user.click(screen.getByRole('button', { name: 'Verify and replace current journal' }));
+    await user.click(screen.getByRole('button', { name: 'Restore from selected backup' }));
 
     await waitFor(() => {
       expect(vaultController.calls.restoreEncryptedBackup).toEqual([
@@ -984,7 +1023,7 @@ describe('App', () => {
       ]);
     });
     expect(vaultInvalidation.publish).toHaveBeenCalledOnce();
-    expect(screen.getByLabelText('Backup PIN')).toHaveValue('');
+    expect(screen.queryByLabelText('Backup PIN')).not.toBeInTheDocument();
     expect(
       screen.getByText(
         'The encrypted backup was restored. This journal is now protected by the backup PIN.',
@@ -998,24 +1037,142 @@ describe('App', () => {
     await openRootDestination(user, 'Privacy');
 
     await user.click(screen.getByRole('button', { name: 'Set up a PIN' }));
-    const newPin = screen.getByLabelText('New PIN');
-    const confirmation = screen.getByLabelText('Confirm new PIN');
-    await user.type(newPin, '123');
-    await user.type(confirmation, '123');
-    await user.click(screen.getByRole('button', { name: 'Enable PIN protection' }));
-
-    expect(screen.getByRole('alert')).toHaveTextContent('Use exactly six digits.');
+    const dialog = screen.getByRole('dialog', { name: 'Set up a six-digit PIN' });
+    const submit = within(dialog).getByRole('button', { name: 'Enable PIN protection' });
+    await enterPinWithKeypad(user, '123');
+    expect(submit).toBeDisabled();
     expect(vaultController.calls.enablePin).toEqual([]);
 
-    await user.clear(newPin);
-    await user.clear(confirmation);
-    await user.type(newPin, '123456');
-    await user.type(confirmation, '123456');
-    await user.click(screen.getByRole('button', { name: 'Enable PIN protection' }));
+    await enterPinWithKeypad(user, '456');
+    expect(screen.getByLabelText('Confirm new PIN')).toBeVisible();
+    await enterPinWithKeypad(user, '111111');
+    expect(screen.getByRole('alert')).toHaveTextContent('The PINs do not match.');
+    expect(screen.getByLabelText('New PIN')).toBeVisible();
+
+    await enterPinWithKeypad(user, '123456');
+    await enterPinWithKeypad(user, '123456');
+    expect(submit).toBeEnabled();
+    await user.click(submit);
 
     expect(vaultController.calls.enablePin).toEqual(['123456']);
     expect(await screen.findByText('PIN protection is now on.')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Lock now' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Lock' })).toBeVisible();
+  });
+
+  it('changes a PIN through current, new, and confirmation keypad stages', async () => {
+    const user = userEvent.setup();
+    const { vaultController } = await renderApp({
+      onboardingCompleted: true,
+      vaultPinEnabled: true,
+    });
+    await openRootDestination(user, 'Privacy');
+    await user.click(screen.getByRole('button', { name: 'Change PIN' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Change PIN' });
+    expect(dialog).toBeVisible();
+    expect(screen.getByRole('button', { name: '1' })).toHaveFocus();
+    expect(within(dialog).getByLabelText('Current PIN')).toBeVisible();
+    await enterPinWithKeypad(user, '123456');
+    expect(screen.getByLabelText('New PIN')).toBeVisible();
+    await enterPinWithKeypad(user, '654321');
+    expect(screen.getByLabelText('Confirm new PIN')).toBeVisible();
+    await enterPinWithKeypad(user, '111111');
+
+    expect(screen.getByRole('alert')).toHaveTextContent('The PINs do not match.');
+    expect(screen.getByLabelText('New PIN')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Change PIN' })).toBeDisabled();
+
+    await enterPinWithKeypad(user, '654321');
+    await enterPinWithKeypad(user, '654321');
+    const submit = within(dialog).getByRole('button', { name: 'Change PIN' });
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+
+    expect(vaultController.calls.changePin).toEqual([{ currentPin: '123456', newPin: '654321' }]);
+    expect(await screen.findByText('The PIN was changed.')).toBeVisible();
+  });
+
+  it('turns off PIN protection only after modal keypad verification and confirmation', async () => {
+    const user = userEvent.setup();
+    const { vaultController } = await renderApp({
+      onboardingCompleted: true,
+      vaultPinEnabled: true,
+    });
+    await openRootDestination(user, 'Privacy');
+    const trigger = screen.getByRole('button', { name: 'Turn off PIN protection' });
+
+    await user.click(trigger);
+    const dialog = screen.getByRole('dialog', { name: 'Turn off PIN protection?' });
+    expect(dialog).toBeVisible();
+    expect(screen.getByRole('button', { name: '1' })).toHaveFocus();
+    const submit = within(dialog).getByRole('button', { name: 'Turn off PIN protection' });
+    await user.click(
+      within(dialog).getByRole('checkbox', {
+        name: 'I understand that the journal will be stored without PIN protection.',
+      }),
+    );
+    expect(submit).toBeDisabled();
+
+    await enterPinWithKeypad(user, '246810');
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+
+    expect(vaultController.calls.disablePin).toEqual(['246810']);
+    expect(await screen.findByText('PIN protection is now off.')).toBeVisible();
+  });
+
+  it('requires the current PIN in a modal before erasing a protected journal', async () => {
+    const user = userEvent.setup();
+    const { vaultController } = await renderApp({
+      onboardingCompleted: true,
+      vaultPinEnabled: true,
+    });
+    await openRootDestination(user, 'Privacy');
+
+    await user.click(screen.getByRole('button', { name: 'Erase everything' }));
+    const dialog = screen.getByRole('dialog', { name: 'Erase all local data?' });
+    expect(dialog).toBeVisible();
+    const submit = within(dialog).getByRole('button', { name: 'Erase everything' });
+    await user.click(
+      within(dialog).getByRole('checkbox', {
+        name: 'I understand that this cannot be undone.',
+      }),
+    );
+    expect(submit).toBeDisabled();
+
+    await enterPinWithKeypad(user, '246810');
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+
+    expect(vaultController.calls.verifyCurrentPin).toEqual(['246810']);
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('dialog', { name: 'Erase all local data?' }),
+      ).not.toBeInTheDocument();
+    });
+    expect(vaultController.getSnapshot()).toMatchObject({
+      phase: 'unlocked',
+      pinEnabled: false,
+    });
+  });
+
+  it('locks immediately on background even when an existing vault stores a legacy delay', async () => {
+    const { backgroundApp, vaultController } = await renderApp({
+      autoLockDelay: '15-minutes',
+      onboardingCompleted: true,
+      vaultPinEnabled: true,
+    });
+
+    act(() => {
+      backgroundApp();
+    });
+
+    expect(vaultController.getSnapshot()).toEqual({
+      phase: 'locked',
+      pinEnabled: true,
+      payload: null,
+    });
+    expect(await screen.findByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
   });
 
   it('moves focus into a PIN form and restores it when the form is cancelled', async () => {
@@ -1025,8 +1182,8 @@ describe('App', () => {
     const setupButton = screen.getByRole('button', { name: 'Set up a PIN' });
 
     await user.click(setupButton);
-    expect(screen.getByLabelText('New PIN')).toHaveFocus();
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByRole('button', { name: '1' })).toHaveFocus();
+    await user.keyboard('{Escape}');
 
     expect(screen.getByRole('button', { name: 'Set up a PIN' })).toHaveFocus();
   });
@@ -1039,25 +1196,45 @@ describe('App', () => {
 
     expect(screen.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
     expect(screen.queryByText(/menstrual/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Lock-screen preferences' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Unlock' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '1' })).toHaveFocus();
     await waitFor(() => {
       expect(document.title).toBe('Private app — locked');
     });
 
-    const pin = screen.getByLabelText('PIN');
-    await user.type(pin, '123');
-    await user.click(screen.getByRole('button', { name: 'Unlock' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Use exactly six digits.');
+    await enterPinWithKeypad(user, '123');
     expect(vaultController.calls.unlock).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Delete the last PIN digit' }));
+    await user.click(screen.getByRole('button', { name: 'Delete the last PIN digit' }));
+    await user.click(screen.getByRole('button', { name: 'Delete the last PIN digit' }));
 
-    await user.clear(pin);
-    await user.type(pin, '123456');
-    await user.click(screen.getByRole('button', { name: 'Unlock' }));
+    await enterPinWithKeypad(user, '123456');
 
     expect(vaultController.calls.unlock).toEqual(['123456']);
     expect(await screen.findByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
     await waitFor(() => {
       expect(document.title).toBe('Menstrual Pattern Tracker');
     });
+  });
+
+  it('clears a rejected automatic PIN attempt so it can be retried', async () => {
+    const user = userEvent.setup();
+    const { vaultController } = await renderApp({
+      vaultSnapshot: { phase: 'locked', pinEnabled: true, payload: null },
+    });
+    vaultController.failNextUnlock(new Error('wrong PIN'));
+
+    await enterPinWithKeypad(user, '000000');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The app could not be unlocked. Check the PIN and try again.',
+    );
+    expect(vaultController.calls.unlock).toEqual(['000000']);
+    expect(screen.getByLabelText('PIN')).toHaveValue('');
+    expect(screen.queryByRole('button', { name: 'Unlock' })).not.toBeInTheDocument();
   });
 
   it('distinguishes unavailable secure cryptography from a wrong PIN', async () => {
@@ -1106,8 +1283,7 @@ describe('App', () => {
     });
     vaultController.failNextUnlock(new VaultManagerError('stale-state'));
 
-    await user.type(screen.getByLabelText('PIN'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Unlock' }));
+    await enterPinWithKeypad(user, '123456');
 
     expect(reloadPage).toHaveBeenCalledOnce();
     expect(screen.getByRole('heading', { name: 'Opening your private journal' })).toBeVisible();
@@ -1121,8 +1297,7 @@ describe('App', () => {
     });
     vaultController.failNextUnlock(new VaultManagerError('storage-failed'));
 
-    await user.type(screen.getByLabelText('PIN'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Unlock' }));
+    await enterPinWithKeypad(user, '123456');
 
     expect(
       await screen.findByRole('heading', { name: 'The private journal could not be opened' }),
@@ -1221,7 +1396,6 @@ describe('App', () => {
     });
 
     await openRootDestination(user, 'Privacy');
-    await user.click(screen.getByRole('button', { name: 'Show erase controls' }));
     await user.click(screen.getByRole('button', { name: 'Erase everything' }));
     await user.click(
       screen.getByRole('checkbox', { name: 'I understand that this cannot be undone.' }),
