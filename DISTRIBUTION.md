@@ -1,8 +1,50 @@
 # Distribution and Store-Release Plan
 
-> Last policy review: 2026-08-18. Store policies, fees, target SDK requirements, and legal obligations change. Re-check every linked primary source immediately before creating accounts and before each submission. This document is an engineering and product-planning reference, not legal, medical, tax, or export-control advice.
+> Last policy review: 2026-08-19. Store policies, fees, target SDK requirements, and legal obligations change. Re-check every linked primary source immediately before creating accounts and before each submission. This document is an engineering and product-planning reference, not legal, medical, tax, or export-control advice.
 
-## Recommendation
+## Recommended Distribution Strategy
+
+For the current product, distribute the hosted PWA first and add store packages later. The recommended sequence is:
+
+1. Deploy the production `dist/` directory as a static PWA on a permanent custom HTTPS domain.
+2. Use that deployment for private pilots, direct installation, and the public web release.
+3. After the mobile experience and public-release gates are complete, package the same application with Capacitor for the Apple App Store and Google Play.
+
+### Primary PWA Channel
+
+Cloudflare Pages is the best current fit for this repository because the application has no runtime backend, Pages supports Git-based deployments and custom domains, and the existing `public/_headers` file is supported directly for static-response security and cache headers. Other capable static hosts remain possible, but their header configuration must be translated and verified on the deployed origin.
+
+Use these build settings:
+
+```text
+Build command: npm ci && npm run build
+Output directory: dist
+Production branch: main
+```
+
+`vite preview` is only a local production-build preview and must not be used as the public server. Distribute the hosted URL or a QR code instead of sending the `dist/` directory or asking users to open `dist/index.html` directly. PWA installation and service workers require a correctly served secure origin.
+
+Installation instructions should cover:
+
+- iPhone and iPad: use the browser's **Add to Home Screen** action;
+- Android: use **Install app** or **Add to Home Screen**;
+- Chrome and Edge on desktop: use the installation control in the address bar or browser menu.
+
+Choose the permanent production origin before real users create journals. Browser storage, the installed PWA, and its IndexedDB vault are scoped to an origin and browser profile. Moving from a temporary preview domain to the final domain does not migrate existing journals. Installation from another browser can also create a separate app instance with separate local data. Encrypted backup and restore is the supported migration path.
+
+The application does not transmit journal contents to the static host. The host will nevertheless receive ordinary connection metadata, such as an IP address and requests for application assets. Do not add advertising, analytics, attribution, translation, or other third-party scripts without a new privacy review.
+
+### Release Sequence
+
+**Private pilot:** deploy to the permanent HTTPS domain, share the link with selected testers, and validate installation, offline startup, updates, rollback, encrypted backup/restore, deletion, security headers, and physical iOS/Android devices.
+
+**Public PWA:** retain the hosted PWA as the canonical release, add concise installation instructions and a QR code, publish privacy/support/limitations pages, automate verified deployments, and document recovery from a faulty service-worker release.
+
+**App stores:** add Capacitor iOS and Android projects when store discovery, platform-native local notifications, lifecycle integration, file sharing, or app-switcher privacy justify the added signing, review, and maintenance work. Avoid submitting a minimal iOS web wrapper: Apple requires utility and an app-like experience beyond a repackaged website. A Trusted Web Activity remains an optional Android-only shortcut, but it depends on the hosted origin and browser and does not solve iOS distribution.
+
+Primary references: [Vite static deployment](https://vite.dev/guide/static-deploy.html), [Cloudflare Pages headers](https://developers.cloudflare.com/pages/configuration/headers/), [PWA installation behavior](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Installing), [Capacitor](https://capacitorjs.com/docs), [Apple minimum functionality](https://developer.apple.com/app-store/review/guidelines/#minimum-functionality), and [Android Trusted Web Activities](https://developer.chrome.com/docs/android/trusted-web-activity/).
+
+## Long-Term Channel Strategy
 
 Keep three distribution targets from one source repository:
 
