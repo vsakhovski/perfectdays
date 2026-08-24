@@ -640,7 +640,7 @@ test.describe('English application shell', () => {
 
     await page.evaluate("window.dispatchEvent(new Event('pagehide'))");
     await expect(page.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
-    await expect(page).toHaveTitle('Private app — locked');
+    await expect(page).toHaveTitle('Perfect Days — locked');
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 
     await enterLockPin(page, '000000');
@@ -1135,7 +1135,7 @@ test.describe('narrow dark German shell', () => {
     ).toBeVisible();
 
     const warningTrigger = page.getByRole('button', {
-      name: 'Menschenlesbaren Export herunterladen',
+      name: 'Lesbaren Export herunterladen',
     });
     await warningTrigger.focus();
     await warningTrigger.press('Enter');

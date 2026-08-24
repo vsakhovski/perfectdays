@@ -16,6 +16,7 @@ export interface PinKeypadProps {
   readonly onChange: (value: string) => void;
   readonly onRevealChange: (revealed: boolean) => void;
   readonly placeholder: string;
+  readonly replaceOnNextDigit?: boolean;
   readonly revealed: boolean;
   readonly showPinLabel: string;
   readonly value: string;
@@ -32,6 +33,7 @@ export function PinKeypad({
   onChange,
   onRevealChange,
   placeholder,
+  replaceOnNextDigit = false,
   revealed,
   showPinLabel,
   value,
@@ -45,7 +47,12 @@ export function PinKeypad({
   }, [autoFocus]);
 
   const enterDigit = (digit: string): void => {
-    if (disabled || value.length >= 6) return;
+    if (disabled) return;
+    if (replaceOnNextDigit) {
+      onChange(digit);
+      return;
+    }
+    if (value.length >= 6) return;
     onChange(`${value}${digit}`.slice(0, 6));
   };
 
@@ -102,7 +109,7 @@ export function PinKeypad({
       <div aria-label={keypadLabel} className={styles['pinKeypad']} role="group">
         {PIN_DIGITS.map((digit, index) => (
           <button
-            disabled={disabled || value.length >= 6}
+            disabled={disabled || (value.length >= 6 && !replaceOnNextDigit)}
             key={digit}
             onClick={() => {
               enterDigit(digit);
@@ -115,7 +122,7 @@ export function PinKeypad({
         ))}
         <span aria-hidden="true" className={styles['pinKeypadSpacer']} />
         <button
-          disabled={disabled || value.length >= 6}
+          disabled={disabled || (value.length >= 6 && !replaceOnNextDigit)}
           onClick={() => {
             enterDigit(PIN_ZERO);
           }}

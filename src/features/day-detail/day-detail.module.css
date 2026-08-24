@@ -5,6 +5,8 @@
   align-items: end;
   padding: 0;
   background: rgb(20 12 17 / 58%);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   inset: 0;
 }
 
@@ -384,6 +386,8 @@
   place-items: center;
   padding: 1rem;
   background: rgb(20 12 17 / 58%);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   inset: 0;
 }
 

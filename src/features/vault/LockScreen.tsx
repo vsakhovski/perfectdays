@@ -1,9 +1,18 @@
-import { useId, useRef, useState, type SyntheticEvent } from 'react';
+import { useId, useRef, useState, type KeyboardEvent, type SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useVault } from '../../app/vault/use-vault';
+import { AppLogo } from '../../shared/ui/AppLogo';
 import { PinKeypad } from './PinKeypad';
 import styles from './vault-ui.module.css';
+
+function focusableElements(container: HTMLElement): readonly HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((element) => !element.matches(':disabled') && !element.hasAttribute('hidden'));
+}
 
 export function LockScreen() {
   const { t } = useTranslation();
@@ -19,6 +28,7 @@ export function LockScreen() {
   const resetPanelId = useId();
   const resetPanelTitleId = useId();
   const resetToggleRef = useRef<HTMLButtonElement>(null);
+  const resetDialogRef = useRef<HTMLFormElement>(null);
 
   const submitPin = async (nextPin: string): Promise<void> => {
     if (pending || nextPin.length !== 6) return;
@@ -28,8 +38,6 @@ export function LockScreen() {
     } catch {
       setUnlockFailed(true);
     } finally {
-      setPin('');
-      setPinRevealed(false);
       setPending(false);
     }
   };
@@ -56,31 +64,66 @@ export function LockScreen() {
     }
   };
 
-  const toggleReset = () => {
-    if (showReset) {
-      setResetConfirmed(false);
-    }
-    setShowReset(!showReset);
+  const openReset = () => {
+    setResetConfirmed(false);
     setResetFailed(false);
+    setShowReset(true);
   };
 
   const closeReset = () => {
     setShowReset(false);
     setResetConfirmed(false);
     setResetFailed(false);
-    resetToggleRef.current?.focus();
+    globalThis.queueMicrotask(() => resetToggleRef.current?.focus());
+  };
+
+  const handleResetKeyDown = (event: KeyboardEvent<HTMLFormElement>): void => {
+    if (event.key === 'Escape' && !resetPending) {
+      event.preventDefault();
+      closeReset();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+
+    const dialog = resetDialogRef.current;
+    if (!dialog) return;
+    const focusable = focusableElements(dialog);
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (!first || !last) return;
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   };
 
   return (
     <main className={styles['lockPage']}>
       <section className={styles['lockCard']} aria-labelledby="lock-title">
-        <p className={styles['eyebrow']}>{t(($) => $.vault.lock.eyebrow)}</p>
+        <div className={styles['lockBrand']}>
+          <AppLogo accentClassName={styles['lockLogoAccent']} className={styles['lockLogo']} />
+          <span>{t(($) => $.vault.lock.eyebrow)}</span>
+        </div>
         <h1 id="lock-title">{t(($) => $.vault.lock.title)}</h1>
-        <p className={styles['introduction']}>
-          {pinProtectionAvailable
-            ? t(($) => $.vault.lock.description)
-            : t(($) => $.vault.lock.cryptoUnavailable)}
-        </p>
+        {unlockFailed ? (
+          <p className={styles['error']} role="alert">
+            {t(($) => $.vault.lock.failed)}
+          </p>
+        ) : pending ? (
+          <p aria-live="polite" className={styles['introduction']} role="status">
+            {t(($) => $.vault.lock.unlocking)}
+          </p>
+        ) : (
+          <p className={styles['introduction']}>
+            {pinProtectionAvailable
+              ? t(($) => $.vault.lock.description)
+              : t(($) => $.vault.lock.cryptoUnavailable)}
+          </p>
+        )}
 
         {pinProtectionAvailable ? (
           <div className={styles['lockPinEntry']}>
@@ -88,7 +131,6 @@ export function LockScreen() {
               autoFocus
               deleteDigitLabel={t(($) => $.tracker.onboarding.pin.deleteDigit)}
               disabled={pending}
-              {...(unlockFailed ? { error: t(($) => $.vault.lock.failed) } : {})}
               hidePinLabel={t(($) => $.tracker.onboarding.pin.hidePin, {
                 field: t(($) => $.vault.lock.pinLabel),
               })}
@@ -97,38 +139,38 @@ export function LockScreen() {
               onChange={updatePin}
               onRevealChange={setPinRevealed}
               placeholder={t(($) => $.tracker.onboarding.pin.placeholder)}
+              replaceOnNextDigit={unlockFailed}
               revealed={pinRevealed}
               showPinLabel={t(($) => $.tracker.onboarding.pin.showPin, {
                 field: t(($) => $.vault.lock.pinLabel),
               })}
               value={pin}
             />
-            <p className={styles['hint']}>{t(($) => $.vault.lock.pinHint)}</p>
-            {pending ? (
-              <p aria-live="polite" className={styles['hint']} role="status">
-                {t(($) => $.vault.lock.unlocking)}
-              </p>
-            ) : null}
           </div>
         ) : null}
 
         <button
-          aria-controls={resetPanelId}
-          aria-expanded={showReset}
+          aria-haspopup="dialog"
           className={styles['textButton']}
-          onClick={toggleReset}
+          onClick={openReset}
           ref={resetToggleRef}
           type="button"
         >
           {t(($) => $.vault.lock.forgotPin)}
         </button>
+      </section>
 
-        {showReset ? (
+      {showReset ? (
+        <div className={styles['resetBackdrop']}>
           <form
             aria-labelledby={resetPanelTitleId}
+            aria-modal="true"
             className={styles['resetBox']}
             id={resetPanelId}
+            onKeyDown={handleResetKeyDown}
             onSubmit={(event) => void submitReset(event)}
+            ref={resetDialogRef}
+            role="dialog"
           >
             <h2 id={resetPanelTitleId}>{t(($) => $.vault.lock.reset.title)}</h2>
             <p>{t(($) => $.vault.lock.reset.description)}</p>
@@ -169,8 +211,8 @@ export function LockScreen() {
               </button>
             </div>
           </form>
-        ) : null}
-      </section>
+        </div>
+      ) : null}
     </main>
   );
 }

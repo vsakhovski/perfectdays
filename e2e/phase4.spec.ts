@@ -205,7 +205,6 @@ test.describe('Phase 4 production boundaries', () => {
     const download = await downloadPromise;
     const backupPath = testInfo.outputPath('encrypted-round-trip.json');
     await download.saveAs(backupPath);
-    await expect(page.getByText('The encrypted backup download has started.')).toBeVisible();
     const backupContents = await readFile(backupPath, 'utf8');
     expect(containsAnySecret([backupContents], secrets)).toBe(false);
 
@@ -218,7 +217,7 @@ test.describe('Phase 4 production boundaries', () => {
     await updateTodayNote(page, mutatedNote);
 
     await openPrivacy(page);
-    await page.getByLabel('Encrypted JSON backup').setInputFiles(backupPath);
+    await page.getByLabel('Encrypted backup file').setInputFiles(backupPath);
     await enterLockPin(page, originalPin);
     await page.getByRole('button', { name: 'Verify backup PIN' }).click();
     await page
@@ -272,7 +271,7 @@ test.describe('Phase 4 production boundaries', () => {
     await setupDialog.getByRole('button', { name: 'Enable PIN protection' }).click();
     await expect(page.getByText('PIN protection is now on.')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Download human-readable export' }).click();
+    await page.getByRole('button', { name: 'Download readable export' }).click();
     await enterLockPin(page, pin);
     await page
       .getByRole('checkbox', {
@@ -350,7 +349,7 @@ test.describe('Phase 4 download portability', () => {
     await finishOnboarding(page);
     await openPrivacy(page);
 
-    await page.getByRole('button', { name: 'Download human-readable export' }).click();
+    await page.getByRole('button', { name: 'Download readable export' }).click();
     await page
       .getByRole('checkbox', {
         name: 'I understand that this export is not encrypted and contains readable sensitive data.',
@@ -372,6 +371,5 @@ test.describe('Phase 4 download portability', () => {
       formatVersion: 1,
       warningCode: 'unencrypted-sensitive-health-data',
     });
-    await expect(page.getByText('The readable export download has started.')).toBeVisible();
   });
 });

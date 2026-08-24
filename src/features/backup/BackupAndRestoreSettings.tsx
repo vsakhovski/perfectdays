@@ -6,6 +6,7 @@ import {
   BackupAndRestorePanel,
   type BackupAndRestoreCopy,
   type BackupOperation,
+  type BackupOperationFeedback,
   type RestoreEncryptedBackupRequest,
 } from './BackupAndRestorePanel';
 
@@ -16,7 +17,7 @@ type Feedback =
     }
   | {
       readonly kind: 'status';
-      readonly code: 'encryptedDownloaded' | 'plaintextDownloaded' | 'restored';
+      readonly code: 'restored';
     }
   | null;
 
@@ -123,7 +124,7 @@ export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettin
     async (
       operation: BackupOperation,
       action: () => Promise<void>,
-      successCode: Extract<Feedback, { kind: 'status' }>['code'],
+      successCode: Extract<Feedback, { kind: 'status' }>['code'] | null,
       errorCode: Extract<Feedback, { kind: 'error' }>['code'],
     ): Promise<boolean> => {
       if (activeOperation.current !== undefined) return false;
@@ -133,7 +134,7 @@ export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettin
       setFeedback(null);
       try {
         await action();
-        setFeedback({ kind: 'status', code: successCode });
+        if (successCode !== null) setFeedback({ kind: 'status', code: successCode });
         return true;
       } catch {
         setFeedback({ kind: 'error', code: errorCode });
@@ -147,20 +148,10 @@ export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettin
   );
 
   const requestEncryptedBackup = () => {
-    void runOperation(
-      'encrypted-backup',
-      downloadEncryptedBackup,
-      'encryptedDownloaded',
-      'encryptedFailed',
-    );
+    void runOperation('encrypted-backup', downloadEncryptedBackup, null, 'encryptedFailed');
   };
   const requestPlaintextExport = () => {
-    void runOperation(
-      'plaintext-export',
-      downloadPlaintextExport,
-      'plaintextDownloaded',
-      'plaintextFailed',
-    );
+    void runOperation('plaintext-export', downloadPlaintextExport, null, 'plaintextFailed');
   };
   const requestRestore = ({ backupJson, backupPin }: RestoreEncryptedBackupRequest) =>
     runOperation(
@@ -175,17 +166,26 @@ export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettin
   const feedbackMessage =
     feedback === null
       ? undefined
-      : feedback.code === 'encryptedDownloaded'
-        ? t(($) => $.vault.backup.feedback.encryptedDownloaded)
-        : feedback.code === 'plaintextDownloaded'
-          ? t(($) => $.vault.backup.feedback.plaintextDownloaded)
-          : feedback.code === 'restored'
-            ? t(($) => $.vault.backup.feedback.restored)
-            : feedback.code === 'encryptedFailed'
-              ? t(($) => $.vault.backup.feedback.encryptedFailed)
+      : feedback.code === 'restored'
+        ? t(($) => $.vault.backup.feedback.restored)
+        : feedback.code === 'encryptedFailed'
+          ? t(($) => $.vault.backup.feedback.encryptedFailed)
+          : feedback.code === 'plaintextFailed'
+            ? t(($) => $.vault.backup.feedback.plaintextFailed)
+            : t(($) => $.vault.backup.feedback.restoreFailed);
+  const operationFeedback: BackupOperationFeedback | undefined =
+    feedback === null || feedbackMessage === undefined
+      ? undefined
+      : {
+          kind: feedback.kind,
+          message: feedbackMessage,
+          operation:
+            feedback.code === 'encryptedFailed'
+              ? 'encrypted-backup'
               : feedback.code === 'plaintextFailed'
-                ? t(($) => $.vault.backup.feedback.plaintextFailed)
-                : t(($) => $.vault.backup.feedback.restoreFailed);
+                ? 'plaintext-export'
+                : 'encrypted-restore',
+        };
 
   return (
     <BackupAndRestorePanel
@@ -195,9 +195,7 @@ export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettin
         setFeedback(null);
         onEnablePin();
       }}
-      {...(feedback?.kind === 'error' && feedbackMessage !== undefined
-        ? { errorMessage: feedbackMessage }
-        : {})}
+      {...(operationFeedback === undefined ? {} : { feedback: operationFeedback })}
       pinEnabled={snapshot.pinEnabled}
       pinProtectionAvailable={pinProtectionAvailable}
       requestEncryptedBackup={requestEncryptedBackup}
@@ -205,9 +203,6 @@ export function BackupAndRestoreSettings({ onEnablePin }: BackupAndRestoreSettin
       restoreEncryptedBackup={requestRestore}
       verifyCurrentPin={verifyCurrentPin}
       verifyEncryptedBackup={verifyRestore}
-      {...(feedback?.kind === 'status' && feedbackMessage !== undefined
-        ? { statusMessage: feedbackMessage }
-        : {})}
       vaultUnlocked={snapshot.phase === 'unlocked'}
     />
   );

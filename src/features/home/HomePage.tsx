@@ -25,6 +25,14 @@ import styles from './HomePage.module.css';
 
 type CalendarDetailScreen = 'history' | 'insights' | null;
 
+function ContentLockIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M7 10V8a5 5 0 0 1 10 0v2m-9 0h8a2 2 0 0 1 2 2v7H6v-7a2 2 0 0 1 2-2Z" />
+    </svg>
+  );
+}
+
 function OnboardingHome({ payload }: { readonly payload: VaultPayload }) {
   return <TrackerOnboardingFlow payload={payload} />;
 }
@@ -128,10 +136,12 @@ function CalendarDestination({
 }
 
 function PrivacyDestination({
+  onLock,
   onPinSetupRequestHandled,
   onRequestPinSetup,
   pinSetupRequest,
 }: {
+  readonly onLock?: () => void;
   readonly onPinSetupRequestHandled: (request: number) => void;
   readonly onRequestPinSetup: () => void;
   readonly pinSetupRequest: number;
@@ -140,7 +150,12 @@ function PrivacyDestination({
 
   return (
     <div className={styles['screenStack']}>
-      <p className={styles['screenDescription']}>{t(($) => $.mobile.privacy.description)}</p>
+      {onLock ? (
+        <button className={styles['privacyLockButton']} onClick={onLock} type="button">
+          <ContentLockIcon />
+          <span>{t(($) => $.mobile.shell.actions.lock)}</span>
+        </button>
+      ) : null}
       <section className={styles['informationCard']}>
         <h2>{t(($) => $.mobile.privacy.storage.title)}</h2>
         <p>{t(($) => $.mobile.privacy.storage.description)}</p>
@@ -247,6 +262,7 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
       />
     ) : destination === 'privacy' ? (
       <PrivacyDestination
+        {...(snapshot.pinEnabled ? { onLock: lock } : {})}
         onPinSetupRequestHandled={(request) => {
           setPinSetupRequest((current) => (current === request ? undefined : current));
         }}
@@ -303,7 +319,6 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
       onNavigate={navigate}
       screenTitle={screenTitle}
       screenKey={`${destination}:${calendarDetail ?? 'root'}`}
-      {...(snapshot.pinEnabled ? { onLock: lock } : {})}
     >
       {content}
     </MobileAppShell>

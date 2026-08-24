@@ -18,6 +18,30 @@ interface PinFormProps {
   onSuccess: () => void;
 }
 
+function ChangePinIcon() {
+  return (
+    <svg aria-hidden="true" className={styles['pinActionIcon']} viewBox="0 0 24 24">
+      <path d="M5 5h8v8H5zM8 8h2m-2 2h2M14.5 17.5l4.7-4.7 2 2-4.7 4.7-3 .9z" />
+    </svg>
+  );
+}
+
+function SetupPinIcon() {
+  return (
+    <svg aria-hidden="true" className={styles['pinActionIcon']} viewBox="0 0 24 24">
+      <path d="M7 10V8a5 5 0 0 1 10 0v2m-9 0h8a2 2 0 0 1 2 2v7H6v-7a2 2 0 0 1 2-2Zm5 3v4m-2-2h4" />
+    </svg>
+  );
+}
+
+function DisablePinIcon() {
+  return (
+    <svg aria-hidden="true" className={styles['pinActionIcon']} viewBox="0 0 24 24">
+      <path d="M8 10V8a4 4 0 0 1 7.5-2M7 10h10a2 2 0 0 1 2 2v7H5v-7a2 2 0 0 1 2-2ZM4 4l16 16" />
+    </svg>
+  );
+}
+
 function FormButtons({
   cancel,
   pending,
@@ -780,10 +804,6 @@ export function PinSecurityPanel({
     <section className={styles['panel']} aria-labelledby="security-title">
       <div className={styles['heading']}>
         <h2 id="security-title">{t(($) => $.vault.security.title)}</h2>
-        <p>{t(($) => $.vault.security.description)}</p>
-      </div>
-
-      <div className={styles['content']}>
         <div
           className={snapshot.pinEnabled ? styles['protectedStatus'] : styles['unprotectedStatus']}
         >
@@ -792,13 +812,11 @@ export function PinSecurityPanel({
               ? t(($) => $.vault.security.protected.status)
               : t(($) => $.vault.security.unprotected.status)}
           </strong>
-          <span>
-            {snapshot.pinEnabled
-              ? t(($) => $.vault.security.protected.description)
-              : t(($) => $.vault.security.unprotected.description)}
-          </span>
         </div>
+        <p>{t(($) => $.vault.security.description)}</p>
+      </div>
 
+      <div className={styles['content']}>
         {successMessage !== null ? (
           <p className={styles['success']} aria-live="polite">
             {successMessage}
@@ -811,40 +829,45 @@ export function PinSecurityPanel({
         ) : null}
 
         {mode === 'summary' ? (
-          <div className={styles['actions']}>
+          <div className={snapshot.pinEnabled ? styles['pinActions'] : styles['pinSetupActions']}>
             {snapshot.pinEnabled ? (
               <>
                 <button
-                  className={formStyles['secondaryButton']}
+                  className={styles['pinActionButton']}
                   onClick={() => {
                     open('change');
                   }}
                   ref={changeTriggerRef}
                   type="button"
                 >
-                  {t(($) => $.vault.security.actions.changePin)}
+                  <ChangePinIcon />
+                  <span>{t(($) => $.vault.security.actions.changePin)}</span>
                 </button>
                 <button
-                  className={formStyles['secondaryButton']}
+                  className={styles['pinActionButton']}
+                  data-destructive="true"
                   onClick={() => {
                     open('disable');
                   }}
                   ref={disableTriggerRef}
                   type="button"
                 >
-                  {t(($) => $.vault.security.actions.disablePin)}
+                  <DisablePinIcon />
+                  <span>{t(($) => $.vault.security.actions.disablePin)}</span>
                 </button>
               </>
             ) : pinProtectionAvailable ? (
               <button
-                className={formStyles['primaryButton']}
+                className={styles['pinActionButton']}
+                data-primary="true"
                 onClick={() => {
                   open('setup');
                 }}
                 ref={setupTriggerRef}
                 type="button"
               >
-                {t(($) => $.vault.security.unprotected.recommendation)}
+                <SetupPinIcon />
+                <span>{t(($) => $.vault.security.unprotected.recommendation)}</span>
               </button>
             ) : null}
           </div>

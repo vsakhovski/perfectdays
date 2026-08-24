@@ -9,6 +9,7 @@ import {
 } from 'react';
 
 import type { LocalDate } from '../../domain/models';
+import { AppLogo } from '../../shared/ui/AppLogo';
 import {
   isValidTypicalBleedDuration,
   isValidTypicalCycleLength,
@@ -287,19 +288,6 @@ function validateDraftStep(
 
 function describedBy(errorId: string, descriptionId: string, hasError: boolean): string {
   return hasError ? `${descriptionId} ${errorId}` : descriptionId;
-}
-
-function PlaceholderLogo() {
-  return (
-    <svg aria-hidden="true" className={styles['logo']} viewBox="0 0 120 120">
-      <rect height="104" rx="30" width="104" x="8" y="8" />
-      <path d="M35 46h50M43 31v20m34-20v20M35 46v39h50V46" />
-      <path
-        className={styles['logoAccent']}
-        d="M48 66c0-8 6-14 12-20 6 6 12 12 12 20a12 12 0 0 1-24 0Z"
-      />
-    </svg>
-  );
 }
 
 export function TrackerOnboarding({
@@ -924,7 +912,7 @@ export function TrackerOnboarding({
     renderedStep === 'splash' ? (
       <div className={styles['splash']} data-testid="onboarding-splash">
         <div className={styles['splashMain']} data-testid="onboarding-splash-main">
-          <PlaceholderLogo />
+          <AppLogo accentClassName={styles['logoAccent']} className={styles['logo']} />
           <div className={styles['splashIdentity']}>
             <h1 ref={renderedStep === step ? headingRef : undefined} tabIndex={-1}>
               {copy.splash.appName}

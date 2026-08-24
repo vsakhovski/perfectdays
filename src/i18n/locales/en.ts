@@ -487,15 +487,14 @@ export const en = {
     },
     privacy: {
       title: 'Privacy',
-      description: 'Protect, back up, restore, export, or erase this journal.',
       sections: {
         protection: 'PIN protection',
         portability: 'Backup and export',
       },
       storage: {
-        title: 'Stored on this device',
+        title: 'Private journal data',
         description:
-          'Journal data stays in this browser unless you export a file or erase the local data.',
+          'Journal data stays on this device unless you export a file or erase the local data.',
         downloads:
           'Downloaded backups and exports are outside this app and are not removed by Erase everything.',
       },
@@ -577,9 +576,9 @@ export const en = {
         'The browser did not confirm removal of the saved appearance or language preference.',
     },
     lock: {
-      metaTitle: 'Private app — locked',
+      metaTitle: 'Perfect Days — locked',
       metaDescription: 'A private local app is locked.',
-      eyebrow: 'Private app',
+      eyebrow: 'Perfect Days',
       title: 'Locked',
       description: 'Enter your six-digit PIN to continue.',
       cryptoUnavailable:
@@ -619,10 +618,10 @@ export const en = {
       },
       plaintext: {
         title: 'Human-readable export',
-        reviewWarning: 'Download human-readable export',
+        reviewWarning: 'Download readable export',
         warningTitle: 'This file contains readable sensitive data',
         warning:
-          'Anyone who gets this unencrypted file can read every period date, rating, and private note in it. Store and share it with great care.',
+          'Anyone who gets this unencrypted file can read every period date, rating, and private note in it. Store and share it with great care. This export cannot be used to restore your journal.',
         confirmation:
           'I understand that this export is not encrypted and contains readable sensitive data.',
         action: 'Export readable data',
@@ -634,10 +633,10 @@ export const en = {
         title: 'Restore encrypted backup',
         description:
           'Choose an encrypted JSON backup and enter the six-digit PIN that protected that file.',
-        warningTitle: 'A verified restore replaces this journal',
+        warningTitle: 'Restored backup will replace current journal',
         warning:
           'The file and its PIN are verified before anything changes. A successful restore replaces this journal and uses the backup PIN for its lock. Appearance and language stay unchanged.',
-        fileLabel: 'Encrypted JSON backup',
+        fileLabel: 'Encrypted backup file',
         chooseFile: 'Choose backup file',
         noFileSelected: 'No backup file selected.',
         selectedFile: 'Selected backup: {{fileName}}',
@@ -680,13 +679,9 @@ export const en = {
         'PIN protection is unavailable because this browser or connection did not pass the secure-cryptography check.',
       protected: {
         status: 'PIN protection is on',
-        description:
-          'Journal data is encrypted at rest in this browser. The PIN cannot be recovered.',
       },
       unprotected: {
         status: 'PIN protection is off',
-        description:
-          'Journal data is currently stored without app-level encryption or an access gate.',
         recommendation: 'Set up a PIN',
       },
       actions: {

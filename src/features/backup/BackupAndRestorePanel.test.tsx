@@ -48,7 +48,7 @@ const copy: BackupAndRestoreCopy = {
     warningTitle: 'Current journal replacement',
     warning:
       'The current local journal will be replaced only after the backup and its PIN are verified.',
-    fileLabel: 'Encrypted JSON backup',
+    fileLabel: 'Encrypted backup file',
     chooseFile: 'Choose backup file',
     noFileSelected: 'No backup file selected.',
     selectedFile: (fileName) => `Selected backup: ${fileName}`,
@@ -350,17 +350,32 @@ describe('BackupAndRestorePanel', () => {
     expect(fileInput).toHaveValue('');
   });
 
-  it('renders parent feedback and exposes operation-specific busy states', () => {
-    renderPanel({
+  it('renders operation feedback beside its related controls and exposes busy states', () => {
+    const { props, rerender } = renderPanel({
       busyOperation: 'encrypted-restore',
-      errorMessage: 'The backup PIN was not accepted.',
-      statusMessage: 'An earlier encrypted backup was downloaded.',
+      feedback: {
+        kind: 'error',
+        message: 'The backup PIN was not accepted.',
+        operation: 'encrypted-restore',
+      },
     });
 
-    expect(screen.getByRole('alert')).toHaveTextContent('not accepted');
-    expect(screen.getByRole('status')).toHaveTextContent('was downloaded');
+    const restoreCard = screen.getByRole('region', { name: copy.restore.title });
+    expect(within(restoreCard).getByRole('alert')).toHaveTextContent('not accepted');
     expect(screen.getByLabelText(copy.restore.fileLabel)).toBeDisabled();
     expect(screen.getByRole('button', { name: copy.encrypted.action })).toBeDisabled();
+
+    rerender(
+      <BackupAndRestorePanel
+        {...props}
+        feedback={{
+          kind: 'status',
+          message: 'The encrypted backup was restored.',
+          operation: 'encrypted-restore',
+        }}
+      />,
+    );
+    expect(within(restoreCard).getByRole('status')).toHaveTextContent('was restored');
   });
 
   it('keeps long valid filenames in the restore card and out of the compact PIN dialog', async () => {

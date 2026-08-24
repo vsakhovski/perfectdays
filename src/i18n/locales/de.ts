@@ -506,16 +506,14 @@ export const de = {
     },
     privacy: {
       title: 'Datenschutz',
-      description:
-        'Schütze dein Tagebuch und verwalte Sicherungen, Wiederherstellung, Exporte und Löschung.',
       sections: {
         protection: 'PIN-Schutz',
         portability: 'Sicherung und Export',
       },
       storage: {
-        title: 'Auf diesem Gerät gespeichert',
+        title: 'Private Tagebuchdaten',
         description:
-          'Tagebuchdaten bleiben in diesem Browser, bis du eine Datei exportierst oder die lokalen Daten löschst.',
+          'Die Tagebuchdaten bleiben auf diesem Gerät, es sei denn, du exportierst eine Datei oder löschst die lokalen Daten.',
         downloads:
           'Heruntergeladene Sicherungen und Exporte liegen außerhalb der App und werden durch „Alles löschen“ nicht entfernt.',
       },
@@ -599,9 +597,9 @@ export const de = {
         'Der Browser hat das Entfernen der gespeicherten Darstellungs- oder Spracheinstellung nicht bestätigt.',
     },
     lock: {
-      metaTitle: 'Private App – gesperrt',
+      metaTitle: 'Perfect Days – gesperrt',
       metaDescription: 'Eine private lokale App ist gesperrt.',
-      eyebrow: 'Private App',
+      eyebrow: 'Perfect Days',
       title: 'Gesperrt',
       description: 'Gib deine sechsstellige PIN ein, um fortzufahren.',
       cryptoUnavailable:
@@ -643,10 +641,10 @@ export const de = {
       },
       plaintext: {
         title: 'Menschenlesbarer Export',
-        reviewWarning: 'Menschenlesbaren Export herunterladen',
+        reviewWarning: 'Lesbaren Export herunterladen',
         warningTitle: 'Diese Datei enthält lesbare sensible Daten',
         warning:
-          'Jede Person mit Zugriff auf diese unverschlüsselte Datei kann alle Periodendaten, Bewertungen und privaten Notizen darin lesen. Bewahre und teile sie mit größter Sorgfalt.',
+          'Jede Person mit Zugriff auf diese unverschlüsselte Datei kann alle Periodendaten, Bewertungen und privaten Notizen darin lesen. Bewahre und teile sie mit größter Sorgfalt. Dieser Export kann nicht zur Wiederherstellung deines Tagebuchs verwendet werden.',
         confirmation:
           'Ich verstehe, dass dieser Export nicht verschlüsselt ist und lesbare sensible Daten enthält.',
         action: 'Lesbare Daten exportieren',
@@ -658,10 +656,10 @@ export const de = {
         title: 'Verschlüsselte Sicherung wiederherstellen',
         description:
           'Wähle eine verschlüsselte JSON-Sicherung und gib die sechsstellige PIN ein, mit der diese Datei geschützt wurde.',
-        warningTitle: 'Eine bestätigte Wiederherstellung ersetzt dieses Tagebuch',
+        warningTitle: 'Die wiederhergestellte Sicherung ersetzt das aktuelle Tagebuch',
         warning:
           'Datei und PIN werden geprüft, bevor sich etwas ändert. Eine erfolgreiche Wiederherstellung ersetzt dieses Tagebuch und verwendet die Sicherungs-PIN als Sperre. Darstellung und Sprache bleiben unverändert.',
-        fileLabel: 'Verschlüsselte JSON-Sicherung',
+        fileLabel: 'Verschlüsselte Sicherungsdatei',
         chooseFile: 'Sicherungsdatei auswählen',
         noFileSelected: 'Keine Sicherungsdatei ausgewählt.',
         selectedFile: 'Ausgewählte Sicherung: {{fileName}}',
@@ -708,13 +706,9 @@ export const de = {
         'Der PIN-Schutz ist nicht verfügbar, weil dieser Browser oder diese Verbindung die Prüfung der sicheren Verschlüsselung nicht bestanden hat.',
       protected: {
         status: 'PIN-Schutz ist aktiviert',
-        description:
-          'Die Tagebuchdaten sind in diesem Browser verschlüsselt gespeichert. Die PIN kann nicht wiederhergestellt werden.',
       },
       unprotected: {
         status: 'PIN-Schutz ist deaktiviert',
-        description:
-          'Die Tagebuchdaten werden derzeit ohne Verschlüsselung durch die App und ohne Zugangssperre gespeichert.',
         recommendation: 'PIN einrichten',
       },
       actions: {

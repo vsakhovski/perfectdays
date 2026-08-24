@@ -23,6 +23,12 @@ export interface RestoreEncryptedBackupRequest {
   readonly backupPin: string;
 }
 
+export interface BackupOperationFeedback {
+  readonly kind: 'error' | 'status';
+  readonly message: string;
+  readonly operation: Exclude<BackupOperation, 'enable-pin'>;
+}
+
 export interface BackupAndRestoreCopy {
   readonly title: string;
   readonly description: string;
@@ -95,6 +101,7 @@ export interface BackupAndRestoreCopy {
 export interface BackupAndRestorePanelProps {
   readonly busyOperation?: BackupOperation;
   readonly copy: BackupAndRestoreCopy;
+  readonly feedback?: BackupOperationFeedback;
   readonly errorMessage?: string;
   readonly maxBackupFileBytes?: number;
   readonly pinEnabled: boolean;
@@ -131,6 +138,7 @@ export function BackupAndRestorePanel({
   copy,
   enablePin,
   errorMessage,
+  feedback,
   maxBackupFileBytes = MAX_BACKUP_FILE_BYTES,
   pinEnabled,
   pinProtectionAvailable,
@@ -173,6 +181,16 @@ export function BackupAndRestorePanel({
   const [restoreConfirmed, setRestoreConfirmed] = useState(false);
   const [restoreErrors, setRestoreErrors] = useState<RestoreErrors>({});
   const busy = busyOperation !== undefined;
+  const encryptedFeedback = feedback?.operation === 'encrypted-backup' ? feedback : undefined;
+  const plaintextFeedback = feedback?.operation === 'plaintext-export' ? feedback : undefined;
+  const restoreFeedback =
+    feedback?.operation === 'encrypted-restore'
+      ? feedback
+      : errorMessage !== undefined
+        ? { kind: 'error' as const, message: errorMessage }
+        : statusMessage !== undefined
+          ? { kind: 'status' as const, message: statusMessage }
+          : undefined;
 
   useLayoutEffect(() => {
     if (plaintextWarningOpen && !pinEnabled) {
@@ -347,6 +365,17 @@ export function BackupAndRestorePanel({
               </button>
             </div>
           )}
+          {encryptedFeedback !== undefined ? (
+            <p
+              aria-live={encryptedFeedback.kind === 'status' ? 'polite' : undefined}
+              className={
+                encryptedFeedback.kind === 'error' ? styles['panelError'] : styles['status']
+              }
+              role={encryptedFeedback.kind === 'error' ? 'alert' : 'status'}
+            >
+              {encryptedFeedback.message}
+            </p>
+          ) : null}
         </section>
 
         <section
@@ -454,7 +483,7 @@ export function BackupAndRestorePanel({
             </div>
           ) : (
             <button
-              className={styles['secondaryButton']}
+              className={styles['primaryButton']}
               disabled={busy}
               onClick={() => {
                 restorePlaintextTriggerFocus.current = false;
@@ -466,6 +495,17 @@ export function BackupAndRestorePanel({
               {copy.plaintext.reviewWarning}
             </button>
           )}
+          {plaintextFeedback !== undefined ? (
+            <p
+              aria-live={plaintextFeedback.kind === 'status' ? 'polite' : undefined}
+              className={
+                plaintextFeedback.kind === 'error' ? styles['panelError'] : styles['status']
+              }
+              role={plaintextFeedback.kind === 'error' ? 'alert' : 'status'}
+            >
+              {plaintextFeedback.message}
+            </p>
+          ) : null}
         </section>
 
         <section
@@ -635,19 +675,17 @@ export function BackupAndRestorePanel({
               ) : null}
             </form>
           )}
+          {restoreFeedback !== undefined ? (
+            <p
+              aria-live={restoreFeedback.kind === 'status' ? 'polite' : undefined}
+              className={restoreFeedback.kind === 'error' ? styles['panelError'] : styles['status']}
+              role={restoreFeedback.kind === 'error' ? 'alert' : 'status'}
+            >
+              {restoreFeedback.message}
+            </p>
+          ) : null}
         </section>
       </div>
-
-      {errorMessage !== undefined ? (
-        <p className={styles['panelError']} role="alert">
-          {errorMessage}
-        </p>
-      ) : null}
-      {statusMessage !== undefined ? (
-        <p aria-live="polite" className={styles['status']} role="status">
-          {statusMessage}
-        </p>
-      ) : null}
     </section>
   );
 }
