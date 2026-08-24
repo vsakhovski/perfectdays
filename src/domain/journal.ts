@@ -1,3 +1,4 @@
+import { addDays } from './local-date';
 import type { DailyLog, Flow, LocalDate, PeriodEpisode, Rating } from './models';
 
 export interface JournalState {
@@ -59,6 +60,11 @@ export interface ContinuePeriodInput {
 }
 
 export interface EndPeriodInput {
+  date?: LocalDate;
+}
+
+export interface EndPeriodBeforeInput {
+  /** First explicitly non-bleeding day; the episode ends on the preceding date. */
   date?: LocalDate;
 }
 
@@ -371,6 +377,46 @@ export function endPeriod(
     ? { ...existingFinalLog, episodeId: activeEpisode.id, updatedAt: timestamp }
     : { date, episodeId: activeEpisode.id, updatedAt: timestamp };
   const logs = [...state.logs.filter((log) => log.date !== date), finalLog];
+
+  return finalized(episodes, logs);
+}
+
+export function endPeriodBefore(
+  state: JournalState,
+  input: EndPeriodBeforeInput,
+  context: JournalMutationContext,
+): JournalMutationResult {
+  assertJournalInvariants(state);
+  const activeEpisode = findActiveEpisode(state.episodes);
+
+  if (activeEpisode === undefined) {
+    throw new JournalError('no-active-episode');
+  }
+
+  const firstNonBleedingDate = actionDate(input.date, context);
+  if (firstNonBleedingDate <= activeEpisode.startDate) {
+    throw new JournalError('date-before-period-start');
+  }
+  if (
+    state.logs.some((log) => log.episodeId === activeEpisode.id && log.date > firstNonBleedingDate)
+  ) {
+    throw new JournalError('linked-log-outside-episode');
+  }
+
+  const timestamp = context.now();
+  const endDate = addDays(firstNonBleedingDate, -1);
+  const episodes = state.episodes.map((episode) =>
+    episode.id === activeEpisode.id ? { ...episode, endDate, updatedAt: timestamp } : episode,
+  );
+  const logs = state.logs.flatMap((log) => {
+    if (log.episodeId !== activeEpisode.id || log.date !== firstNonBleedingDate) {
+      return [{ ...log }];
+    }
+    const unlinkedLog = { ...log, updatedAt: timestamp };
+    delete unlinkedLog.episodeId;
+    if (isBleedingFlow(unlinkedLog.flow)) delete unlinkedLog.flow;
+    return hasLogContent(unlinkedLog) ? [unlinkedLog] : [];
+  });
 
   return finalized(episodes, logs);
 }

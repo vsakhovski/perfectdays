@@ -184,6 +184,35 @@ describe('buildDailyCheckInPayload', () => {
     });
   });
 
+  it('uses an explicit no-flow day to close the active period on the preceding day', () => {
+    const episode = activeEpisode();
+    const precedingDate = asLocalDate('2026-08-09');
+    const precedingLog: DailyLog = {
+      date: precedingDate,
+      episodeId: episode.id,
+      flow: 'light',
+      updatedAt: originalTimestamp,
+    };
+    const source = vaultPayload([episode], [startLog(episode), precedingLog]);
+
+    const result = buildDailyCheckInPayload(
+      source,
+      today,
+      { flow: 'none', tension: 4 },
+      'end-before',
+      mutationContext(),
+    );
+
+    expect(result.episodes).toEqual([
+      { ...episode, endDate: precedingDate, updatedAt: mutationTimestamp },
+    ]);
+    expect(result.logs).toEqual([
+      startLog(episode),
+      precedingLog,
+      { date: today, flow: 'none', tension: 4, updatedAt: mutationTimestamp },
+    ]);
+  });
+
   it('records spotting without creating an episode', () => {
     const result = buildDailyCheckInPayload(
       vaultPayload(),

@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type RefObject,
   type SyntheticEvent,
 } from 'react';
 
@@ -40,6 +41,7 @@ export interface DayDetailCopy {
   readonly periodActions: Readonly<
     Record<PeriodQuickAction, { readonly label: string; readonly description: string }>
   >;
+  readonly periodDayDescription?: string;
   readonly flowLegend: string;
   readonly flowOptions: Readonly<Record<Flow, string>>;
   readonly ratings: Readonly<Record<RatingField, RatingScaleCopy>>;
@@ -48,7 +50,8 @@ export interface DayDetailCopy {
   readonly optionalDetails: {
     readonly show: string;
     readonly hide: string;
-    readonly description: string;
+    /** Retained for older callers; the simplified screen no longer renders this sentence. */
+    readonly description?: string;
   };
   readonly cancel: string;
   readonly save: string;
@@ -68,6 +71,7 @@ export interface DayDetailEditorProps {
   readonly copy: DayDetailCopy;
   readonly date: LocalDate;
   readonly dateLabel: string;
+  readonly disabledFlows?: readonly Flow[];
   readonly errorMessage?: string;
   readonly onChange: (value: DayDetailValue) => void;
   readonly onClose: () => void;
@@ -84,14 +88,57 @@ export interface DayDetailEditorProps {
   readonly value: DayDetailValue;
 }
 
-const flowValues: readonly Flow[] = ['none', 'spotting', 'light', 'medium', 'heavy'];
+type SelectableFlow = Exclude<Flow, 'spotting'>;
+
+const flowValues: readonly SelectableFlow[] = ['light', 'medium', 'heavy', 'none'];
 const ratingValues: readonly Rating[] = [1, 2, 3, 4, 5];
-const ratingFields: readonly RatingField[] = ['confidence', 'tension', 'energy', 'pain'];
+const ratingFields: readonly RatingField[] = ['energy', 'confidence', 'tension', 'pain'];
+
+function combineClasses(...classNames: readonly (string | undefined)[]): string {
+  return classNames.filter((className): className is string => className !== undefined).join(' ');
+}
 
 function CloseIcon() {
   return (
     <svg aria-hidden="true" className={styles['closeIcon']} viewBox="0 0 24 24">
       <path d="m6 6 12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
+function FlowIcon({ flow }: { readonly flow: SelectableFlow }) {
+  const clipId = useId();
+  const dropPath = 'M12 2.5C10 6.2 6.5 9.4 6.5 13.5a5.5 5.5 0 0 0 11 0C17.5 9.4 14 6.2 12 2.5Z';
+
+  if (flow === 'heavy') {
+    return (
+      <svg
+        aria-hidden="true"
+        className={combineClasses(styles['flowIcon'], styles['flowIconHeavy'])}
+        viewBox="0 0 40 24"
+      >
+        <path d={dropPath} transform="translate(-1 0)" />
+        <path d={dropPath} transform="translate(17 0)" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg aria-hidden="true" className={styles['flowIcon']} viewBox="0 0 24 24">
+      {flow === 'light' ? (
+        <>
+          <defs>
+            <clipPath id={clipId}>
+              <rect height="7" width="24" x="0" y="11" />
+            </clipPath>
+          </defs>
+          <path className={styles['dropOutline']} d={dropPath} />
+          <path clipPath={`url(#${clipId})`} d={dropPath} />
+        </>
+      ) : (
+        <path className={flow === 'none' ? styles['dropOutline'] : undefined} d={dropPath} />
+      )}
+      {flow === 'none' ? <path className={styles['dropCross']} d="m5 5 14 14" /> : null}
     </svg>
   );
 }
@@ -104,11 +151,90 @@ function getFocusableElements(container: HTMLElement): readonly HTMLElement[] {
   ).filter((element) => !element.matches(':disabled') && !element.hasAttribute('hidden'));
 }
 
+interface ConfirmationModalProps {
+  readonly busy: boolean;
+  readonly cancelLabel: string;
+  readonly confirmLabel: string;
+  readonly confirmRef: RefObject<HTMLButtonElement | null>;
+  readonly message: string;
+  readonly onCancel: () => void;
+  readonly onConfirm: () => void;
+}
+
+function ConfirmationModal({
+  busy,
+  cancelLabel,
+  confirmLabel,
+  confirmRef,
+  message,
+  onCancel,
+  onConfirm,
+}: ConfirmationModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const messageId = useId();
+
+  return (
+    <div className={styles['confirmationBackdrop']}>
+      <div
+        aria-labelledby={messageId}
+        aria-modal="true"
+        className={styles['confirmationDialog']}
+        onKeyDown={(event) => {
+          event.stopPropagation();
+          if (event.key === 'Escape' && !busy) {
+            event.preventDefault();
+            onCancel();
+            return;
+          }
+          if (event.key !== 'Tab') return;
+          const modal = modalRef.current;
+          if (!modal) return;
+          const focusable = getFocusableElements(modal);
+          const first = focusable[0];
+          const last = focusable.at(-1);
+          if (!first || !last) return;
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }}
+        ref={modalRef}
+        role="alertdialog"
+      >
+        <h3 id={messageId}>{message}</h3>
+        <div className={styles['confirmationActions']}>
+          <button
+            className={styles['deleteButton']}
+            disabled={busy}
+            onClick={onConfirm}
+            ref={confirmRef}
+            type="button"
+          >
+            {confirmLabel}
+          </button>
+          <button
+            className={styles['secondaryButton']}
+            disabled={busy}
+            onClick={onCancel}
+            type="button"
+          >
+            {cancelLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DayDetailEditor({
   busy = false,
   copy,
   date,
   dateLabel,
+  disabledFlows = [],
   errorMessage,
   onChange,
   onClose,
@@ -136,15 +262,7 @@ export function DayDetailEditor({
   const initialReturnFocusElementRef = useRef(returnFocusElement);
   const [confirmingPeriodRemoval, setConfirmingPeriodRemoval] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(
-    () =>
-      rememberedDetailsOpen ??
-      (value.confidence !== undefined ||
-        value.tension !== undefined ||
-        value.energy !== undefined ||
-        value.pain !== undefined ||
-        Boolean(value.note?.trim())),
-  );
+  const [detailsOpen, setDetailsOpen] = useState(() => rememberedDetailsOpen ?? true);
 
   useLayoutEffect(() => {
     returnFocusRef.current =
@@ -220,6 +338,9 @@ export function DayDetailEditor({
     event.preventDefault();
     onSave(value, date);
   };
+  const explicitPeriodActions = periodActions.filter(
+    ({ action }) => action === 'end' || action === 'remove',
+  );
 
   return (
     <div className={styles['backdrop']}>
@@ -251,12 +372,16 @@ export function DayDetailEditor({
 
         <form className={styles['form']} onSubmit={submit}>
           <fieldset className={styles['fieldset']} disabled={busy}>
-            <legend>{copy.flowLegend}</legend>
+            <legend>
+              {copy.flowLegend}
+              {value.flow === undefined ? null : ` (${copy.flowOptions[value.flow]})`}
+            </legend>
             <div className={styles['flowOptions']}>
               {flowValues.map((flow) => (
                 <label key={flow}>
                   <input
                     checked={value.flow === flow}
+                    disabled={disabledFlows.includes(flow)}
                     name="flow"
                     onChange={() => {
                       onChange({ ...value, flow });
@@ -264,77 +389,72 @@ export function DayDetailEditor({
                     type="radio"
                     value={flow}
                   />
-                  <span>{copy.flowOptions[flow]}</span>
+                  <span title={copy.flowOptions[flow]}>
+                    <FlowIcon flow={flow} />
+                    <span className={styles['visuallyHidden']}>{copy.flowOptions[flow]}</span>
+                  </span>
                 </label>
               ))}
             </div>
           </fieldset>
 
-          {periodActions.length > 0 ? (
-            <section className={styles['quickActions']}>
-              <h3>{copy.quickActionsTitle}</h3>
-              <div className={styles['quickActionGrid']}>
-                {periodActions.map(({ action, description, disabled }) => {
-                  const actionCopy = copy.periodActions[action];
-                  return (
-                    <button
-                      className={
-                        action === 'remove' ? styles['dangerAction'] : styles['quickAction']
-                      }
-                      disabled={busy || disabled}
-                      key={action}
-                      onClick={() => {
-                        if (action === 'remove') {
-                          setConfirmingPeriodRemoval(true);
-                        } else {
-                          onPeriodAction(action, date);
-                        }
-                      }}
-                      ref={action === 'remove' ? removePeriodButtonRef : undefined}
-                      type="button"
-                    >
-                      <strong>{actionCopy.label}</strong>
-                      <span>{description ?? actionCopy.description}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
+          {onDelete ? (
+            <button
+              className={styles['topDeleteButton']}
+              disabled={busy}
+              onClick={() => {
+                setConfirmingDelete(true);
+              }}
+              ref={deleteButtonRef}
+              type="button"
+            >
+              {copy.deleteEntry}
+            </button>
           ) : null}
 
-          {confirmingPeriodRemoval ? (
-            <div
-              aria-label={copy.removePeriodConfirmation}
-              className={styles['deleteConfirmation']}
-              role="group"
-            >
-              <p>{copy.removePeriodConfirmation}</p>
-              <div>
-                <button
-                  className={styles['deleteButton']}
-                  disabled={busy}
-                  onClick={() => {
-                    setConfirmingPeriodRemoval(false);
-                    onPeriodAction('remove', date);
-                  }}
-                  ref={confirmRemovePeriodButtonRef}
-                  type="button"
-                >
-                  {copy.confirmRemovePeriod}
-                </button>
-                <button
-                  className={styles['secondaryButton']}
-                  disabled={busy}
-                  onClick={() => {
-                    setConfirmingPeriodRemoval(false);
-                    removePeriodButtonRef.current?.focus();
-                  }}
-                  type="button"
-                >
-                  {copy.cancelRemovePeriod}
-                </button>
-              </div>
-            </div>
+          {copy.periodDayDescription || explicitPeriodActions.length > 0 ? (
+            <section className={styles['quickActions']}>
+              <h3>{copy.quickActionsTitle}</h3>
+              {copy.periodDayDescription ? (
+                <p className={styles['periodDayDescription']}>{copy.periodDayDescription}</p>
+              ) : null}
+              {explicitPeriodActions.length > 0 ? (
+                <div className={styles['quickActionGrid']}>
+                  {explicitPeriodActions.map(({ action, description, disabled }) => {
+                    const actionCopy = copy.periodActions[action];
+                    return (
+                      <article
+                        className={
+                          action === 'remove' ? styles['dangerAction'] : styles['quickAction']
+                        }
+                        key={action}
+                      >
+                        <p>{description ?? actionCopy.description}</p>
+                        <button
+                          className={
+                            action === 'remove'
+                              ? styles['deleteButton']
+                              : styles['periodActionButton']
+                          }
+                          disabled={busy || disabled}
+                          onClick={() => {
+                            if (action === 'remove') {
+                              setConfirmingPeriodRemoval(true);
+                            } else {
+                              onPeriodAction(action, date);
+                            }
+                          }}
+                          ref={action === 'remove' ? removePeriodButtonRef : undefined}
+                          type="button"
+                        >
+                          {actionCopy.label}
+                        </button>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </section>
           ) : null}
 
           <section className={styles['optionalDetails']}>
@@ -353,7 +473,6 @@ export function DayDetailEditor({
             >
               {detailsOpen ? copy.optionalDetails.hide : copy.optionalDetails.show}
             </button>
-            <p>{copy.optionalDetails.description}</p>
 
             {detailsOpen ? (
               <div className={styles['detailsContent']}>
@@ -444,55 +563,43 @@ export function DayDetailEditor({
             >
               {copy.cancel}
             </button>
-            {onDelete ? (
-              <button
-                className={styles['deleteButton']}
-                disabled={busy}
-                onClick={() => {
-                  setConfirmingDelete(true);
-                }}
-                ref={deleteButtonRef}
-                type="button"
-              >
-                {copy.deleteEntry}
-              </button>
-            ) : null}
           </div>
-
-          {confirmingDelete && onDelete ? (
-            <div
-              aria-label={copy.deleteConfirmation}
-              className={styles['deleteConfirmation']}
-              role="group"
-            >
-              <p>{copy.deleteConfirmation}</p>
-              <div>
-                <button
-                  className={styles['deleteButton']}
-                  disabled={busy}
-                  onClick={() => {
-                    onDelete(date);
-                  }}
-                  ref={confirmDeleteButtonRef}
-                  type="button"
-                >
-                  {busy ? copy.deleting : copy.confirmDelete}
-                </button>
-                <button
-                  className={styles['secondaryButton']}
-                  disabled={busy}
-                  onClick={() => {
-                    setConfirmingDelete(false);
-                    deleteButtonRef.current?.focus();
-                  }}
-                  type="button"
-                >
-                  {copy.cancelDelete}
-                </button>
-              </div>
-            </div>
-          ) : null}
         </form>
+
+        {confirmingPeriodRemoval ? (
+          <ConfirmationModal
+            busy={busy}
+            cancelLabel={copy.cancelRemovePeriod}
+            confirmLabel={copy.confirmRemovePeriod}
+            confirmRef={confirmRemovePeriodButtonRef}
+            message={copy.removePeriodConfirmation}
+            onCancel={() => {
+              setConfirmingPeriodRemoval(false);
+              removePeriodButtonRef.current?.focus();
+            }}
+            onConfirm={() => {
+              setConfirmingPeriodRemoval(false);
+              onPeriodAction('remove', date);
+            }}
+          />
+        ) : null}
+
+        {confirmingDelete && onDelete ? (
+          <ConfirmationModal
+            busy={busy}
+            cancelLabel={copy.cancelDelete}
+            confirmLabel={busy ? copy.deleting : copy.confirmDelete}
+            confirmRef={confirmDeleteButtonRef}
+            message={copy.deleteConfirmation}
+            onCancel={() => {
+              setConfirmingDelete(false);
+              deleteButtonRef.current?.focus();
+            }}
+            onConfirm={() => {
+              onDelete(date);
+            }}
+          />
+        ) : null}
       </div>
     </div>
   );

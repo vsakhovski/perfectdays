@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -87,7 +87,7 @@ function ControlledEditor({
       periodActions={[
         { action: 'start' },
         { action: 'continue', disabled: true },
-        { action: 'end', disabled: true },
+        { action: 'end' },
         { action: 'remove', disabled: true },
       ]}
       value={value}
@@ -132,16 +132,15 @@ describe('DayDetailEditor', () => {
     const onSave = vi.fn<DayDetailEditorProps['onSave']>();
     render(<ControlledEditor onPeriodAction={onPeriodAction} onSave={onSave} />);
 
-    await user.click(screen.getByRole('button', { name: /Start period/u }));
-    expect(onPeriodAction).toHaveBeenCalledWith('start', asLocalDate('2026-05-12'));
-    expect(screen.getByRole('button', { name: /Continue period/u })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: copy.periodActions.end.label }));
+    expect(onPeriodAction).toHaveBeenCalledWith('end', asLocalDate('2026-05-12'));
+    expect(screen.queryByRole('button', { name: copy.periodActions.start.label })).toBeNull();
 
-    await user.click(screen.getByRole('radio', { name: copy.flowOptions.spotting }));
-    await user.click(screen.getByRole('button', { name: copy.optionalDetails.show }));
-    const confidenceFive = screen.getAllByRole('radio', { name: ratingOptions[5] }).at(0);
-    if (!confidenceFive) {
-      throw new Error('Expected a confidence rating control.');
-    }
+    expect(screen.getByRole('radio', { name: copy.flowOptions.medium })).not.toBeChecked();
+    await user.click(screen.getByRole('radio', { name: copy.flowOptions.light }));
+    const confidenceFive = within(
+      screen.getByRole('group', { name: copy.ratings.confidence.legend }),
+    ).getByRole('radio', { name: ratingOptions[5] });
     await user.click(confidenceFive);
     expect(confidenceFive).toBeChecked();
     await user.click(confidenceFive);
@@ -152,7 +151,7 @@ describe('DayDetailEditor', () => {
 
     expect(onSave).toHaveBeenCalledWith(
       {
-        flow: 'spotting',
+        flow: 'light',
         confidence: 5,
         note: 'A private note',
       },
@@ -196,17 +195,17 @@ describe('DayDetailEditor', () => {
     }
 
     render(<RememberedDetailsHarness />);
-    await user.click(screen.getByRole('button', { name: copy.optionalDetails.show }));
     expect(screen.getByRole('button', { name: copy.optionalDetails.hide })).toBeVisible();
-
-    await user.click(screen.getByRole('button', { name: copy.close }));
-    await user.click(screen.getByRole('button', { name: copy.title }));
-    expect(screen.getByRole('button', { name: copy.optionalDetails.hide })).toBeVisible();
-
     await user.click(screen.getByRole('button', { name: copy.optionalDetails.hide }));
+
     await user.click(screen.getByRole('button', { name: copy.close }));
     await user.click(screen.getByRole('button', { name: copy.title }));
     expect(screen.getByRole('button', { name: copy.optionalDetails.show })).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: copy.optionalDetails.show }));
+    await user.click(screen.getByRole('button', { name: copy.close }));
+    await user.click(screen.getByRole('button', { name: copy.title }));
+    expect(screen.getByRole('button', { name: copy.optionalDetails.hide })).toBeVisible();
   });
 
   it('requires a second explicit action before deleting and closes with Escape', async () => {
@@ -236,12 +235,12 @@ describe('DayDetailEditor', () => {
     await user.click(screen.getByRole('button', { name: copy.cancelDelete }));
     expect(deleteEntry).toHaveFocus();
 
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledOnce();
+
     await user.click(deleteEntry);
     await user.click(screen.getByRole('button', { name: copy.confirmDelete }));
     expect(onDelete).toHaveBeenCalledWith(asLocalDate('2026-05-12'));
-
-    await user.keyboard('{Escape}');
-    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('explains why saving is unavailable before the user submits', () => {

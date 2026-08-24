@@ -306,25 +306,26 @@ export const en = {
     dayDetail: {
       title: 'Daily check-in',
       close: 'Close daily check-in',
-      quickActionsTitle: 'Period actions',
+      quickActionsTitle: 'Period',
       periodActions: {
         start: {
           label: 'Start period',
-          description: 'Create a period starting on this date.',
+          description: 'The period starts on this day.',
         },
         continue: {
           label: 'Record period day',
-          description: 'Link this date to the active period.',
+          description: 'The period continues on this day.',
         },
         end: {
           label: 'End period here',
-          description: 'Use this date as the inclusive final day.',
+          description: 'The period ends on this day.',
         },
         remove: {
           label: 'Remove this period',
           description: 'Remove the complete period while keeping unrelated check-in values.',
         },
       },
+      periodEndsBeforeDay: 'Saving None marks the previous day as the last period day.',
       flowLegend: 'Flow',
       flowOptions: {
         none: 'None',
@@ -341,14 +342,14 @@ export const en = {
         option: '{{legend}}: {{rating}} out of 5',
       },
       noteLabel: 'Private note',
-      noteDescription: 'Optional. Stored only inside your local journal.',
+      noteDescription: 'Stored only inside your local journal.',
       save: 'Save check-in',
       saving: 'Saving…',
       removePeriodConfirmation:
         'Remove this complete period? Check-in values unrelated to it will be kept.',
       confirmRemovePeriod: 'Remove period',
       cancelRemovePeriod: 'Keep period',
-      deleteEntry: 'Delete check-in',
+      deleteEntry: 'Delete saved check-in',
       deleteConfirmation: 'Delete the check-in values for this date?',
       confirmDelete: 'Delete check-in',
       deleting: 'Deleting…',
@@ -360,6 +361,8 @@ export const en = {
           'A new open period cannot begin before a later recorded period. Historical boundary editing is not available yet.',
         laterPeriodDays:
           'This period has recorded days after this date. Remove those entries before ending it here.',
+        noneRequiresPeriodCorrection:
+          'None cannot change a completed period or skip later recorded period days. Correct the period dates in Period history.',
         periodConflict:
           'That period change conflicts with another period. Correct the existing dates first.',
         noActivePeriod: 'There is no active period to continue or end.',
@@ -524,16 +527,14 @@ export const en = {
       editDayTitle: "Edit this day's check-in",
       description: 'Record only what you notice today. Nothing optional is selected for you.',
       optional: {
-        show: 'Add note or details',
+        show: 'Add note or details (optional)',
         hide: 'Hide note and details',
-        description: 'Ratings and notes are optional.',
       },
       guidance: {
         chooseObservation: 'Choose at least one observation before saving.',
         startPeriod: 'Light, medium, or heavy flow can start a period.',
-        spotting: 'Spotting is recorded separately and does not start a period.',
         activePeriod: 'Saving bleeding for today continues the active period.',
-        endPeriod: 'Ending a period is a separate choice. Recording no bleeding does not end it.',
+        endPeriod: 'Saving None ends an active period on the preceding day.',
       },
       actions: {
         saveAndDone: 'Save and done',

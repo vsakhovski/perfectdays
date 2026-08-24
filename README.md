@@ -99,8 +99,8 @@ Language to avoid:
 ### 2. Calendar as the default destination
 
 - Open the current local month after completed onboarding, reload, or unlock.
-- Provide visible previous-month and next-month controls directly above the grid, plus a **Go to today** action beside the Calendar screen title.
-- Let touch and pen users swipe left across the grid for the next month or right for the previous month. Require a deliberate predominantly horizontal gesture, suppress its trailing day-cell click, and retain the visible buttons and keyboard commands as equivalent controls. While the gesture is active, move the current calendar a short, damped distance with the pointer so recognition is immediate; settle it back smoothly when the swipe is rejected. After release, animate the displayed month completely out while the target month enters concurrently from the opposite side; keep the departing copy inert and accessibility-hidden, and disable gesture feedback while reducing the completed transition to effectively immediate when reduced motion is requested.
+- Present consecutive months in one bounded, vertically scrollable calendar. Touch, pen, mouse-wheel, and trackpad scrolling moves freely and smoothly through the dates without snapping one month at a time; keep a lightweight rendered window and extend it when adjacent-month navigation requests a month beyond its edge.
+- Provide visible up-chevron and down-chevron controls directly above the calendar for the previous and next month, plus a **Go to today** action beside the Calendar screen title. The month controls smoothly scroll the adjacent month into view, while reduced-motion preferences remove the animated movement.
 - Disable **Go to today** while the current local month is already displayed, and keep today clearly identified independently of keyboard focus.
 - Show recorded bleeding, predicted bleeding, spotting, orange, green, and neutral states.
 - Keep recorded and predicted states unmistakably different.
@@ -194,9 +194,9 @@ The mobile screen follows this order:
 └─────────────────────────────────┘
 ```
 
-- Previous and next controls move exactly one calendar month and stay adjacent to the localized month and year.
+- Up and down controls move exactly one calendar month within the vertical stream and stay adjacent to the localized month and year.
 - **Go to today** sits beside the Calendar screen title, returns to the current local month, and moves the calendar's roving focus to today. It is disabled when that month is already shown.
-- At phone widths, the month toolbar contains only centered previous/next chevrons and the localized month/year. Day cells retain a square aspect ratio while the viewport changes.
+- At phone widths, the month toolbar contains only centered up/down chevrons and the localized month/year. Day cells retain a square aspect ratio while the viewport changes.
 - The semantic six-week grid retains localized weekday headers and complete accessible descriptions for every date.
 - Recorded periods form solid red bands across adjacent cells with rounded range ends. Predicted periods use visibly striped bands. Possible starts retain a dashed/outlined treatment, and the optional pre-period window uses a thin amber top bar.
 - The essential legend shows **Recorded**, **Predicted**, and **Today** directly below the grid. A **Marker guide** disclosure explains spotting, possible start, amber, green, overlaps, icons, and patterns.
@@ -663,7 +663,7 @@ app -> composition of all layers
 - A localized six-week monthly calendar with recorded, predicted, possible-start, orange, retrospective-green, spotting, and neutral markers; a non-color legend; and keyboard navigation.
 - A modal daily editor for flow, confidence, tension, energy, pain, and private notes, with focus return and explicit confirmation for daily deletion and whole-period removal.
 - A fixed-height, safe-area-aware mobile shell whose bottom navigation contains exactly Calendar, Privacy, and Settings and whose separate primary dock opens or edits today's check-in from every destination.
-- Calendar as the default post-onboarding and post-unlock destination, with adjacent month controls, a header-level **Go to today** action, configurable week start, square day cells, a compact essential legend plus marker guide, joined recorded/predicted ranges, a distinct amber top bar, and a range-first forecast summary below the grid.
+- Calendar as the default post-onboarding and post-unlock destination, with a continuously vertical month stream, adjacent up/down month controls, a header-level **Go to today** action, configurable week start, square day cells, a compact essential legend plus marker guide, joined recorded/predicted ranges, a distinct amber top bar, and a range-first forecast summary below the grid.
 - A focused full-height small-screen check-in editor that keeps flow immediately available, moves ratings and notes behind progressive disclosure, disables empty or structurally invalid saves with an explanation, and closes after a successful durable save.
 - One pure application operation that combines period start/continuation/end with the day's observations into one next payload and one vault save; spotting never starts a period and `none` never ends one implicitly.
 - Contextual Insights and Period history screens under Calendar, plus dedicated Privacy and Settings destinations, without a prominent Patterns or Today navigation item.
@@ -747,7 +747,7 @@ Calendar-specific behavior:
 
 - Represent the month as a semantic grid/table with weekday headers and a complete accessible name for every date cell.
 - Include recorded/predicted status, marker type, and confidence in the date control's accessible description.
-- Give previous month, next month, **Today**, every bottom destination, and the persistent check-in action localized accessible names and touch targets of at least 44 × 44 CSS pixels.
+- Give previous month, next month, **Today**, every bottom destination, and the persistent check-in action localized accessible names and touch targets of at least 44 × 44 CSS pixels. Keep the vertical calendar region keyboard-scrollable without trapping focus.
 - Keep **Go to today** behavior distinct from keyboard focus: the header action returns to the current local month and focuses today, while the cell uses a persistent today border and a separate focus outline. Date activation does not leave a selected-cell treatment.
 - Use one predictable keyboard-entry point for the grid; arrow keys move by day/week and Page Up/Page Down move by month without trapping focus.
 - Announce or otherwise make a month change perceivable without turning the whole application into a live region.
@@ -821,7 +821,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 - [x] Replace the long unlocked scrolling composition with a Calendar/Privacy/Settings shell whose default destination is Calendar.
 - [x] Add the persistent **Check in today** action separately from navigation and implement the focused, atomic **Save and done** flow.
-- [x] Add visible month navigation and **Go to today**, revised recorded/predicted bands and amber marker, a compact legend, and the forecast summary below the calendar.
+- [x] Add a smoothly and freely vertical month stream, animated up/down month navigation and **Go to today**, revised recorded/predicted bands and amber marker, a compact legend, and the forecast summary below the calendar.
 - [x] Keep forecast reasoning, recent patterns, and history/correction contextually reachable without a **Patterns** bottom destination.
 - [x] Present Insights and Period history as focused secondary screens with one title, a top-bar close action, restored trigger focus, and no bottom chrome.
 - [x] Move PIN protection, backup/restore, human-readable export, storage explanation, and confirmed erasure into Privacy; move tracking, appearance, language, calendar week start, and About into Settings.
@@ -863,7 +863,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Calendar is the default destination after completed onboarding, reload, and unlock, and it opens the current local month.
 - [x] Bottom navigation contains exactly **Calendar**, **Privacy**, and **Settings**, exposes the current destination semantically, and resets to Calendar when the unlocked shell remounts.
 - [x] **Check in today** is visually and semantically separate from navigation, is reachable in one tap from every primary destination, and always opens today regardless of the displayed month or selected date.
-- [x] Previous and next controls move one month; a deliberate horizontal grid swipe provides the same navigation for touch and pen without opening a day; **Go to today** returns to the current local month, is disabled there, and places roving calendar focus on today.
+- [x] The calendar scrolls continuously up and down without month snapping; previous and next controls animate to the adjacent month with up/down icons; **Go to today** returns to the current local month, is disabled there, and places roving calendar focus on today.
 - [ ] Today remains visibly and semantically distinct from keyboard focus, recorded periods, predictions, amber, green, and spotting in normal and forced-colors modes.
 - [x] System/Monday/Sunday week-start selection appears after Language in Settings, follows the device region by default, and survives reload.
 - [x] Recorded periods use joined solid red bands, predicted periods use visibly striped bands, possible starts use outlined treatment, and the pre-period window uses a thin amber top bar.

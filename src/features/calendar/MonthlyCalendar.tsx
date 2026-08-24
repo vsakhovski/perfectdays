@@ -1,15 +1,16 @@
 import {
-  useId,
+  useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type KeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
 } from 'react';
 
-import type { LocalDate } from '../../domain/models';
+import { addMonths, startOfMonth } from '../../domain/local-date';
+import type { Flow, LocalDate } from '../../domain/models';
 import styles from './calendar.module.css';
 
 export interface CalendarDayMarkers {
@@ -23,19 +24,25 @@ export interface CalendarDayMarkers {
 }
 
 export type CalendarMarker = keyof CalendarDayMarkers;
+export type CalendarFlow = Exclude<Flow, 'none' | 'spotting'>;
 
 export interface CalendarDay {
   readonly date: LocalDate;
-  /** Localized full date, used as the base of the date button's accessible name. */
   readonly accessibleName: string;
-  /** Localized day-of-month text shown in the cell. */
   readonly dayNumberLabel: string;
   readonly isCurrentMonth: boolean;
   readonly markers: CalendarDayMarkers;
-  /** Optional complete localized descriptions, such as forecast confidence. */
+  readonly flow?: CalendarFlow;
+  readonly flowDescription?: string;
   readonly markerDescriptions?: Partial<Readonly<Record<CalendarMarker, string>>>;
   readonly disabled?: boolean;
   readonly disabledDescription?: string;
+}
+
+export interface CalendarMonth {
+  readonly days: readonly CalendarDay[];
+  readonly label: string;
+  readonly month: LocalDate;
 }
 
 export interface CalendarWeekday {
@@ -63,13 +70,13 @@ export interface CalendarCopy {
 
 export interface MonthlyCalendarProps {
   readonly copy: CalendarCopy;
-  readonly days: readonly CalendarDay[];
-  readonly monthLabel: string;
-  readonly onNextMonth: () => void;
-  readonly onPreviousMonth: () => void;
-  readonly onSelectDate: (date: LocalDate, trigger: HTMLButtonElement) => void;
   readonly focusTodayRequest?: number;
+  readonly months: readonly CalendarMonth[];
+  readonly onRequestMonth: (month: LocalDate) => void;
+  readonly onSelectDate: (date: LocalDate, trigger: HTMLButtonElement) => void;
+  readonly onVisibleMonthChange: (month: LocalDate) => void;
   readonly today: LocalDate;
+  readonly visibleMonth: LocalDate;
   readonly weekdays: readonly CalendarWeekday[];
 }
 
@@ -83,31 +90,49 @@ const markerOrder: readonly CalendarMarker[] = [
   'spotting',
 ];
 
-const MINIMUM_MONTH_SWIPE_DISTANCE = 56;
-const MONTH_SWIPE_AXIS_DOMINANCE = 1.25;
-const SWIPE_CLICK_SUPPRESSION_MS = 500;
-const MONTH_TRANSITION_FALLBACK_MS = 400;
-const MONTH_SWIPE_FEEDBACK_FACTOR = 0.24;
-const MAXIMUM_MONTH_SWIPE_FEEDBACK = 42;
-
-interface MonthSwipeStart {
-  readonly pointerId: number;
-  readonly x: number;
-  readonly y: number;
-}
-
-interface MonthTransition {
-  readonly departingDays: readonly CalendarDay[];
-  readonly direction: 'next' | 'previous';
-}
-
 function markerIsPresent(markers: CalendarDayMarkers): boolean {
   return markerOrder.some((marker) => markers[marker]);
 }
 
 type LegendMarker = CalendarMarker | 'neutral' | 'today';
 
-function MarkerIcon({ marker }: { marker: LegendMarker }) {
+function CalendarFlowIcon({ flow }: { readonly flow: CalendarFlow }) {
+  const clipId = useId();
+  const dropPath = 'M12 2.5C10 6.2 6.5 9.4 6.5 13.5a5.5 5.5 0 0 0 11 0C17.5 9.4 14 6.2 12 2.5Z';
+
+  if (flow === 'heavy') {
+    return (
+      <svg
+        aria-hidden="true"
+        className={combineClasses(styles['flowIcon'], styles['flowIconHeavy'])}
+        viewBox="0 0 40 24"
+      >
+        <path d={dropPath} transform="translate(-1 0)" />
+        <path d={dropPath} transform="translate(17 0)" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg aria-hidden="true" className={styles['flowIcon']} viewBox="0 0 24 24">
+      {flow === 'light' ? (
+        <>
+          <defs>
+            <clipPath id={clipId}>
+              <rect height="7" width="24" x="0" y="11" />
+            </clipPath>
+          </defs>
+          <path className={styles['flowDropOutline']} d={dropPath} />
+          <path clipPath={`url(#${clipId})`} d={dropPath} />
+        </>
+      ) : (
+        <path d={dropPath} />
+      )}
+    </svg>
+  );
+}
+
+function MarkerIcon({ marker }: { readonly marker: LegendMarker }) {
   switch (marker) {
     case 'recordedRed':
       return (
@@ -144,11 +169,7 @@ function combineClasses(...classNames: readonly (string | undefined)[]): string 
 
 function groupIntoWeeks(days: readonly CalendarDay[]): readonly (readonly CalendarDay[])[] {
   const weeks: CalendarDay[][] = [];
-
-  for (let index = 0; index < days.length; index += 7) {
-    weeks.push(days.slice(index, index + 7));
-  }
-
+  for (let index = 0; index < days.length; index += 7) weeks.push(days.slice(index, index + 7));
   return weeks;
 }
 
@@ -156,30 +177,32 @@ function dayOfMonth(date: LocalDate): number {
   return Number(date.slice(8, 10));
 }
 
-function chooseMonthNavigationTarget(
-  days: readonly CalendarDay[],
-  requestedDay: number,
-): CalendarDay | undefined {
-  const currentMonthDays = days.filter((day) => day.isCurrentMonth && !day.disabled);
-  const exact = currentMonthDays.find((day) => dayOfMonth(day.date) === requestedDay);
-  return exact ?? currentMonthDays.at(-1);
+function continuousDays(months: readonly CalendarMonth[]): readonly CalendarDay[] {
+  const daysByDate = new Map<LocalDate, CalendarDay>();
+  for (const month of months) {
+    for (const day of month.days) {
+      const existing = daysByDate.get(day.date);
+      if (!existing || (!existing.isCurrentMonth && day.isCurrentMonth)) {
+        daysByDate.set(day.date, day);
+      }
+    }
+  }
+  return [...daysByDate.values()].sort((left, right) => left.date.localeCompare(right.date));
 }
 
-function chooseInitialDay(days: readonly CalendarDay[], today: LocalDate): CalendarDay | undefined {
-  const enabled = (date: LocalDate | undefined) =>
-    date === undefined ? undefined : days.find((day) => day.date === date && !day.disabled);
-
-  return (
-    enabled(today) ??
-    days.find((day) => day.isCurrentMonth && !day.disabled) ??
-    days.find((day) => !day.disabled)
-  );
+function chooseDayInMonth(
+  days: readonly CalendarDay[],
+  month: LocalDate,
+  requestedDay: number,
+): CalendarDay | undefined {
+  const monthDays = days.filter((day) => startOfMonth(day.date) === month && !day.disabled);
+  return monthDays.find((day) => dayOfMonth(day.date) === requestedDay) ?? monthDays.at(-1);
 }
 
 function MonthChevron({ direction }: { readonly direction: 'next' | 'previous' }) {
   return (
     <svg aria-hidden="true" className={styles['navigationIcon']} viewBox="0 0 24 24">
-      <path d={direction === 'previous' ? 'm15 5-7 7 7 7' : 'm9 5 7 7-7 7'} />
+      <path d={direction === 'previous' ? 'm5 15 7-7 7 7' : 'm5 9 7 7 7-7'} />
     </svg>
   );
 }
@@ -190,15 +213,11 @@ export function CalendarLegend({ copy }: { readonly copy: CalendarCopy }) {
   const additionalMarkers = markerOrder.filter(
     (marker) => marker !== 'recordedRed' && marker !== 'predictedRed',
   );
-
   const labelFor = (marker: LegendMarker): string => {
     if (marker === 'today') return copy.essentialLegend?.today ?? copy.today;
-    if (marker === 'recordedRed') {
-      return copy.essentialLegend?.recorded ?? copy.markers.recordedRed;
-    }
-    if (marker === 'predictedRed') {
+    if (marker === 'recordedRed') return copy.essentialLegend?.recorded ?? copy.markers.recordedRed;
+    if (marker === 'predictedRed')
       return copy.essentialLegend?.predicted ?? copy.markers.predictedRed;
-    }
     return copy.markers[marker];
   };
 
@@ -234,369 +253,453 @@ export function CalendarLegend({ copy }: { readonly copy: CalendarCopy }) {
 
 export function MonthlyCalendar({
   copy,
-  days,
-  monthLabel,
-  onNextMonth,
-  onPreviousMonth,
-  onSelectDate,
   focusTodayRequest = 0,
+  months,
+  onRequestMonth,
+  onSelectDate,
+  onVisibleMonthChange,
   today,
+  visibleMonth,
   weekdays,
 }: MonthlyCalendarProps) {
   const headingId = useId();
+  const calendarRef = useRef<HTMLElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const monthsRef = useRef(months);
+  const monthAnchorRefs = useRef(new Map<LocalDate, HTMLButtonElement>());
   const buttonRefs = useRef(new Map<LocalDate, HTMLButtonElement>());
-  const shouldFocusAfterRender = useRef(false);
+  const lastReportedMonthRef = useRef<LocalDate | undefined>(undefined);
+  const positionedInitialMonthRef = useRef(false);
   const handledFocusTodayRequestRef = useRef(0);
-  const monthSwipeStartRef = useRef<MonthSwipeStart | null>(null);
-  const suppressClickUntilRef = useRef(0);
-  const [pendingMonthFocus, setPendingMonthFocus] = useState<number | null>(null);
-  const [monthTransition, setMonthTransition] = useState<MonthTransition | null>(null);
-  const [monthSwipeFeedback, setMonthSwipeFeedback] = useState(0);
-  const [monthSwipeFeedbackActive, setMonthSwipeFeedbackActive] = useState(false);
-  const [focusedDate, setFocusedDate] = useState<LocalDate | undefined>(
-    () => chooseInitialDay(days, today)?.date,
+  const pendingMonthRef = useRef<LocalDate | undefined>(undefined);
+  const pendingMonthFocusDayRef = useRef<number | undefined>(undefined);
+  const programmaticScrollTargetRef = useRef<LocalDate | undefined>(undefined);
+  const programmaticScrollTimerRef = useRef<number | undefined>(undefined);
+  const prependAnchorRef = useRef<{ date: LocalDate; offset: number } | undefined>(undefined);
+  const leadingRequestRef = useRef<LocalDate | undefined>(undefined);
+  const trailingRequestRef = useRef<LocalDate | undefined>(undefined);
+  const renderedRangeRef = useRef<{
+    first: LocalDate | undefined;
+    last: LocalDate | undefined;
+  }>({ first: undefined, last: undefined });
+  const scrollFrameRef = useRef<number | undefined>(undefined);
+  const [focusedDate, setFocusedDate] = useState<LocalDate>(today);
+
+  const days = useMemo(() => continuousDays(months), [months]);
+  const enabledDays = useMemo(() => days.filter((day) => !day.disabled), [days]);
+  const effectiveFocusedDate =
+    enabledDays.find((day) => day.date === focusedDate)?.date ??
+    enabledDays.find((day) => day.date === today)?.date ??
+    enabledDays[0]?.date;
+  const visibleLabel =
+    months.find((month) => month.month === visibleMonth)?.label ?? months[0]?.label ?? '';
+
+  const reportVisibleMonth = useCallback(
+    (month: LocalDate) => {
+      if (month === visibleMonth) return;
+      lastReportedMonthRef.current = month;
+      onVisibleMonthChange(month);
+    },
+    [onVisibleMonthChange, visibleMonth],
   );
 
-  const focusedDay =
-    (pendingMonthFocus === null
-      ? days.find((day) => day.date === focusedDate && !day.disabled)
-      : chooseMonthNavigationTarget(days, pendingMonthFocus)) ?? chooseInitialDay(days, today);
-  const focusedDayDate = focusedDay?.date;
-
-  useEffect(() => {
-    if (monthTransition === null) return;
-    const timeoutId = window.setTimeout(() => {
-      setMonthTransition(null);
-    }, MONTH_TRANSITION_FALLBACK_MS);
-    return () => {
-      window.clearTimeout(timeoutId);
+  const capturePrependAnchor = useCallback((): void => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const scrollerTop = scroller.getBoundingClientRect().top;
+    const firstVisible = [...buttonRefs.current.entries()]
+      .filter(([, element]) => element.getBoundingClientRect().bottom > scrollerTop)
+      .sort(
+        ([, left], [, right]) =>
+          left.getBoundingClientRect().top - right.getBoundingClientRect().top,
+      )[0];
+    if (!firstVisible) return;
+    prependAnchorRef.current = {
+      date: firstVisible[0],
+      offset: firstVisible[1].getBoundingClientRect().top - scrollerTop,
     };
-  }, [monthTransition]);
+  }, []);
+
+  const scrollToMonth = useCallback(
+    (month: LocalDate, behavior: ScrollBehavior) => {
+      const target = monthAnchorRefs.current.get(month);
+      const renderedMonths = monthsRef.current;
+      const targetIndex = renderedMonths.findIndex((candidate) => candidate.month === month);
+      const targetNeedsLeadingSpace = targetIndex === 0;
+      const targetNeedsTrailingSpace = targetIndex === renderedMonths.length - 1;
+      if (!target || targetNeedsLeadingSpace || targetNeedsTrailingSpace) {
+        pendingMonthRef.current = month;
+        const first = renderedMonths[0]?.month;
+        const last = renderedMonths.at(-1)?.month;
+        if (first && month <= first) capturePrependAnchor();
+        onRequestMonth(
+          first && month <= first
+            ? addMonths(month, -6)
+            : last && month >= last
+              ? addMonths(month, 6)
+              : month,
+        );
+        return;
+      }
+      pendingMonthRef.current = undefined;
+      programmaticScrollTargetRef.current = month;
+      if (programmaticScrollTimerRef.current !== undefined) {
+        window.clearTimeout(programmaticScrollTimerRef.current);
+      }
+      programmaticScrollTimerRef.current = window.setTimeout(() => {
+        programmaticScrollTimerRef.current = undefined;
+        programmaticScrollTargetRef.current = undefined;
+      }, 500);
+      const scroller = scrollerRef.current;
+      if (scroller) {
+        const targetTop =
+          scroller.scrollTop +
+          target.getBoundingClientRect().top -
+          scroller.getBoundingClientRect().top;
+        scroller.scrollTo({ behavior, top: targetTop });
+      }
+      reportVisibleMonth(month);
+    },
+    [capturePrependAnchor, onRequestMonth, reportVisibleMonth],
+  );
 
   useLayoutEffect(() => {
-    if (
-      focusTodayRequest <= handledFocusTodayRequestRef.current ||
-      !days.some((day) => day.date === today && day.isCurrentMonth && !day.disabled)
-    ) {
+    monthsRef.current = months;
+  }, [months]);
+
+  useLayoutEffect(() => {
+    const scroller = scrollerRef.current;
+    const first = months[0]?.month;
+    const last = months.at(-1)?.month;
+    const previousRange = renderedRangeRef.current;
+    const prependAnchor = prependAnchorRef.current;
+    if (scroller && prependAnchor && previousRange.first !== first) {
+      const anchor = buttonRefs.current.get(prependAnchor.date);
+      if (anchor) {
+        const newOffset = anchor.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+        scroller.scrollTop += newOffset - prependAnchor.offset;
+      }
+      prependAnchorRef.current = undefined;
+    }
+    if (previousRange.first !== first) leadingRequestRef.current = undefined;
+    if (previousRange.last !== last) trailingRequestRef.current = undefined;
+    renderedRangeRef.current = { first, last };
+
+    const pendingMonth = pendingMonthRef.current;
+    if (pendingMonth && monthAnchorRefs.current.has(pendingMonth)) {
+      scrollToMonth(pendingMonth, 'smooth');
+      const requestedDay = pendingMonthFocusDayRef.current;
+      if (requestedDay !== undefined) {
+        const targetDay = chooseDayInMonth(days, pendingMonth, requestedDay);
+        pendingMonthFocusDayRef.current = undefined;
+        if (targetDay) {
+          setFocusedDate(targetDay.date);
+          buttonRefs.current.get(targetDay.date)?.focus({ preventScroll: true });
+        }
+      }
+    }
+  }, [days, months, scrollToMonth]);
+
+  useLayoutEffect(() => {
+    if (lastReportedMonthRef.current === visibleMonth) {
+      lastReportedMonthRef.current = undefined;
       return;
     }
+    scrollToMonth(visibleMonth, positionedInitialMonthRef.current ? 'smooth' : 'auto');
+    positionedInitialMonthRef.current = true;
+  }, [scrollToMonth, visibleMonth]);
 
+  useLayoutEffect(() => {
+    if (focusTodayRequest <= handledFocusTodayRequestRef.current) return;
     handledFocusTodayRequestRef.current = focusTodayRequest;
     setFocusedDate(today);
-    setPendingMonthFocus(null);
-    shouldFocusAfterRender.current = false;
-    buttonRefs.current.get(today)?.focus();
-  }, [days, focusTodayRequest, today]);
+    scrollToMonth(startOfMonth(today), 'smooth');
+    buttonRefs.current.get(today)?.focus({ preventScroll: true });
+  }, [focusTodayRequest, scrollToMonth, today]);
+
+  useEffect(
+    () => () => {
+      if (scrollFrameRef.current !== undefined) cancelAnimationFrame(scrollFrameRef.current);
+      if (programmaticScrollTimerRef.current !== undefined) {
+        window.clearTimeout(programmaticScrollTimerRef.current);
+      }
+    },
+    [],
+  );
 
   useLayoutEffect(() => {
-    if (focusedDayDate === undefined) {
-      return;
+    const updateScrollbarWidth = (): void => {
+      const calendar = calendarRef.current;
+      const scroller = scrollerRef.current;
+      if (!calendar || !scroller) return;
+      calendar.style.setProperty(
+        '--calendar-scrollbar-width',
+        `${String(scroller.offsetWidth - scroller.clientWidth)}px`,
+      );
+    };
+    updateScrollbarWidth();
+    window.addEventListener('resize', updateScrollbarWidth);
+    return () => {
+      window.removeEventListener('resize', updateScrollbarWidth);
+    };
+  }, []);
+
+  const updateVisibleMonthFromScroll = (): void => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    if (programmaticScrollTargetRef.current !== undefined) return;
+    const scrollerRect = scroller.getBoundingClientRect();
+    const requestEarlierMonths = (firstMonth: LocalDate): void => {
+      if (leadingRequestRef.current === firstMonth) return;
+      capturePrependAnchor();
+      leadingRequestRef.current = firstMonth;
+      onRequestMonth(addMonths(firstMonth, -6));
+    };
+    const requestLaterMonths = (lastMonth: LocalDate): void => {
+      if (trailingRequestRef.current === lastMonth) return;
+      trailingRequestRef.current = lastMonth;
+      onRequestMonth(addMonths(lastMonth, 6));
+    };
+
+    const visibleAreaByMonth = new Map<LocalDate, number>();
+    for (const [date, element] of buttonRefs.current) {
+      const rect = element.getBoundingClientRect();
+      const visibleWidth = Math.max(
+        0,
+        Math.min(rect.right, scrollerRect.right) - Math.max(rect.left, scrollerRect.left),
+      );
+      const visibleHeight = Math.max(
+        0,
+        Math.min(rect.bottom, scrollerRect.bottom) - Math.max(rect.top, scrollerRect.top),
+      );
+      const visibleArea = visibleWidth * visibleHeight;
+      if (visibleArea === 0) continue;
+      const month = startOfMonth(date);
+      visibleAreaByMonth.set(month, (visibleAreaByMonth.get(month) ?? 0) + visibleArea);
     }
 
-    if (shouldFocusAfterRender.current) {
-      shouldFocusAfterRender.current = false;
-      buttonRefs.current.get(focusedDayDate)?.focus();
-    }
-  }, [focusedDayDate]);
-
-  const moveFocus = (currentDate: LocalDate, offset: number): void => {
-    const currentIndex = days.findIndex((day) => day.date === currentDate);
-    if (currentIndex < 0) {
-      return;
-    }
-
-    const direction = Math.sign(offset);
-    for (
-      let candidateIndex = currentIndex + offset;
-      candidateIndex >= 0 && candidateIndex < days.length;
-      candidateIndex += direction
-    ) {
-      const candidate = days[candidateIndex];
-      if (candidate && !candidate.disabled) {
-        setFocusedDate(candidate.date);
-        buttonRefs.current.get(candidate.date)?.focus();
-        return;
+    let activeMonth = visibleMonth;
+    let largestArea = visibleAreaByMonth.get(visibleMonth) ?? -1;
+    for (const [month, area] of visibleAreaByMonth) {
+      if (area > largestArea) {
+        activeMonth = month;
+        largestArea = area;
       }
+    }
+    if (largestArea >= 0) {
+      const renderedMonths = monthsRef.current;
+      const first = renderedMonths[0]?.month;
+      const last = renderedMonths.at(-1)?.month;
+      if (first && activeMonth <= first) requestEarlierMonths(first);
+      if (last && activeMonth >= last) requestLaterMonths(last);
+      reportVisibleMonth(activeMonth);
+    }
+
+    const firstRenderedMonth = monthsRef.current[0]?.month;
+    if (
+      firstRenderedMonth &&
+      scroller.scrollTop < 160 &&
+      leadingRequestRef.current !== firstRenderedMonth
+    ) {
+      requestEarlierMonths(firstRenderedMonth);
+    }
+
+    const lastRenderedMonth = monthsRef.current.at(-1)?.month;
+    if (
+      lastRenderedMonth &&
+      scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop < 160 &&
+      trailingRequestRef.current !== lastRenderedMonth
+    ) {
+      requestLaterMonths(lastRenderedMonth);
     }
   };
 
-  const moveWithinWeek = (currentDate: LocalDate, boundary: 'start' | 'end'): void => {
-    const currentIndex = days.findIndex((day) => day.date === currentDate);
-    if (currentIndex < 0) {
-      return;
-    }
-
-    const weekStart = currentIndex - (currentIndex % 7);
-    const targetIndex = boundary === 'start' ? weekStart : Math.min(weekStart + 6, days.length - 1);
-    const direction = boundary === 'start' ? 1 : -1;
-
-    for (
-      let candidateIndex = targetIndex;
-      candidateIndex >= weekStart && candidateIndex < weekStart + 7;
-      candidateIndex += direction
-    ) {
-      const candidate = days[candidateIndex];
-      if (candidate && !candidate.disabled) {
-        setFocusedDate(candidate.date);
-        buttonRefs.current.get(candidate.date)?.focus();
-        return;
+  const handleScroll = (): void => {
+    if (programmaticScrollTargetRef.current !== undefined) {
+      if (programmaticScrollTimerRef.current !== undefined) {
+        window.clearTimeout(programmaticScrollTimerRef.current);
       }
+      programmaticScrollTimerRef.current = window.setTimeout(() => {
+        programmaticScrollTimerRef.current = undefined;
+        programmaticScrollTargetRef.current = undefined;
+        updateVisibleMonthFromScroll();
+      }, 180);
     }
+    if (scrollFrameRef.current !== undefined) cancelAnimationFrame(scrollFrameRef.current);
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      scrollFrameRef.current = undefined;
+      updateVisibleMonthFromScroll();
+    });
   };
 
-  const moveMonth = (currentDate: LocalDate, direction: 'previous' | 'next'): void => {
-    setPendingMonthFocus(dayOfMonth(currentDate));
-    shouldFocusAfterRender.current = true;
-    if (direction === 'previous') {
-      onPreviousMonth();
-    } else {
-      onNextMonth();
-    }
+  const focusDate = (date: LocalDate): void => {
+    setFocusedDate(date);
+    buttonRefs.current.get(date)?.focus();
   };
 
   const handleDayKeyDown = (event: KeyboardEvent<HTMLButtonElement>, date: LocalDate): void => {
+    const currentIndex = enabledDays.findIndex((day) => day.date === date);
+    if (currentIndex < 0) return;
+    const weekIndex = currentIndex % 7;
+    let target: CalendarDay | undefined;
     switch (event.key) {
       case 'ArrowLeft':
-        event.preventDefault();
-        moveFocus(date, -1);
+        target = enabledDays[currentIndex - 1];
         break;
       case 'ArrowRight':
-        event.preventDefault();
-        moveFocus(date, 1);
+        target = enabledDays[currentIndex + 1];
         break;
       case 'ArrowUp':
-        event.preventDefault();
-        moveFocus(date, -7);
+        target = enabledDays[currentIndex - 7];
         break;
       case 'ArrowDown':
-        event.preventDefault();
-        moveFocus(date, 7);
+        target = enabledDays[currentIndex + 7];
         break;
       case 'Home':
-        event.preventDefault();
-        moveWithinWeek(date, 'start');
+        target = enabledDays[currentIndex - weekIndex];
         break;
       case 'End':
-        event.preventDefault();
-        moveWithinWeek(date, 'end');
+        target = enabledDays[Math.min(currentIndex + (6 - weekIndex), enabledDays.length - 1)];
         break;
       case 'PageUp':
-        event.preventDefault();
-        moveMonth(date, 'previous');
+      case 'PageDown': {
+        const direction = event.key === 'PageUp' ? -1 : 1;
+        const targetMonth = addMonths(startOfMonth(date), direction);
+        target = chooseDayInMonth(days, targetMonth, dayOfMonth(date));
+        if (!target) pendingMonthFocusDayRef.current = dayOfMonth(date);
+        scrollToMonth(targetMonth, 'smooth');
         break;
-      case 'PageDown':
-        event.preventDefault();
-        moveMonth(date, 'next');
-        break;
+      }
+      default:
+        return;
     }
+    event.preventDefault();
+    if (target) focusDate(target.date);
   };
 
-  const startMonthSwipe = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (
-      monthTransition !== null ||
-      (event.pointerType !== 'touch' && event.pointerType !== 'pen') ||
-      !event.isPrimary
-    ) {
-      monthSwipeStartRef.current = null;
-      setMonthSwipeFeedback(0);
-      setMonthSwipeFeedbackActive(false);
-      return;
-    }
-
-    monthSwipeStartRef.current = {
-      pointerId: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-    };
-    setMonthSwipeFeedback(0);
-    setMonthSwipeFeedbackActive(true);
-  };
-
-  const updateMonthSwipe = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    const start = monthSwipeStartRef.current;
-    if (start?.pointerId !== event.pointerId) return;
-
-    const horizontalDistance = event.clientX - start.x;
-    const verticalDistance = event.clientY - start.y;
-    if (Math.abs(horizontalDistance) < Math.abs(verticalDistance)) {
-      setMonthSwipeFeedback(0);
-      return;
-    }
-
-    const dampedDistance = horizontalDistance * MONTH_SWIPE_FEEDBACK_FACTOR;
-    setMonthSwipeFeedback(
-      Math.max(
-        -MAXIMUM_MONTH_SWIPE_FEEDBACK,
-        Math.min(MAXIMUM_MONTH_SWIPE_FEEDBACK, dampedDistance),
-      ),
+  const renderDay = (day: CalendarDay, week: readonly CalendarDay[], dayIndex: number) => {
+    const isToday = day.date === today;
+    const dayMonth = startOfMonth(day.date);
+    const isActiveMonth = dayMonth === visibleMonth;
+    const hasMarkers = markerIsPresent(day.markers) || day.flow !== undefined;
+    const previousDay = week[dayIndex - 1];
+    const nextDay = week[dayIndex + 1];
+    return (
+      <div className={styles['dayCell']} key={day.date} role="gridcell">
+        <button
+          aria-current={isToday ? 'date' : undefined}
+          className={styles['dayButton']}
+          data-active-month={isActiveMonth}
+          data-calendar-month={dayMonth}
+          data-current-month={isActiveMonth}
+          data-flow={day.flow}
+          data-green={day.markers.green}
+          data-orange={day.markers.orange}
+          data-possible-start={day.markers.possibleStart}
+          data-predicted-after={day.markers.predictedRed && nextDay?.markers.predictedRed === true}
+          data-predicted-before={
+            day.markers.predictedRed && previousDay?.markers.predictedRed === true
+          }
+          data-predicted-red={day.markers.predictedRed}
+          data-recorded-after={day.markers.recordedRed && nextDay?.markers.recordedRed === true}
+          data-recorded-before={
+            day.markers.recordedRed && previousDay?.markers.recordedRed === true
+          }
+          data-recorded-red={day.markers.recordedRed}
+          data-spotting={day.markers.spotting}
+          data-today={isToday}
+          disabled={day.disabled}
+          onClick={(event) => {
+            setFocusedDate(day.date);
+            onSelectDate(day.date, event.currentTarget);
+          }}
+          onFocus={() => {
+            setFocusedDate(day.date);
+          }}
+          onKeyDown={(event) => {
+            handleDayKeyDown(event, day.date);
+          }}
+          ref={(node) => {
+            if (node) {
+              buttonRefs.current.set(day.date, node);
+              if (dayOfMonth(day.date) === 1) monthAnchorRefs.current.set(dayMonth, node);
+            } else {
+              buttonRefs.current.delete(day.date);
+              if (dayOfMonth(day.date) === 1) monthAnchorRefs.current.delete(dayMonth);
+            }
+          }}
+          tabIndex={day.date === effectiveFocusedDate ? 0 : -1}
+          type="button"
+        >
+          <span className={styles['visuallyHidden']}>{day.accessibleName}</span>
+          {isToday ? <span className={styles['visuallyHidden']}>{copy.today}</span> : null}
+          <span className={styles['dayNumber']} aria-hidden="true">
+            {day.dayNumberLabel}
+          </span>
+          <span className={styles['dayMarkers']} aria-hidden="true">
+            {markerOrder.map((marker) =>
+              day.markers[marker] && !(marker === 'recordedRed' && day.flow !== undefined) ? (
+                <span
+                  key={marker}
+                  className={combineClasses(styles['marker'], styles[`marker-${marker}`])}
+                >
+                  <MarkerIcon marker={marker} />
+                </span>
+              ) : null,
+            )}
+            {day.flow === undefined ? null : (
+              <span className={styles['flowMarker']}>
+                <CalendarFlowIcon flow={day.flow} />
+              </span>
+            )}
+          </span>
+          {day.flowDescription === undefined ? null : (
+            <span className={styles['visuallyHidden']}>{day.flowDescription}</span>
+          )}
+          {markerOrder.map((marker) =>
+            day.markers[marker] ? (
+              <span key={marker} className={styles['visuallyHidden']}>
+                {markerLabel(day, marker, copy)}
+              </span>
+            ) : null,
+          )}
+          {!hasMarkers ? (
+            <span className={styles['visuallyHidden']}>{copy.markers.neutral}</span>
+          ) : null}
+          {day.disabledDescription ? (
+            <span className={styles['visuallyHidden']}>{day.disabledDescription}</span>
+          ) : null}
+        </button>
+      </div>
     );
   };
 
-  const finishMonthSwipe = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    const start = monthSwipeStartRef.current;
-    monthSwipeStartRef.current = null;
-    setMonthSwipeFeedback(0);
-    setMonthSwipeFeedbackActive(false);
-    if (start?.pointerId !== event.pointerId) return;
-
-    const horizontalDistance = event.clientX - start.x;
-    const verticalDistance = event.clientY - start.y;
-    if (
-      Math.abs(horizontalDistance) < MINIMUM_MONTH_SWIPE_DISTANCE ||
-      Math.abs(horizontalDistance) < Math.abs(verticalDistance) * MONTH_SWIPE_AXIS_DOMINANCE
-    ) {
-      return;
-    }
-
-    suppressClickUntilRef.current = Date.now() + SWIPE_CLICK_SUPPRESSION_MS;
-    if (horizontalDistance < 0) {
-      setMonthTransition({ departingDays: days, direction: 'next' });
-      onNextMonth();
-    } else {
-      setMonthTransition({ departingDays: days, direction: 'previous' });
-      onPreviousMonth();
-    }
+  const navigateMonth = (direction: -1 | 1): void => {
+    scrollToMonth(addMonths(visibleMonth, direction), 'smooth');
   };
 
-  const renderMonthTable = (renderedDays: readonly CalendarDay[], interactive: boolean) => (
-    <table className={styles['calendarTable']} aria-label={copy.calendarLabel}>
-      <caption className={styles['visuallyHidden']}>{copy.calendarLabel}</caption>
-      <thead>
-        <tr>
-          {weekdays.map((weekday) => (
-            <th key={weekday.key} scope="col">
-              <abbr title={weekday.fullLabel}>{weekday.shortLabel}</abbr>
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {groupIntoWeeks(renderedDays).map((week) => (
-          <tr key={week[0]?.date ?? monthLabel}>
-            {week.map((day, dayIndex) => {
-              const isToday = day.date === today;
-              const hasMarkers = markerIsPresent(day.markers);
-              const previousDay = week[dayIndex - 1];
-              const nextDay = week[dayIndex + 1];
-
-              return (
-                <td key={day.date}>
-                  <button
-                    aria-current={isToday ? 'date' : undefined}
-                    className={styles['dayButton']}
-                    data-current-month={day.isCurrentMonth}
-                    data-green={day.markers.green}
-                    data-orange={day.markers.orange}
-                    data-possible-start={day.markers.possibleStart}
-                    data-predicted-after={
-                      day.markers.predictedRed && nextDay?.markers.predictedRed === true
-                    }
-                    data-predicted-before={
-                      day.markers.predictedRed && previousDay?.markers.predictedRed === true
-                    }
-                    data-predicted-red={day.markers.predictedRed}
-                    data-recorded-after={
-                      day.markers.recordedRed && nextDay?.markers.recordedRed === true
-                    }
-                    data-recorded-before={
-                      day.markers.recordedRed && previousDay?.markers.recordedRed === true
-                    }
-                    data-recorded-red={day.markers.recordedRed}
-                    data-spotting={day.markers.spotting}
-                    data-today={isToday}
-                    disabled={day.disabled}
-                    onClick={(event) => {
-                      if (!interactive) return;
-                      setFocusedDate(day.date);
-                      onSelectDate(day.date, event.currentTarget);
-                    }}
-                    onFocus={() => {
-                      if (!interactive) return;
-                      setFocusedDate(day.date);
-                      setPendingMonthFocus(null);
-                    }}
-                    onKeyDown={(event) => {
-                      if (interactive) handleDayKeyDown(event, day.date);
-                    }}
-                    ref={
-                      interactive
-                        ? (node) => {
-                            if (node) {
-                              buttonRefs.current.set(day.date, node);
-                            } else {
-                              buttonRefs.current.delete(day.date);
-                            }
-                          }
-                        : null
-                    }
-                    tabIndex={interactive && day.date === focusedDay?.date ? 0 : -1}
-                    type="button"
-                  >
-                    <span className={styles['visuallyHidden']}>{day.accessibleName}</span>
-                    {!day.isCurrentMonth ? (
-                      <span className={styles['visuallyHidden']}>{copy.outsideMonth}</span>
-                    ) : null}
-                    {isToday ? (
-                      <span className={styles['visuallyHidden']}>{copy.today}</span>
-                    ) : null}
-                    <span className={styles['dayNumber']} aria-hidden="true">
-                      {day.dayNumberLabel}
-                    </span>
-                    <span className={styles['dayMarkers']} aria-hidden="true">
-                      {markerOrder.map((marker) =>
-                        day.markers[marker] ? (
-                          <span
-                            key={marker}
-                            className={combineClasses(styles['marker'], styles[`marker-${marker}`])}
-                          >
-                            <MarkerIcon marker={marker} />
-                          </span>
-                        ) : null,
-                      )}
-                    </span>
-                    {markerOrder.map((marker) =>
-                      day.markers[marker] ? (
-                        <span key={marker} className={styles['visuallyHidden']}>
-                          {markerLabel(day, marker, copy)}
-                        </span>
-                      ) : null,
-                    )}
-                    {!hasMarkers ? (
-                      <span className={styles['visuallyHidden']}>{copy.markers.neutral}</span>
-                    ) : null}
-                    {day.disabledDescription ? (
-                      <span className={styles['visuallyHidden']}>{day.disabledDescription}</span>
-                    ) : null}
-                  </button>
-                </td>
-              );
-            })}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-
   return (
-    <section className={styles['calendar']} aria-labelledby={headingId}>
+    <section className={styles['calendar']} aria-labelledby={headingId} ref={calendarRef}>
       <div aria-label={copy.navigationLabel} className={styles['calendarHeader']} role="group">
         <button
           aria-label={copy.previousMonth}
           className={styles['navigationButton']}
-          disabled={monthTransition !== null}
-          onClick={onPreviousMonth}
+          onClick={() => {
+            navigateMonth(-1);
+          }}
           type="button"
         >
           <MonthChevron direction="previous" />
         </button>
         <h2 id={headingId} aria-live="polite">
-          {monthLabel}
+          {visibleLabel}
         </h2>
         <button
           aria-label={copy.nextMonth}
           className={styles['navigationButton']}
-          disabled={monthTransition !== null}
-          onClick={onNextMonth}
+          onClick={() => {
+            navigateMonth(1);
+          }}
           type="button"
         >
           <MonthChevron direction="next" />
@@ -604,167 +707,32 @@ export function MonthlyCalendar({
       </div>
 
       <div
-        className={styles['tableScroller']}
-        onClickCapture={(event) => {
-          if (Date.now() > suppressClickUntilRef.current) return;
-          suppressClickUntilRef.current = 0;
-          event.preventDefault();
-          event.stopPropagation();
-        }}
-        onPointerCancel={() => {
-          monthSwipeStartRef.current = null;
-          setMonthSwipeFeedback(0);
-          setMonthSwipeFeedbackActive(false);
-        }}
-        onPointerDown={startMonthSwipe}
-        onPointerMove={updateMonthSwipe}
-        onPointerUp={finishMonthSwipe}
+        aria-hidden="true"
+        className={styles['weekdayHeader']}
+        data-testid="calendar-weekday-header"
       >
-        <div className={styles['monthViewport']}>
-          <div
-            className={styles['monthPane']}
-            data-swipe-active={monthSwipeFeedbackActive}
-            data-testid="calendar-current-month"
-            data-transition-direction={monthTransition?.direction}
-            data-transition-role={monthTransition ? 'incoming' : undefined}
-            style={
-              {
-                '--calendar-swipe-offset': `${String(monthSwipeFeedback)}px`,
-              } as CSSProperties
-            }
-          >
-            <table className={styles['calendarTable']} aria-label={copy.calendarLabel}>
-              <caption className={styles['visuallyHidden']}>{copy.calendarLabel}</caption>
-              <thead>
-                <tr>
-                  {weekdays.map((weekday) => (
-                    <th key={weekday.key} scope="col">
-                      <abbr title={weekday.fullLabel}>{weekday.shortLabel}</abbr>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {groupIntoWeeks(days).map((week) => (
-                  <tr key={week[0]?.date ?? monthLabel}>
-                    {week.map((day, dayIndex) => {
-                      const isToday = day.date === today;
-                      const hasMarkers = markerIsPresent(day.markers);
-                      const previousDay = week[dayIndex - 1];
-                      const nextDay = week[dayIndex + 1];
+        {weekdays.map((weekday) => (
+          <abbr key={weekday.key} title={weekday.fullLabel}>
+            {weekday.shortLabel}
+          </abbr>
+        ))}
+      </div>
 
-                      return (
-                        <td key={day.date}>
-                          <button
-                            aria-current={isToday ? 'date' : undefined}
-                            className={styles['dayButton']}
-                            data-current-month={day.isCurrentMonth}
-                            data-green={day.markers.green}
-                            data-orange={day.markers.orange}
-                            data-possible-start={day.markers.possibleStart}
-                            data-predicted-after={
-                              day.markers.predictedRed && nextDay?.markers.predictedRed === true
-                            }
-                            data-predicted-before={
-                              day.markers.predictedRed && previousDay?.markers.predictedRed === true
-                            }
-                            data-predicted-red={day.markers.predictedRed}
-                            data-recorded-after={
-                              day.markers.recordedRed && nextDay?.markers.recordedRed === true
-                            }
-                            data-recorded-before={
-                              day.markers.recordedRed && previousDay?.markers.recordedRed === true
-                            }
-                            data-recorded-red={day.markers.recordedRed}
-                            data-spotting={day.markers.spotting}
-                            data-today={isToday}
-                            disabled={day.disabled}
-                            onClick={(event) => {
-                              setFocusedDate(day.date);
-                              onSelectDate(day.date, event.currentTarget);
-                            }}
-                            onFocus={() => {
-                              setFocusedDate(day.date);
-                              setPendingMonthFocus(null);
-                            }}
-                            onKeyDown={(event) => {
-                              handleDayKeyDown(event, day.date);
-                            }}
-                            ref={(node) => {
-                              if (node) {
-                                buttonRefs.current.set(day.date, node);
-                              } else {
-                                buttonRefs.current.delete(day.date);
-                              }
-                            }}
-                            tabIndex={day.date === focusedDay?.date ? 0 : -1}
-                            type="button"
-                          >
-                            <span className={styles['visuallyHidden']}>{day.accessibleName}</span>
-                            {!day.isCurrentMonth ? (
-                              <span className={styles['visuallyHidden']}>{copy.outsideMonth}</span>
-                            ) : null}
-                            {isToday ? (
-                              <span className={styles['visuallyHidden']}>{copy.today}</span>
-                            ) : null}
-                            <span className={styles['dayNumber']} aria-hidden="true">
-                              {day.dayNumberLabel}
-                            </span>
-                            <span className={styles['dayMarkers']} aria-hidden="true">
-                              {markerOrder.map((marker) =>
-                                day.markers[marker] ? (
-                                  <span
-                                    key={marker}
-                                    className={combineClasses(
-                                      styles['marker'],
-                                      styles[`marker-${marker}`],
-                                    )}
-                                  >
-                                    <MarkerIcon marker={marker} />
-                                  </span>
-                                ) : null,
-                              )}
-                            </span>
-                            {markerOrder.map((marker) =>
-                              day.markers[marker] ? (
-                                <span key={marker} className={styles['visuallyHidden']}>
-                                  {markerLabel(day, marker, copy)}
-                                </span>
-                              ) : null,
-                            )}
-                            {!hasMarkers ? (
-                              <span className={styles['visuallyHidden']}>
-                                {copy.markers.neutral}
-                              </span>
-                            ) : null}
-                            {day.disabledDescription ? (
-                              <span className={styles['visuallyHidden']}>
-                                {day.disabledDescription}
-                              </span>
-                            ) : null}
-                          </button>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {monthTransition ? (
-            <div
-              aria-hidden="true"
-              className={styles['monthPane']}
-              data-testid="calendar-departing-month"
-              data-transition-direction={monthTransition.direction}
-              data-transition-role="departing"
-              onAnimationEnd={() => {
-                setMonthTransition(null);
-              }}
-            >
-              <div inert>{renderMonthTable(monthTransition.departingDays, false)}</div>
+      <div
+        aria-label={copy.calendarLabel}
+        className={styles['monthScroller']}
+        data-testid="calendar-month-scroller"
+        onScroll={handleScroll}
+        ref={scrollerRef}
+        role="grid"
+        tabIndex={0}
+      >
+        <div className={styles['dayStream']}>
+          {groupIntoWeeks(days).map((week) => (
+            <div className={styles['weekRow']} key={week[0]?.date} role="row">
+              {week.map((day, index) => renderDay(day, week, index))}
             </div>
-          ) : null}
+          ))}
         </div>
       </div>
 

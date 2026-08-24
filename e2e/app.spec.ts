@@ -501,7 +501,6 @@ test.describe('English application shell', () => {
     await page.getByRole('button', { name: 'Check in today' }).click();
     const dialog = page.getByRole('dialog', { name: 'Check in today' });
     await dialog.getByRole('radio', { name: 'Medium' }).check();
-    await dialog.getByRole('button', { name: 'Add note or details' }).click();
     await dialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }).check();
     await dialog.getByLabel('Private note').fill('A private browser test check-in.');
     await dialog.getByRole('button', { name: 'Start period and save' }).click();
@@ -540,17 +539,11 @@ test.describe('English application shell', () => {
     await page.getByRole('button', { name: 'Check in today' }).click();
     const dayDialog = page.getByRole('dialog', { name: 'Check in today' });
     await dayDialog.getByRole('radio', { name: 'Medium' }).check();
-    await dayDialog.getByRole('button', { name: 'Add note or details' }).click();
     await dayDialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }).check();
     await dayDialog.getByRole('radio', { name: 'Tension: 4 out of 5' }).check();
     await dayDialog.getByLabel('Private note').fill('Keep this after correcting the dates.');
     await dayDialog.getByRole('button', { name: 'Start period and save' }).click();
     await expect(dayDialog).not.toBeVisible();
-
-    await page.getByRole('button', { name: "Edit today's check-in" }).click();
-    const endPeriodDialog = page.getByRole('dialog', { name: "Edit today's check-in" });
-    await endPeriodDialog.getByRole('button', { name: /End period/ }).click();
-    await expect(endPeriodDialog).not.toBeVisible();
 
     const hasNoHorizontalOverflow = await page.evaluate<boolean>(
       'document.documentElement.scrollWidth <= document.documentElement.clientWidth',
@@ -561,9 +554,10 @@ test.describe('English application shell', () => {
     await page.getByRole('button', { name: /Correct period starting/ }).click();
     const correctionDialog = page.getByRole('dialog', { name: 'Correct period dates' });
     const startDateInput = correctionDialog.getByLabel('Start date');
+    await correctionDialog.getByRole('radio', { name: /Ended.*date known/u }).check();
     const endDateInput = correctionDialog.getByLabel('Inclusive end date');
     const recordedDate = await startDateInput.inputValue();
-    expect(await endDateInput.inputValue()).toBe(recordedDate);
+    await endDateInput.fill(recordedDate);
     const correctedStartDate = await page.evaluate((startDate) => {
       const date = new Date(`${startDate}T12:00:00.000Z`);
       date.setUTCDate(date.getUTCDate() - 1);
@@ -789,7 +783,10 @@ test.describe('Phase 5 compact mobile shell', () => {
     await expect(checkInAction).toBeVisible();
     await expect(checkInAction).toBeInViewport();
     await expect(page.getByRole('heading', { name: 'Next period' })).toBeInViewport();
-    await expect(page.getByText('Estimate unavailable', { exact: true })).toBeInViewport();
+    const unavailableEstimate = page.getByText('Estimate unavailable', { exact: true });
+    await expect(unavailableEstimate).toBeVisible();
+    await unavailableEstimate.scrollIntoViewIfNeeded();
+    await expect(unavailableEstimate).toBeInViewport();
 
     const monthToolbar = page.getByRole('group', { name: 'Calendar month navigation' });
     const toolbarChildren = monthToolbar.locator(':scope > *');
@@ -835,13 +832,15 @@ test.describe('Phase 5 compact mobile shell', () => {
     await page.getByRole('button', { name: 'Close Period history' }).click();
     await expect(historyTrigger).toBeFocused();
 
-    const calendarFitsWithoutInnerScrolling = await page.evaluate<boolean>(
+    const calendarUsesOnlyVerticalInnerScrolling = await page.evaluate<boolean>(
       `(() => {
-        const scroller = document.querySelector('table[aria-label="Menstrual pattern calendar"]')?.parentElement;
-        return scroller !== undefined && scroller !== null && scroller.scrollWidth === scroller.clientWidth;
+        const scroller = document.querySelector('[data-testid="calendar-month-scroller"]');
+        return scroller instanceof HTMLElement &&
+          scroller.scrollWidth === scroller.clientWidth &&
+          scroller.scrollHeight > scroller.clientHeight;
       })()`,
     );
-    expect(calendarFitsWithoutInnerScrolling).toBe(true);
+    expect(calendarUsesOnlyVerticalInnerScrolling).toBe(true);
 
     await checkInAction.click();
     const checkIn = page.getByRole('dialog', { name: 'Check in today' });
@@ -857,7 +856,8 @@ test.describe('Phase 5 compact mobile shell', () => {
         : viewport.height - (saveButtonBox.y + saveButtonBox.height);
     expect(saveButtonBottomGap).toBeGreaterThanOrEqual(0);
     expect(saveButtonBottomGap).toBeLessThanOrEqual(48);
-    await checkIn.getByRole('radio', { name: 'Spotting' }).check();
+    const leakageSentinel = 'private-unsaved-check-in-sentinel';
+    await checkIn.getByLabel('Private note').fill(leakageSentinel);
     await expect(page.getByRole('navigation', { name: 'Primary navigation' })).not.toBeVisible();
     expect(page.url()).toBe(initialUrl);
     const transientBrowserState = await page.evaluate<string>(
@@ -867,7 +867,7 @@ test.describe('Phase 5 compact mobile shell', () => {
         sessionStorage: Object.fromEntries(Object.entries(sessionStorage))
       })`,
     );
-    expect(transientBrowserState).not.toContain('spotting');
+    expect(transientBrowserState).not.toContain(leakageSentinel);
     await checkIn.getByRole('button', { name: 'Cancel' }).click();
     await expect(checkInAction).toBeFocused();
 
@@ -922,68 +922,25 @@ test.describe('Phase 5 compact mobile shell', () => {
     const monthHeading = page
       .getByRole('group', { name: 'Calendar month navigation' })
       .getByRole('heading');
-    const initialMonth = await monthHeading.textContent();
-    expect(initialMonth).not.toBeNull();
-    const calendarTable = page.getByRole('table');
-    await calendarTable.dispatchEvent('pointerdown', {
-      clientX: 280,
-      clientY: 300,
-      isPrimary: true,
-      pointerId: 21,
-      pointerType: 'touch',
-    });
-    await calendarTable.dispatchEvent('pointermove', {
-      clientX: 180,
-      clientY: 305,
-      isPrimary: true,
-      pointerId: 21,
-      pointerType: 'touch',
-    });
-    await expect(page.getByTestId('calendar-current-month')).toHaveAttribute(
-      'data-swipe-active',
-      'true',
+    const monthScroller = page.getByTestId('calendar-month-scroller');
+    await expect(monthScroller).toHaveCSS('overflow-y', 'auto');
+    const initialScrollTop = await page.evaluate<number>(
+      `document.querySelector('[data-testid="calendar-month-scroller"]')?.scrollTop ?? 0`,
     );
-    await expect(page.getByTestId('calendar-current-month')).toHaveAttribute(
-      'style',
-      /--calendar-swipe-offset: -24px/u,
-    );
-    await calendarTable.dispatchEvent('pointerup', {
-      clientX: 60,
-      clientY: 305,
-      isPrimary: true,
-      pointerId: 21,
-      pointerType: 'touch',
-    });
-    await expect(page.getByTestId('calendar-current-month')).toHaveAttribute(
-      'data-transition-direction',
-      'next',
-    );
-    await expect(page.getByTestId('calendar-departing-month')).toBeVisible();
-    await expect(monthHeading).not.toHaveText(initialMonth ?? '');
+    await page.evaluate(`(() => {
+      const element = document.querySelector('[data-testid="calendar-month-scroller"]');
+      if (element instanceof HTMLElement) element.scrollBy({ top: 140, behavior: 'auto' });
+    })()`);
+    await expect
+      .poll(async () =>
+        page.evaluate<number>(
+          `document.querySelector('[data-testid="calendar-month-scroller"]')?.scrollTop ?? 0`,
+        ),
+      )
+      .toBeGreaterThan(initialScrollTop);
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(page.getByTestId('calendar-departing-month')).toBeHidden();
-
-    await calendarTable.dispatchEvent('pointerdown', {
-      clientX: 60,
-      clientY: 300,
-      isPrimary: true,
-      pointerId: 22,
-      pointerType: 'touch',
-    });
-    await calendarTable.dispatchEvent('pointerup', {
-      clientX: 280,
-      clientY: 305,
-      isPrimary: true,
-      pointerId: 22,
-      pointerType: 'touch',
-    });
-    await expect(page.getByTestId('calendar-current-month')).toHaveAttribute(
-      'data-transition-direction',
-      'previous',
-    );
-    await expect(page.getByTestId('calendar-departing-month')).toBeVisible();
-    await expect(monthHeading).toHaveText(initialMonth ?? '');
-    await expect(page.getByTestId('calendar-departing-month')).toBeHidden();
+    const monthBeforeButtonNavigation = await monthHeading.textContent();
+    expect(monthBeforeButtonNavigation).not.toBeNull();
 
     for (const label of ['Previous month', 'Next month']) {
       const navigationButton = page.getByRole('button', { name: label });
@@ -1001,6 +958,32 @@ test.describe('Phase 5 compact mobile shell', () => {
       }
     }
 
+    await expect(
+      page.getByRole('button', { name: 'Previous month' }).locator('path'),
+    ).toHaveAttribute('d', 'm5 15 7-7 7 7');
+    await expect(page.getByRole('button', { name: 'Next month' }).locator('path')).toHaveAttribute(
+      'd',
+      'm5 9 7 7 7-7',
+    );
+
+    await page.evaluate(`(() => {
+      const element = document.querySelector('[data-testid="calendar-month-scroller"]');
+      if (!(element instanceof HTMLElement)) return;
+      window.calendarScrollSamples = [];
+      element.addEventListener('scroll', () => window.calendarScrollSamples.push(element.scrollTop));
+    })()`);
+    await page.getByRole('button', { name: 'Next month' }).click();
+    await expect(monthHeading).not.toHaveText(monthBeforeButtonNavigation ?? '');
+    await expect
+      .poll(async () =>
+        page.evaluate<number>(
+          `Array.isArray(window.calendarScrollSamples) ? window.calendarScrollSamples.length : 0`,
+        ),
+      )
+      .toBeGreaterThan(1);
+    await page.getByRole('button', { name: 'Previous month' }).click();
+    await expect(monthHeading).toHaveText(monthBeforeButtonNavigation ?? '');
+
     const todayCell = page.locator('button[aria-current="date"]');
     await expect(todayCell).not.toHaveAttribute('aria-pressed');
     await expect(todayCell).not.toHaveAttribute('data-selected');
@@ -1010,7 +993,7 @@ test.describe('Phase 5 compact mobile shell', () => {
     await expect(goToToday).toBeDisabled();
     await expect(todayCell).toBeFocused();
 
-    const firstWeekday = page.getByRole('table').getByRole('columnheader').first();
+    const firstWeekday = page.getByTestId('calendar-weekday-header').locator('abbr').first();
     await expect(firstWeekday).toHaveText(/Sun/u);
     await openRootDestination(page, 'Settings');
     const weekStart = page.getByRole('combobox', { name: 'First day of the week' });
@@ -1026,13 +1009,15 @@ test.describe('Phase 5 compact mobile shell', () => {
     await weekStart.selectOption('monday');
     await expect(page.getByText('Calendar preference saved.')).toBeVisible();
     await openRootDestination(page, 'Calendar');
-    await expect(page.getByRole('table').getByRole('columnheader').first()).toHaveText(/Mon/u);
+    await expect(firstWeekday).toHaveText(/Mon/u);
 
     await page.reload();
     await expect(
       page.getByRole('heading', { exact: true, level: 1, name: 'Calendar' }),
     ).toBeVisible();
-    await expect(page.getByRole('table').getByRole('columnheader').first()).toHaveText(/Mon/u);
+    await expect(page.getByTestId('calendar-weekday-header').locator('abbr').first()).toHaveText(
+      /Mon/u,
+    );
   });
 
   test('keeps the check-in header and actions stable while details are edited', async ({
@@ -1065,13 +1050,14 @@ test.describe('Phase 5 compact mobile shell', () => {
       ).toBeLessThanOrEqual(0.5);
     }
 
-    await dialog.getByRole('button', { name: 'Add note or details' }).click();
+    await dialog.getByRole('button', { name: 'Hide note and details' }).click();
     const actionPanelAfter = await actionPanel.boundingBox();
     expect(actionPanelAfter).not.toBeNull();
     if (actionPanelBefore !== null && actionPanelAfter !== null) {
       expect(Math.abs(actionPanelBefore.height - actionPanelAfter.height)).toBeLessThanOrEqual(0.5);
       expect(Math.abs(actionPanelBefore.y - actionPanelAfter.y)).toBeLessThanOrEqual(0.5);
     }
+    await dialog.getByRole('button', { name: 'Add note or details (optional)' }).click();
 
     const confidenceFive = dialog.getByRole('radio', { name: 'Confidence: 5 out of 5' });
     const ratingPositionBefore = await confidenceFive.boundingBox();

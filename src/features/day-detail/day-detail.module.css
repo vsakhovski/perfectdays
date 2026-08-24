@@ -112,7 +112,6 @@
   border-radius: var(--radius-small);
   background: var(--color-surface-subtle);
   color: var(--color-text);
-  cursor: pointer;
   text-align: start;
 }
 
@@ -121,12 +120,25 @@
   background: var(--color-danger-subtle);
 }
 
-.quickAction span,
-.dangerAction span,
+.quickAction p,
+.dangerAction p,
 .fieldDescription {
+  margin: 0;
   color: var(--color-text-muted);
   font-size: 0.82rem;
   font-weight: 400;
+}
+
+.quickAction button,
+.dangerAction button {
+  align-self: end;
+  justify-self: start;
+  margin-block-start: 0.55rem;
+}
+
+.periodDayDescription {
+  margin: 0;
+  color: var(--color-text-muted);
 }
 
 .fieldset {
@@ -144,7 +156,7 @@
 
 .flowOptions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.45rem;
 }
 
@@ -162,18 +174,24 @@
   opacity: 0;
 }
 
-.flowOptions span,
-.ratingScale label > span {
+.flowOptions label > span {
   display: grid;
   place-items: center;
+  min-inline-size: 0;
   min-block-size: 2.75rem;
-  padding: 0.45rem;
+  padding: 0.35rem;
   border: 1px solid var(--color-border-strong);
   border-radius: 0.65rem;
   background: var(--color-surface);
+  color: var(--color-marker-red);
 }
 
-.flowOptions input:checked + span,
+.flowOptions input:checked + span {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 14%, var(--color-surface));
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
 .ratingScale input:checked + span {
   border-color: var(--color-accent);
   background: color-mix(in srgb, var(--color-accent) 14%, var(--color-surface));
@@ -181,11 +199,18 @@
   font-weight: 750;
 }
 
+.flowOptions input:disabled + span {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
 .flowOptions input:focus-visible + span,
 .ratingScale input:focus-visible + span,
 .closeButton:focus-visible,
 .quickAction:focus-visible,
 .dangerAction:focus-visible,
+.periodActionButton:focus-visible,
+.topDeleteButton:focus-visible,
 .detailsToggle:focus-visible,
 .saveButton:focus-visible,
 .deleteButton:focus-visible,
@@ -195,10 +220,44 @@
   outline-offset: 2px;
 }
 
+.flowIcon {
+  inline-size: 2rem;
+  block-size: 2rem;
+  overflow: visible;
+  fill: currentcolor;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.flowIconHeavy {
+  inline-size: 3.333rem;
+}
+
+.dropOutline {
+  fill: none;
+}
+
+.dropCross {
+  fill: none;
+  stroke-width: 2;
+}
+
 .ratingScale {
   display: grid;
   grid-template-columns: repeat(5, minmax(2.75rem, 1fr));
   gap: 0.35rem;
+}
+
+.ratingScale label > span {
+  display: grid;
+  place-items: center;
+  min-block-size: 2.75rem;
+  padding: 0.45rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.65rem;
+  background: var(--color-surface);
 }
 
 .optionalDetails,
@@ -212,13 +271,10 @@
   border-block-start: 1px solid var(--color-border);
 }
 
-.optionalDetails > p {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: 0.86rem;
-}
-
 .detailsToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   justify-self: start;
   min-block-size: 2.75rem;
   padding: 0.5rem 0;
@@ -230,6 +286,19 @@
   font-weight: 750;
   text-decoration: underline;
   text-underline-offset: 0.18rem;
+}
+
+.detailsToggle::after {
+  inline-size: 0;
+  block-size: 0;
+  border-inline: 0.32rem solid transparent;
+  border-block-start: 0.42rem solid currentcolor;
+  content: '';
+}
+
+.detailsToggle[aria-expanded='true']::after {
+  border-block-start: 0;
+  border-block-end: 0.42rem solid currentcolor;
 }
 
 .noteField {
@@ -250,12 +319,6 @@
   font-weight: 400;
 }
 
-.deleteConfirmation > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-}
-
 .formActions {
   position: sticky;
   z-index: 2;
@@ -272,14 +335,11 @@
   margin-block-start: auto;
 }
 
-.formActions > .deleteButton {
-  grid-column: 1 / -1;
-  justify-self: start;
-}
-
 .saveButton,
 .deleteButton,
-.secondaryButton {
+.secondaryButton,
+.periodActionButton,
+.topDeleteButton {
   min-block-size: 2.75rem;
   padding: 0.65rem 1rem;
   border: 1px solid transparent;
@@ -298,25 +358,56 @@
   color: var(--color-on-danger);
 }
 
+.topDeleteButton {
+  justify-self: start;
+  border-color: var(--color-danger);
+  background: var(--color-danger-subtle);
+  color: var(--color-danger);
+}
+
+.periodActionButton {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
 .secondaryButton {
   border-color: var(--color-border-strong);
   background: var(--color-surface);
   color: var(--color-text);
 }
 
-.deleteConfirmation {
+.confirmationBackdrop {
+  position: absolute;
+  z-index: 10;
   display: grid;
-  gap: 0.65rem;
-  padding: 0.85rem;
-  border: 1px solid var(--color-danger);
-  border-radius: var(--radius-small);
-  background: var(--color-danger-subtle);
+  place-items: center;
+  padding: 1rem;
+  background: rgb(20 12 17 / 58%);
+  inset: 0;
 }
 
-.deleteConfirmation p,
+.confirmationDialog {
+  display: grid;
+  gap: 1rem;
+  inline-size: min(100%, 24rem);
+  padding: 1.25rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.confirmationDialog h3,
 .error,
 .status {
   margin: 0;
+}
+
+.confirmationActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
 }
 
 .error {
@@ -334,6 +425,17 @@
 
 .status {
   color: var(--color-text-muted);
+}
+
+.visuallyHidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 button:disabled,
@@ -357,7 +459,7 @@ fieldset:disabled label {
   }
 
   .ratingGroups {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 }
 

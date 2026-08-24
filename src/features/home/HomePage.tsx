@@ -191,7 +191,7 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   const [checkInReturnFocusElement, setCheckInReturnFocusElement] =
     useState<HTMLButtonElement | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [checkInDetailsOpen, setCheckInDetailsOpen] = useState<boolean>();
+  const [checkInDetailsOpen, setCheckInDetailsOpen] = useState<boolean>(true);
   const [goTodayRequest, setGoTodayRequest] = useState<number>();
   const goTodayRequestCounterRef = useRef(0);
   const [calendarShowsCurrentMonth, setCalendarShowsCurrentMonth] = useState(true);

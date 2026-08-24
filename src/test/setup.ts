@@ -18,6 +18,18 @@ Object.defineProperty(window, 'matchMedia', {
   writable: true,
 });
 
+Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+  configurable: true,
+  value: vi.fn(),
+  writable: true,
+});
+
+Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+  configurable: true,
+  value: vi.fn(),
+  writable: true,
+});
+
 afterEach(() => {
   cleanup();
   document.documentElement.removeAttribute('data-theme');

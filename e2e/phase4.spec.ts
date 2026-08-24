@@ -113,7 +113,6 @@ async function recordToday(page: Page, note: string): Promise<void> {
   await page.getByRole('button', { name: 'Check in today' }).click();
   const dialog = page.getByRole('dialog', { name: 'Check in today' });
   await dialog.getByRole('radio', { name: 'Medium' }).check();
-  await dialog.getByRole('button', { name: 'Add note or details' }).click();
   await dialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }).check();
   await dialog.getByLabel('Private note').fill(note);
   await dialog.getByRole('button', { name: 'Start period and save' }).click();

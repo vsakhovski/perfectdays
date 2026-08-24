@@ -70,18 +70,29 @@ describe('deriveDayMarkers recorded observations', () => {
     },
   );
 
-  it.each(['none', 'spotting'] as const)('does not mark linked %s flow as red', (flow) => {
-    const result = markers(
-      '2026-03-02',
-      [log('2026-03-02', { episodeId: episode.id, flow })],
-      null,
-    );
+  it.each(['none', 'spotting'] as const)(
+    'keeps a completed episode day red when its daily flow is %s',
+    (flow) => {
+      const result = markers(
+        '2026-03-02',
+        [log('2026-03-02', { episodeId: episode.id, flow })],
+        null,
+      );
 
-    expect(result.recordedRed).toBe(false);
-    expect(result.spotting).toBe(flow === 'spotting');
+      expect(result.recordedRed).toBe(true);
+      expect(result.spotting).toBe(flow === 'spotting');
+    },
+  );
+
+  it('marks every day in a completed episode, including both boundaries', () => {
+    for (const date of ['2026-03-01', '2026-03-02', '2026-03-03', '2026-03-04', '2026-03-05']) {
+      expect(markers(date, [], null).recordedRed).toBe(true);
+    }
+    expect(markers('2026-02-28', [], null).recordedRed).toBe(false);
+    expect(markers('2026-03-06', [], null).recordedRed).toBe(false);
   });
 
-  it('requires a real covering episode before showing recorded red', () => {
+  it('requires a covering episode or a valid linked active-period log', () => {
     expect(
       markers('2026-03-10', [log('2026-03-10', { episodeId: episode.id, flow: 'heavy' })], null)
         .recordedRed,
@@ -89,7 +100,25 @@ describe('deriveDayMarkers recorded observations', () => {
     expect(
       markers('2026-03-02', [log('2026-03-02', { episodeId: 'missing', flow: 'heavy' })], null)
         .recordedRed,
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  it('does not extend an unfinished episode into unrecorded future days', () => {
+    const { endDate: completedEndDate, ...episodeWithoutEnd } = episode;
+    void completedEndDate;
+    const activeEpisode: PeriodEpisode = {
+      ...episodeWithoutEnd,
+      id: 'active-episode',
+    };
+    const result = deriveDayMarkers({
+      date: asLocalDate('2026-03-04'),
+      episodes: [activeEpisode],
+      logs: [],
+      forecast: null,
+      settings: { orangeEnabled: true, orangeDays: 5 },
+    });
+
+    expect(result.recordedRed).toBe(false);
   });
 
   it('shows unlinked spotting separately without creating recorded red', () => {

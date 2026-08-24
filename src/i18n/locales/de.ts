@@ -318,25 +318,27 @@ export const de = {
     dayDetail: {
       title: 'Täglicher Check-in',
       close: 'Täglichen Check-in schließen',
-      quickActionsTitle: 'Periodenaktionen',
+      quickActionsTitle: 'Periode',
       periodActions: {
         start: {
           label: 'Periode beginnen',
-          description: 'Eine Periode mit diesem Startdatum anlegen.',
+          description: 'Die Periode beginnt an diesem Tag.',
         },
         continue: {
           label: 'Periodentag eintragen',
-          description: 'Dieses Datum mit der aktiven Periode verknüpfen.',
+          description: 'Die Periode dauert an diesem Tag an.',
         },
         end: {
           label: 'Periode hier beenden',
-          description: 'Dieses Datum als einschließlich letzten Tag verwenden.',
+          description: 'Die Periode endet an diesem Tag.',
         },
         remove: {
           label: 'Diese Periode entfernen',
           description: 'Die gesamte Periode entfernen und andere Check-in-Werte behalten.',
         },
       },
+      periodEndsBeforeDay:
+        'Wenn du „Keine“ speicherst, wird der vorherige Tag als letzter Periodentag markiert.',
       flowLegend: 'Blutungsstärke',
       flowOptions: {
         none: 'Keine',
@@ -353,14 +355,14 @@ export const de = {
         option: '{{legend}}: {{rating}} von 5',
       },
       noteLabel: 'Private Notiz',
-      noteDescription: 'Optional. Wird nur in deinem lokalen Tagebuch gespeichert.',
+      noteDescription: 'Wird nur in deinem lokalen Tagebuch gespeichert.',
       save: 'Check-in speichern',
       saving: 'Wird gespeichert…',
       removePeriodConfirmation:
         'Diese gesamte Periode entfernen? Check-in-Werte ohne Bezug dazu bleiben erhalten.',
       confirmRemovePeriod: 'Periode entfernen',
       cancelRemovePeriod: 'Periode behalten',
-      deleteEntry: 'Check-in löschen',
+      deleteEntry: 'Gespeicherten Check-in löschen',
       deleteConfirmation: 'Check-in-Werte für dieses Datum löschen?',
       confirmDelete: 'Check-in löschen',
       deleting: 'Wird gelöscht…',
@@ -373,6 +375,8 @@ export const de = {
           'Eine neue offene Periode kann nicht vor einer später aufgezeichneten Periode beginnen. Historische Grenzen können noch nicht bearbeitet werden.',
         laterPeriodDays:
           'Für diese Periode sind Tage nach diesem Datum eingetragen. Entferne diese Einträge, bevor du sie hier beendest.',
+        noneRequiresPeriodCorrection:
+          'Mit „Keine“ können eine abgeschlossene Periode oder spätere eingetragene Periodentage nicht geändert werden. Korrigiere die Periodendaten im Periodenverlauf.',
         periodConflict:
           'Diese Periodenänderung steht im Konflikt mit einer anderen Periode. Korrigiere zuerst die vorhandenen Daten.',
         noActivePeriod: 'Es gibt keine aktive Periode zum Fortsetzen oder Beenden.',
@@ -544,18 +548,15 @@ export const de = {
       description:
         'Trage nur ein, was du heute bemerkst. Optionale Werte sind nicht vorausgewählt.',
       optional: {
-        show: 'Notiz oder Details hinzufügen',
+        show: 'Notiz oder Details hinzufügen (optional)',
         hide: 'Notiz und Details ausblenden',
-        description: 'Bewertungen und Notizen sind optional.',
       },
       guidance: {
         chooseObservation: 'Wähle vor dem Speichern mindestens eine Beobachtung aus.',
         startPeriod: 'Eine leichte, mittlere oder starke Blutung kann eine Periode beginnen.',
-        spotting: 'Schmierblutung wird separat aufgezeichnet und beginnt keine Periode.',
         activePeriod:
           'Wenn du die heutige Blutung speicherst, wird die aktive Periode fortgeführt.',
-        endPeriod:
-          'Das Beenden einer Periode ist eine separate Entscheidung. Der Eintrag „Keine Blutung“ beendet sie nicht.',
+        endPeriod: 'Wenn du „Keine“ speicherst, endet eine aktive Periode am vorherigen Tag.',
       },
       actions: {
         saveAndDone: 'Speichern und fertig',

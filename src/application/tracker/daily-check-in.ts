@@ -1,6 +1,7 @@
 import {
   continuePeriod,
   endPeriod,
+  endPeriodBefore,
   JournalError,
   startPeriod,
   upsertDailyCheckIn,
@@ -11,7 +12,7 @@ import {
 import type { Flow, LocalDate, Rating, VaultPayload } from '../../domain/models';
 
 /** The explicit episode-boundary change made by one Save-and-done operation. */
-export type PeriodTransition = 'none' | 'start' | 'continue' | 'end';
+export type PeriodTransition = 'none' | 'start' | 'continue' | 'end' | 'end-before';
 
 export interface DailyCheckInValues {
   /** `null` clears the recorded flow. */
@@ -67,13 +68,19 @@ function transitionJournal(
       );
     case 'end':
       return endPeriod(payload, { date }, context);
+    case 'end-before':
+      if (values.flow !== 'none') {
+        throw new JournalError('invalid-episode-range');
+      }
+      return endPeriodBefore(payload, { date }, context);
   }
 }
 
 /**
  * Applies the episode transition and all observations as one pure operation.
  * The returned payload is ready for one vault save; the source payload is never mutated.
- * A `none` transition never changes episode boundaries, including when flow is `none`.
+ * A `none` transition never changes episode boundaries. `end-before` closes an active episode on
+ * the day preceding an explicit `none` observation, keeping that observation outside the episode.
  */
 export function buildDailyCheckInPayload(
   payload: VaultPayload,

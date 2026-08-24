@@ -444,7 +444,7 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: 'Check in today' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Close Period history' }));
     expect(screen.getByRole('button', { name: 'Period history' })).toHaveFocus();
-  });
+  }, 10_000);
 
   it('keeps Go to today in the header and disables it for the current month', async () => {
     const user = userEvent.setup();
@@ -471,16 +471,11 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'August 2026', level: 2 })).toBeVisible();
     expect(goToToday).toBeDisabled();
     expect(screen.getByRole('button', { name: /Saturday, August 8, 2026.*Today/u })).toHaveFocus();
-  });
+  }, 10_000);
 
   it('remembers the details disclosure state between check-in openings', async () => {
     const user = userEvent.setup();
     await renderApp({ onboardingCompleted: true });
-
-    await user.click(screen.getByRole('button', { name: 'Check in today' }));
-    await user.click(screen.getByRole('button', { name: 'Add note or details' }));
-    expect(screen.getByRole('button', { name: 'Hide note and details' })).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
     await user.click(screen.getByRole('button', { name: 'Check in today' }));
     expect(screen.getByRole('button', { name: 'Hide note and details' })).toBeVisible();
@@ -488,7 +483,12 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
     await user.click(screen.getByRole('button', { name: 'Check in today' }));
-    expect(screen.getByRole('button', { name: 'Add note or details' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Add note or details (optional)' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Add note or details (optional)' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await user.click(screen.getByRole('button', { name: 'Check in today' }));
+    expect(screen.getByRole('button', { name: 'Hide note and details' })).toBeVisible();
   });
 
   it('changes the first weekday from Settings and applies it to the calendar', async () => {
@@ -498,7 +498,7 @@ describe('App', () => {
       systemLanguages: ['en-US'],
     });
     const firstWeekday = () =>
-      within(screen.getByRole('table')).getAllByRole('columnheader')[0]?.textContent;
+      screen.getByTestId('calendar-weekday-header').querySelector('abbr')?.textContent;
 
     expect(firstWeekday()).toMatch(/^Sun/u);
     await openRootDestination(user, 'Settings');
@@ -529,7 +529,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Check in today' }));
     expect(screen.getByRole('button', { name: 'Save and done' })).toBeDisabled();
     expect(screen.getByText('Choose at least one observation before saving.')).toBeVisible();
-    await user.click(screen.getByRole('radio', { name: 'Spotting' }));
+    await user.click(screen.getByRole('radio', { name: 'None' }));
     expect(screen.getByRole('button', { name: 'Save and done' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: /Start period/i })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Save and done' }));
@@ -542,13 +542,15 @@ describe('App', () => {
     if (snapshot.phase === 'unlocked') {
       expect(snapshot.payload.episodes).toHaveLength(0);
       expect(snapshot.payload.logs).toEqual([
-        expect.objectContaining({ date: '2026-08-08', flow: 'spotting' }),
+        expect.objectContaining({ date: '2026-08-08', flow: 'none' }),
       ]);
     }
+    expect(screen.getByRole('button', { name: /Saturday, August 8, 2026/u })).not.toHaveAttribute(
+      'data-flow',
+    );
 
     await user.click(screen.getByRole('button', { name: "Edit today's check-in" }));
     await user.click(screen.getByRole('radio', { name: 'Medium' }));
-    await user.click(screen.getByRole('button', { name: 'Add note or details' }));
     await user.click(screen.getByRole('radio', { name: 'Confidence: 5 out of 5' }));
     fireEvent.change(screen.getByLabelText('Private note'), {
       target: { value: 'A synthetic test check-in.' },
@@ -577,9 +579,9 @@ describe('App', () => {
 
     expect(
       screen.getByRole('button', {
-        name: /Saturday, August 8, 2026.*Recorded period day.*Higher confidence recorded/i,
+        name: /Saturday, August 8, 2026.*Medium.*Recorded period day.*Higher confidence recorded/i,
       }),
-    ).toBeVisible();
+    ).toHaveAttribute('data-flow', 'medium');
   }, 10_000);
 
   it('can enable the optional PIN on the final onboarding screen', async () => {

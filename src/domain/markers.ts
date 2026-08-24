@@ -38,6 +38,10 @@ function isRecordedRed(log: DailyLog, episodes: readonly PeriodEpisode[]): boole
   return episode !== undefined && isWithinEpisode(log.date, episode);
 }
 
+function isWithinCompletedEpisode(date: LocalDate, episode: PeriodEpisode): boolean {
+  return episode.endDate !== undefined && date >= episode.startDate && date <= episode.endDate;
+}
+
 export function deriveDayMarkers(input: DayMarkerInput): DayMarkers {
   if (
     !Number.isSafeInteger(input.settings.orangeDays) ||
@@ -48,7 +52,9 @@ export function deriveDayMarkers(input: DayMarkerInput): DayMarkers {
   }
 
   const log = input.logs.find((candidate) => candidate.date === input.date);
-  const recordedRed = log !== undefined && isRecordedRed(log, input.episodes);
+  const recordedRed =
+    input.episodes.some((episode) => isWithinCompletedEpisode(input.date, episode)) ||
+    (log !== undefined && isRecordedRed(log, input.episodes));
   const spotting = log?.flow === 'spotting';
   const green = log?.confidence === 4 || log?.confidence === 5;
   const forecast = input.forecast;

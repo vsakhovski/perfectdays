@@ -57,122 +57,51 @@
   outline-offset: 2px;
 }
 
-.tableScroller {
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
+.monthScroller {
+  block-size: clamp(17rem, 40dvh, 20rem);
+  min-inline-size: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-block: contain;
+  scroll-behavior: smooth;
   touch-action: pan-y;
 }
 
-.monthViewport {
-  position: relative;
-  min-inline-size: 18rem;
-  overflow: hidden;
+.monthScroller:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
-.monthPane {
-  inline-size: 100%;
-  transform: translate3d(var(--calendar-swipe-offset, 0), 0, 0);
-  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.monthPane[data-swipe-active='true'] {
-  transition: none;
-  will-change: transform;
-}
-
-.monthPane[data-transition-role='incoming'],
-.monthPane[data-transition-role='departing'] {
-  transition: none;
-  animation-duration: 280ms;
-  animation-fill-mode: both;
-  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: transform;
-}
-
-.monthPane[data-transition-role='departing'] {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-}
-
-.monthPane[data-transition-role='incoming'][data-transition-direction='next'] {
-  animation-name: monthEnterFromRight;
-}
-
-.monthPane[data-transition-role='departing'][data-transition-direction='next'] {
-  animation-name: monthLeaveToLeft;
-}
-
-.monthPane[data-transition-role='incoming'][data-transition-direction='previous'] {
-  animation-name: monthEnterFromLeft;
-}
-
-.monthPane[data-transition-role='departing'][data-transition-direction='previous'] {
-  animation-name: monthLeaveToRight;
-}
-
-@keyframes monthEnterFromRight {
-  from {
-    transform: translate3d(100%, 0, 0);
-  }
-
-  to {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes monthEnterFromLeft {
-  from {
-    transform: translate3d(-100%, 0, 0);
-  }
-
-  to {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes monthLeaveToLeft {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-
-  to {
-    transform: translate3d(-100%, 0, 0);
-  }
-}
-
-@keyframes monthLeaveToRight {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-
-  to {
-    transform: translate3d(100%, 0, 0);
-  }
-}
-
-.calendarTable {
-  inline-size: 100%;
-  min-inline-size: 18rem;
-  border-spacing: 0 0.2rem;
-  table-layout: fixed;
-}
-
-.calendarTable th {
+.weekdayHeader {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: center;
   block-size: 2rem;
+  padding-inline-end: var(--calendar-scrollbar-width, 0);
   color: var(--color-text-muted);
   font-size: 0.78rem;
   font-weight: 700;
   text-align: center;
 }
 
-.calendarTable abbr {
+.weekdayHeader abbr {
   text-decoration: none;
 }
 
-.calendarTable td {
-  padding: 0;
-  vertical-align: top;
+.dayStream {
+  display: grid;
+  gap: 0.2rem;
+  min-inline-size: 0;
+}
+
+.weekRow {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  min-inline-size: 0;
+}
+
+.dayCell {
+  min-inline-size: 0;
 }
 
 .dayButton {
@@ -202,10 +131,15 @@
   opacity: 0.45;
 }
 
-.dayButton[data-current-month='false'] {
+.dayButton[data-active-month='false'] {
+  border-color: color-mix(in srgb, var(--color-border) 62%, transparent);
+  background-color: color-mix(in srgb, var(--color-surface) 72%, transparent);
   color: var(--color-text-muted);
-  border-style: dashed;
-  background: var(--color-surface-subtle);
+}
+
+.dayButton[data-active-month='false'] .dayNumber {
+  opacity: 0.46;
+  font-weight: 600;
 }
 
 .dayButton[data-predicted-red='true'] {
@@ -281,6 +215,37 @@
   font-weight: 750;
   line-height: 1.45rem;
   text-align: center;
+}
+
+.flowIcon {
+  inline-size: 0.9rem;
+  block-size: 0.9rem;
+  overflow: visible;
+  fill: currentColor;
+  pointer-events: none;
+}
+
+.flowIconHeavy {
+  inline-size: 1.5rem;
+}
+
+.flowMarker {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  min-inline-size: 1rem;
+  block-size: 1rem;
+  color: var(--color-marker-red);
+}
+
+.flowDropOutline {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+.dayButton[data-recorded-red='true'] .flowMarker {
+  color: var(--color-background);
 }
 
 .dayMarkers {
@@ -431,13 +396,8 @@
     padding: 0.75rem;
   }
 
-  .calendarTable {
-    min-inline-size: 0;
-    border-spacing: 0 0.12rem;
-  }
-
-  .monthViewport {
-    min-inline-size: 0;
+  .dayStream {
+    gap: 0.12rem;
   }
 
   .dayButton {
@@ -466,17 +426,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .monthPane {
-    transition: none;
-  }
-
-  .monthPane[data-swipe-active='true'] {
-    transform: none;
-  }
-
-  .monthPane[data-transition-role='incoming'],
-  .monthPane[data-transition-role='departing'] {
-    animation-duration: 1ms;
+  .monthScroller {
+    scroll-behavior: auto;
   }
 }
 

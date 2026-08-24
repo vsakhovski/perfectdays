@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type Ref } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useLanguage } from '../../app/i18n/use-language';
@@ -30,6 +30,7 @@ import {
   MonthlyCalendar,
   type CalendarCopy,
   type CalendarDay,
+  type CalendarMonth,
   type CalendarWeekday,
 } from '../calendar/MonthlyCalendar';
 import {
@@ -78,7 +79,6 @@ function periodContainingDate(payload: VaultPayload, date: LocalDate) {
 interface PeriodActionAvailabilityCopy {
   readonly startFlow: string;
   readonly historicalStart: string;
-  readonly laterPeriodDays: string;
 }
 
 function periodActionsForDate(
@@ -113,13 +113,6 @@ function periodActionsForDate(
     if (log?.episodeId !== activeEpisode.id) {
       actions.push({ action: 'continue' });
     }
-    const hasLaterPeriodDays = payload.logs.some(
-      (candidate) => candidate.episodeId === activeEpisode.id && candidate.date > date,
-    );
-    actions.push({
-      action: 'end',
-      ...(hasLaterPeriodDays ? { disabled: true, description: copy.laterPeriodDays } : {}),
-    });
   }
 
   if (coveringEpisode) {
@@ -138,11 +131,20 @@ function checkInTransitionForDate(
   date: LocalDate,
   flow: DayDetailValue['flow'],
 ): PeriodTransition {
-  if (!isBleedingFlow(flow) || periodContainingDate(payload, date)) {
+  const activeEpisode = payload.episodes.find((episode) => episode.endDate === undefined);
+  const coveringEpisode = periodContainingDate(payload, date);
+  if (
+    flow === 'none' &&
+    activeEpisode !== undefined &&
+    coveringEpisode?.id === activeEpisode.id &&
+    date > activeEpisode.startDate
+  ) {
+    return 'end-before';
+  }
+  if (!isBleedingFlow(flow) || coveringEpisode) {
     return 'none';
   }
 
-  const activeEpisode = payload.episodes.find((episode) => episode.endDate === undefined);
   if (activeEpisode) {
     return date >= activeEpisode.startDate ? 'continue' : 'none';
   }
@@ -515,6 +517,10 @@ export function TrackerCalendar({
   const { journalEnvironment, savePayload } = useVault();
   const today = journalEnvironment.today();
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(today));
+  const [calendarRangeStart, setCalendarRangeStart] = useState(() =>
+    addMonths(startOfMonth(today), -1),
+  );
+  const [calendarRangeEnd, setCalendarRangeEnd] = useState(() => addMonths(startOfMonth(today), 1));
   const [selectedDate, setSelectedDate] = useState<LocalDate>(today);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorReturnFocusElement, setEditorReturnFocusElement] = useState<HTMLElement | null>(
@@ -649,28 +655,73 @@ export function TrackerCalendar({
             confidence: forecastConfidence,
           }),
         };
-  const days: readonly CalendarDay[] = calendarMonthGrid(visibleMonth, firstDay).map((date) => ({
-    date,
-    accessibleName: formatLocalDate(date, resolvedLanguage, {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    }),
-    dayNumberLabel: numberFormatter.format(Number(date.slice(8, 10))),
-    isCurrentMonth: isSameMonth(date, visibleMonth),
-    markers: deriveDayMarkers({
-      date,
-      episodes: payload.episodes,
-      logs: payload.logs,
-      forecast,
-      settings: payload.settings,
-    }),
-    ...(forecastMarkerDescriptions === null
-      ? {}
-      : { markerDescriptions: forecastMarkerDescriptions }),
-    ...(date > today ? { disabledDescription: t(($) => $.tracker.calendar.future) } : {}),
-  }));
+  const calendarMonths: CalendarMonth[] = [];
+  for (let month = calendarRangeStart; month <= calendarRangeEnd; month = addMonths(month, 1)) {
+    const renderedMonth = month;
+    const days: readonly CalendarDay[] = calendarMonthGrid(renderedMonth, firstDay).map((date) => {
+      const log = payload.logs.find((candidate) => candidate.date === date);
+      const episode = periodContainingDate(payload, date);
+      const flow = isBleedingFlow(log?.flow)
+        ? log.flow
+        : log?.flow === undefined && episode !== undefined
+          ? 'medium'
+          : undefined;
+
+      return {
+        date,
+        accessibleName: formatLocalDate(date, resolvedLanguage, {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        }),
+        dayNumberLabel: numberFormatter.format(Number(date.slice(8, 10))),
+        isCurrentMonth: isSameMonth(date, renderedMonth),
+        markers: deriveDayMarkers({
+          date,
+          episodes: payload.episodes,
+          logs: payload.logs,
+          forecast,
+          settings: payload.settings,
+        }),
+        ...(flow === undefined
+          ? {}
+          : {
+              flow,
+              flowDescription: t(($) => $.tracker.dayDetail.flowOptions[flow]),
+            }),
+        ...(forecastMarkerDescriptions === null
+          ? {}
+          : { markerDescriptions: forecastMarkerDescriptions }),
+        ...(date > today ? { disabledDescription: t(($) => $.tracker.calendar.future) } : {}),
+      };
+    });
+    calendarMonths.push({
+      days,
+      label: formatMonthTitle(renderedMonth, resolvedLanguage),
+      month: renderedMonth,
+    });
+  }
+
+  const requestCalendarMonth = useCallback((month: LocalDate): void => {
+    setCalendarRangeStart((current) => (month < current ? month : current));
+    setCalendarRangeEnd((current) => (month > current ? month : current));
+  }, []);
+
+  const selectedEpisodeForDescription = periodContainingDate(payload, selectedDate);
+  const selectedTransition = checkInTransitionForDate(payload, selectedDate, editorValue.flow);
+  const periodDescriptionAction: 'start' | 'continue' | 'end' | 'end-before' | undefined =
+    selectedTransition === 'end-before'
+      ? 'end-before'
+      : selectedEpisodeForDescription?.startDate === selectedDate
+        ? 'start'
+        : selectedEpisodeForDescription?.endDate === selectedDate
+          ? 'end'
+          : selectedEpisodeForDescription !== undefined
+            ? 'continue'
+            : selectedTransition === 'start' || selectedTransition === 'continue'
+              ? selectedTransition
+              : undefined;
 
   const ratingCopy = (field: RatingField): RatingScaleCopy => {
     const legend = t(($) => $.tracker.dayDetail.ratings[field]);
@@ -719,6 +770,14 @@ export function TrackerCalendar({
         description: t(($) => $.tracker.dayDetail.periodActions.remove.description),
       },
     },
+    ...(periodDescriptionAction === undefined
+      ? {}
+      : {
+          periodDayDescription:
+            periodDescriptionAction === 'end-before'
+              ? t(($) => $.tracker.dayDetail.periodEndsBeforeDay)
+              : t(($) => $.tracker.dayDetail.periodActions[periodDescriptionAction].description),
+        }),
     flowLegend: t(($) => $.tracker.dayDetail.flowLegend),
     flowOptions: {
       none: t(($) => $.tracker.dayDetail.flowOptions.none),
@@ -733,7 +792,6 @@ export function TrackerCalendar({
     optionalDetails: {
       show: t(($) => $.mobile.checkIn.optional.show),
       hide: t(($) => $.mobile.checkIn.optional.hide),
-      description: t(($) => $.mobile.checkIn.optional.description),
     },
     cancel: t(($) => $.mobile.checkIn.actions.cancel),
     save:
@@ -902,13 +960,21 @@ export function TrackerCalendar({
 
   const existingLog = payload.logs.find((log) => log.date === selectedDate);
   const selectedEpisode = periodContainingDate(payload, selectedDate);
+  const activeEpisode = payload.episodes.find((episode) => episode.endDate === undefined);
+  const selectedDateHasLaterActiveDays =
+    activeEpisode !== undefined &&
+    payload.logs.some((log) => log.episodeId === activeEpisode.id && log.date > selectedDate);
+  const noneRequiresPeriodCorrection =
+    selectedEpisode !== undefined &&
+    (selectedEpisode.endDate !== undefined ||
+      selectedEpisode.startDate === selectedDate ||
+      selectedDateHasLaterActiveDays);
   const selectedFlowCannotStartPeriod =
     isBleedingFlow(editorValue.flow) &&
     selectedEpisode === undefined &&
     payload.episodes.some((episode) => episode.startDate > selectedDate);
   const selectedFlowInvalidatesEpisodeStart =
-    selectedEpisode?.startDate === selectedDate &&
-    (editorValue.flow === 'none' || editorValue.flow === 'spotting');
+    selectedEpisode?.startDate === selectedDate && editorValue.flow === 'none';
   const editorHasObservation =
     editorValue.flow !== undefined ||
     editorValue.confidence !== undefined ||
@@ -920,11 +986,12 @@ export function TrackerCalendar({
     ? t(($) => $.tracker.dayDetail.errors.historicalStart)
     : selectedFlowInvalidatesEpisodeStart
       ? t(($) => $.tracker.dayDetail.errors.startFlow)
-      : !editorHasObservation
-        ? t(($) => $.mobile.checkIn.guidance.chooseObservation)
-        : undefined;
+      : editorValue.flow === 'none' && noneRequiresPeriodCorrection
+        ? t(($) => $.tracker.dayDetail.errors.noneRequiresPeriodCorrection)
+        : !editorHasObservation
+          ? t(($) => $.mobile.checkIn.guidance.chooseObservation)
+          : undefined;
   const messages = forecastMessages(forecast, payload, resolvedLanguage, t);
-  const activeEpisode = payload.episodes.find((episode) => episode.endDate === undefined);
   const forecastHeadline =
     activeEpisode !== undefined
       ? t(($) => $.mobile.calendar.forecast.states.active.title)
@@ -962,15 +1029,9 @@ export function TrackerCalendar({
 
         <MonthlyCalendar
           copy={calendarCopy}
-          days={days}
           focusTodayRequest={goTodayRequest}
-          monthLabel={formatMonthTitle(visibleMonth, resolvedLanguage)}
-          onNextMonth={() => {
-            setVisibleMonth((current) => addMonths(current, 1));
-          }}
-          onPreviousMonth={() => {
-            setVisibleMonth((current) => addMonths(current, -1));
-          }}
+          months={calendarMonths}
+          onRequestMonth={requestCalendarMonth}
           onSelectDate={(date, trigger) => {
             setSelectedDate(date);
             if (date > today) {
@@ -987,7 +1048,9 @@ export function TrackerCalendar({
             setEditorOpen(true);
             onEditorOpenChange?.(true);
           }}
+          onVisibleMonthChange={setVisibleMonth}
           today={today}
+          visibleMonth={visibleMonth}
           weekdays={weekdays}
         />
 
@@ -1059,6 +1122,7 @@ export function TrackerCalendar({
             month: 'long',
             year: 'numeric',
           })}
+          {...(noneRequiresPeriodCorrection ? { disabledFlows: ['none'] as const } : {})}
           {...(errorMessage === undefined ? {} : { errorMessage })}
           onChange={setEditorValue}
           onClose={() => {
@@ -1072,8 +1136,7 @@ export function TrackerCalendar({
           periodActions={periodActionsForDate(payload, selectedDate, today, editorValue, {
             startFlow: t(($) => $.tracker.dayDetail.errors.startFlow),
             historicalStart: t(($) => $.tracker.dayDetail.errors.historicalStart),
-            laterPeriodDays: t(($) => $.tracker.dayDetail.errors.laterPeriodDays),
-          }).filter(({ action }) => action === 'end' || action === 'remove')}
+          }).filter(({ action }) => action === 'remove')}
           returnFocusElement={editorReturnFocusElement}
           {...(rememberedDetailsOpen === undefined ? {} : { rememberedDetailsOpen })}
           {...(statusMessage === undefined ? {} : { statusMessage })}

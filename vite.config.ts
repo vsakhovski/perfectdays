@@ -16,6 +16,9 @@ const SECURITY_HEADERS = {
 } as const;
 
 export default defineConfig({
+  build: {
+    chunkSizeWarningLimit: 1024,
+  },
   define: {
     __APP_VERSION__: JSON.stringify(process.env['npm_package_version'] ?? '0.1.0'),
   },

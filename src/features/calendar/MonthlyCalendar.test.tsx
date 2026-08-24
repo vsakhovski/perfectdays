@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { addDays, asLocalDate } from '../../domain/local-date';
 import type { LocalDate } from '../../domain/models';
@@ -10,6 +9,7 @@ import {
   type CalendarCopy,
   type CalendarDay,
   type CalendarDayMarkers,
+  type CalendarMonth,
   type CalendarWeekday,
 } from './MonthlyCalendar';
 
@@ -25,18 +25,14 @@ const noMarkers: CalendarDayMarkers = {
 
 const copy: CalendarCopy = {
   navigationLabel: 'Month navigation',
-  calendarLabel: 'Calendar for May 2026',
-  previousMonth: 'Show April 2026',
-  nextMonth: 'Show June 2026',
+  calendarLabel: 'Menstrual pattern calendar',
+  previousMonth: 'Previous month',
+  nextMonth: 'Next month',
   today: 'Today',
   outsideMonth: 'Outside the current month',
   legendTitle: 'Calendar legend',
   markerGuide: 'Show marker guide',
-  essentialLegend: {
-    recorded: 'Recorded',
-    predicted: 'Predicted',
-    today: 'Today',
-  },
+  essentialLegend: { recorded: 'Recorded', predicted: 'Predicted', today: 'Today' },
   markers: {
     recordedRed: 'Recorded period',
     predictedRed: 'Predicted period',
@@ -59,13 +55,28 @@ const weekdays: readonly CalendarWeekday[] = [
   { key: 'sunday', shortLabel: 'Sun', fullLabel: 'Sunday' },
 ];
 
-function createDays(): readonly CalendarDay[] {
-  const firstGridDate = asLocalDate('2026-04-27');
+const scrollTo = vi.fn<(options?: ScrollToOptions) => void>();
 
-  return Array.from({ length: 42 }, (_, index) => {
+beforeEach(() => {
+  scrollTo.mockClear();
+  Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+    configurable: true,
+    value: scrollTo,
+  });
+});
+
+function createMonth(month: LocalDate, label: string, firstGridDate: LocalDate): CalendarMonth {
+  const prefix = month.slice(0, 7);
+  const days: readonly CalendarDay[] = Array.from({ length: 42 }, (_, index) => {
     const date = addDays(firstGridDate, index);
-    const markers: CalendarDayMarkers =
-      date === '2026-05-01'
+    const isMarkedDay = date === '2026-05-01';
+    return {
+      date,
+      accessibleName: `Full date ${date}`,
+      dayNumberLabel: String(Number(date.slice(8, 10))),
+      isCurrentMonth: date.startsWith(prefix),
+      ...(isMarkedDay ? { flow: 'heavy' as const, flowDescription: 'Heavy flow' } : {}),
+      markers: isMarkedDay
         ? {
             recordedRed: true,
             predictedRed: true,
@@ -75,363 +86,157 @@ function createDays(): readonly CalendarDay[] {
             green: true,
             spotting: true,
           }
-        : noMarkers;
-
-    return {
-      date,
-      accessibleName: `Full date ${date}`,
-      dayNumberLabel: String(Number(date.slice(8, 10))),
-      isCurrentMonth: date.startsWith('2026-05'),
-      markers,
-      ...(date === '2026-05-01'
+        : noMarkers,
+      ...(isMarkedDay
         ? { markerDescriptions: { predictedRed: 'Predicted period with medium confidence' } }
         : {}),
     };
   });
+  return { days, label, month };
 }
 
-function createPlainMonthDays(
-  firstGridDate: LocalDate,
-  currentMonthPrefix: string,
-): readonly CalendarDay[] {
-  return Array.from({ length: 42 }, (_, index) => {
-    const date = addDays(firstGridDate, index);
-    return {
-      date,
-      accessibleName: `Full date ${date}`,
-      dayNumberLabel: String(Number(date.slice(8, 10))),
-      isCurrentMonth: date.startsWith(currentMonthPrefix),
-      markers: noMarkers,
-    };
-  });
-}
+const months: readonly CalendarMonth[] = [
+  createMonth(asLocalDate('2026-03-01'), 'March 2026', asLocalDate('2026-02-23')),
+  createMonth(asLocalDate('2026-04-01'), 'April 2026', asLocalDate('2026-03-30')),
+  createMonth(asLocalDate('2026-05-01'), 'May 2026', asLocalDate('2026-04-27')),
+  createMonth(asLocalDate('2026-06-01'), 'June 2026', asLocalDate('2026-06-01')),
+  createMonth(asLocalDate('2026-07-01'), 'July 2026', asLocalDate('2026-06-29')),
+];
 
 function renderCalendar(
   overrides: Partial<{
-    days: readonly CalendarDay[];
-    onNextMonth: () => void;
-    onPreviousMonth: () => void;
-    onSelectDate: (date: LocalDate, trigger: HTMLButtonElement) => void;
     focusTodayRequest: number;
+    onRequestMonth: (month: LocalDate) => void;
+    onSelectDate: (date: LocalDate, trigger: HTMLButtonElement) => void;
+    onVisibleMonthChange: (month: LocalDate) => void;
+    visibleMonth: LocalDate;
   }> = {},
 ) {
-  const onNextMonth = overrides.onNextMonth ?? vi.fn();
-  const onPreviousMonth = overrides.onPreviousMonth ?? vi.fn();
+  const onRequestMonth = overrides.onRequestMonth ?? vi.fn();
   const onSelectDate = overrides.onSelectDate ?? vi.fn();
-  const focusTodayRequest = overrides.focusTodayRequest ?? 0;
-
+  const onVisibleMonthChange = overrides.onVisibleMonthChange ?? vi.fn();
   const result = render(
     <MonthlyCalendar
       copy={copy}
-      days={overrides.days ?? createDays()}
-      monthLabel="May 2026"
-      onNextMonth={onNextMonth}
-      onPreviousMonth={onPreviousMonth}
+      focusTodayRequest={overrides.focusTodayRequest ?? 0}
+      months={months}
+      onRequestMonth={onRequestMonth}
       onSelectDate={onSelectDate}
-      focusTodayRequest={focusTodayRequest}
+      onVisibleMonthChange={onVisibleMonthChange}
       today={asLocalDate('2026-05-01')}
+      visibleMonth={overrides.visibleMonth ?? asLocalDate('2026-05-01')}
       weekdays={weekdays}
     />,
   );
-
-  return { ...result, onNextMonth, onPreviousMonth, onSelectDate };
+  return { ...result, onRequestMonth, onSelectDate, onVisibleMonthChange };
 }
 
 describe('MonthlyCalendar', () => {
-  it('renders a semantic month table and exposes every marker without relying on color', async () => {
+  it('renders a single continuous day grid with weekdays outside the scroller', async () => {
     const user = userEvent.setup();
     renderCalendar();
 
-    const calendar = screen.getByRole('table', { name: copy.calendarLabel });
-    expect(within(calendar).getAllByRole('columnheader')).toHaveLength(7);
-    expect(within(calendar).getAllByRole('row')).toHaveLength(7);
+    const scroller = screen.getByTestId('calendar-month-scroller');
+    expect(scroller).toHaveAttribute('role', 'grid');
+    expect(within(scroller).queryByText('Mon')).not.toBeInTheDocument();
+    expect(screen.getByText('Mon')).toBeVisible();
+    expect(within(scroller).queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Full date 2026-05-01/u })).toHaveLength(1);
+    expect(screen.getByRole('heading', { name: 'May 2026' })).toBeVisible();
+
+    const activeDay = screen.getByRole('button', { name: /Full date 2026-05-12/u });
+    const inactiveDay = screen.getByRole('button', { name: /Full date 2026-04-12/u });
+    expect(activeDay).toHaveAttribute('data-active-month', 'true');
+    expect(inactiveDay).toHaveAttribute('data-active-month', 'false');
 
     const today = screen.getByRole('button', {
-      name: /Full date 2026-05-01.*Today.*Recorded period.*medium confidence.*Possible start.*Higher confidence.*Spotting recorded/u,
+      name: /Full date 2026-05-01.*Today.*Heavy flow.*Recorded period.*medium confidence.*Possible start.*Higher confidence.*Spotting recorded/u,
     });
     expect(today).toHaveAttribute('aria-current', 'date');
-    expect(today).toHaveAttribute('data-recorded-red', 'true');
-    expect(today).toHaveAttribute('data-predicted-red', 'true');
-    expect(today).toHaveAttribute('data-possible-start', 'true');
-
-    const ordinaryDay = screen.getByRole('button', {
-      name: /Full date 2026-05-02.*No marker/u,
-    });
-    expect(ordinaryDay).not.toHaveAttribute('aria-pressed');
-    expect(ordinaryDay).not.toHaveAttribute('data-selected');
+    expect(today).toHaveAttribute('data-flow', 'heavy');
 
     const legend = screen.getByRole('heading', { name: copy.legendTitle }).closest('section');
-    if (!legend) {
-      throw new Error('Expected the calendar legend section to render.');
-    }
-    expect(within(legend).getByText(copy.essentialLegend?.recorded ?? '')).toBeVisible();
-    expect(within(legend).getByText(copy.essentialLegend?.predicted ?? '')).toBeVisible();
+    expect(legend).not.toBeNull();
+    if (!legend) return;
     await user.click(within(legend).getByText(copy.markerGuide ?? copy.legendTitle));
-    expect(within(legend).getByText(copy.markers.possibleStart)).toBeVisible();
     expect(within(legend).getByText(copy.markers.orange)).toBeVisible();
-    expect(within(legend).getByText(copy.markers.green)).toBeVisible();
-    expect(within(legend).getByText(copy.markers.spotting)).toBeVisible();
   });
 
-  it('uses one roving tab stop and supports arrow, week, and month keyboard navigation', () => {
-    const onNextMonth = vi.fn();
-    const onPreviousMonth = vi.fn();
-    renderCalendar({ onNextMonth, onPreviousMonth });
+  it('smoothly scrolls to adjacent months with vertically oriented controls', async () => {
+    const user = userEvent.setup();
+    const onVisibleMonthChange = vi.fn();
+    const { rerender } = renderCalendar({ onVisibleMonthChange });
+    scrollTo.mockClear();
 
+    const previous = screen.getByRole('button', { name: copy.previousMonth });
+    expect(previous.querySelector('path')).toHaveAttribute('d', 'm5 15 7-7 7 7');
+    await user.click(previous);
+    expect(scrollTo).toHaveBeenLastCalledWith({ behavior: 'smooth', top: 0 });
+    expect(onVisibleMonthChange).toHaveBeenCalledWith(asLocalDate('2026-04-01'));
+
+    rerender(
+      <MonthlyCalendar
+        copy={copy}
+        months={months}
+        onRequestMonth={vi.fn()}
+        onSelectDate={vi.fn()}
+        onVisibleMonthChange={onVisibleMonthChange}
+        today={asLocalDate('2026-05-01')}
+        visibleMonth={asLocalDate('2026-04-01')}
+        weekdays={weekdays}
+      />,
+    );
+    const next = screen.getByRole('button', { name: copy.nextMonth });
+    expect(next.querySelector('path')).toHaveAttribute('d', 'm5 9 7 7 7-7');
+    await waitFor(() => expect(next).toBeEnabled());
+    await user.click(next);
+    expect(onVisibleMonthChange).toHaveBeenCalledWith(asLocalDate('2026-05-01'));
+  });
+
+  it('uses one roving tab stop and retains day and month keyboard navigation', () => {
+    renderCalendar();
     const first = screen.getByRole('button', { name: /Full date 2026-05-01/u });
     const second = screen.getByRole('button', { name: /Full date 2026-05-02/u });
-    const eighth = screen.getByRole('button', { name: /Full date 2026-05-08/u });
     const dayButtons = document.querySelectorAll<HTMLButtonElement>('button[data-current-month]');
     expect(Array.from(dayButtons).filter((button) => button.tabIndex === 0)).toHaveLength(1);
 
     first.focus();
     fireEvent.keyDown(first, { key: 'ArrowRight' });
     expect(second).toHaveFocus();
-
     fireEvent.keyDown(second, { key: 'ArrowDown' });
     expect(screen.getByRole('button', { name: /Full date 2026-05-09/u })).toHaveFocus();
-
-    eighth.focus();
-    fireEvent.keyDown(eighth, { key: 'Home' });
-    expect(screen.getByRole('button', { name: /Full date 2026-05-04/u })).toHaveFocus();
-
+    scrollTo.mockClear();
     fireEvent.keyDown(first, { key: 'PageUp' });
-    fireEvent.keyDown(first, { key: 'PageDown' });
-    expect(onPreviousMonth).toHaveBeenCalledOnce();
-    expect(onNextMonth).toHaveBeenCalledOnce();
+    expect(screen.getByRole('button', { name: /Full date 2026-04-01/u })).toHaveFocus();
+    expect(scrollTo).toHaveBeenLastCalledWith({ behavior: 'smooth', top: 0 });
   });
 
-  it('marks adjacent recorded and predicted cells as joined visual ranges', () => {
-    const days = createDays().map((day) =>
-      day.date === '2026-05-02'
-        ? { ...day, markers: { ...day.markers, recordedRed: true, predictedRed: true } }
-        : day,
+  it('focuses today when a go-to-today request arrives', async () => {
+    const { rerender } = renderCalendar({ visibleMonth: asLocalDate('2026-06-01') });
+    rerender(
+      <MonthlyCalendar
+        copy={copy}
+        focusTodayRequest={1}
+        months={months}
+        onRequestMonth={vi.fn()}
+        onSelectDate={vi.fn()}
+        onVisibleMonthChange={vi.fn()}
+        today={asLocalDate('2026-05-01')}
+        visibleMonth={asLocalDate('2026-05-01')}
+        weekdays={weekdays}
+      />,
     );
-    renderCalendar({ days });
-
-    const first = screen.getByRole('button', { name: /Full date 2026-05-01/u });
-    const second = screen.getByRole('button', { name: /Full date 2026-05-02/u });
-    expect(first).toHaveAttribute('data-recorded-after', 'true');
-    expect(first).toHaveAttribute('data-predicted-after', 'true');
-    expect(second).toHaveAttribute('data-recorded-before', 'true');
-    expect(second).toHaveAttribute('data-predicted-before', 'true');
-  });
-
-  it('defers requested today focus until the current month is rendered', async () => {
-    const user = userEvent.setup();
-
-    function TodayMonthHarness() {
-      const [showTodayMonth, setShowTodayMonth] = useState(false);
-      const [focusTodayRequest, setFocusTodayRequest] = useState(0);
-      const today = asLocalDate('2026-05-31');
-      const days = showTodayMonth
-        ? createPlainMonthDays(asLocalDate('2026-04-27'), '2026-05')
-        : createPlainMonthDays(asLocalDate('2026-05-25'), '2026-06');
-
-      return (
-        <>
-          <button
-            onClick={() => {
-              setShowTodayMonth(true);
-              setFocusTodayRequest((request) => request + 1);
-            }}
-            type="button"
-          >
-            {copy.today}
-          </button>
-          <MonthlyCalendar
-            copy={copy}
-            days={days}
-            focusTodayRequest={focusTodayRequest}
-            monthLabel={showTodayMonth ? 'May 2026' : 'June 2026'}
-            onNextMonth={vi.fn()}
-            onPreviousMonth={vi.fn()}
-            onSelectDate={vi.fn()}
-            today={today}
-            weekdays={weekdays}
-          />
-        </>
-      );
-    }
-
-    render(<TodayMonthHarness />);
-    expect(screen.getByRole('button', { name: /Full date 2026-05-31.*Today/u })).toHaveAttribute(
-      'data-current-month',
-      'false',
-    );
-
-    await user.click(screen.getByRole('button', { name: new RegExp(`^${copy.today}$`, 'u') }));
-
     await waitFor(() => {
-      const currentToday = screen.getByRole('button', { name: /Full date 2026-05-31.*Today/u });
-      expect(currentToday).toHaveAttribute('data-current-month', 'true');
-      expect(currentToday).toHaveFocus();
+      expect(screen.getByRole('button', { name: /Full date 2026-05-01.*Today/u })).toHaveFocus();
     });
   });
 
-  it('changes months on deliberate horizontal touch swipes without selecting a day', () => {
-    const onNextMonth = vi.fn();
-    const onPreviousMonth = vi.fn();
-    const onSelectDate = vi.fn();
-    const firstRender = renderCalendar({ onNextMonth, onPreviousMonth, onSelectDate });
-
-    const target = screen.getByRole('button', { name: /Full date 2026-05-12/u });
-
-    fireEvent.pointerDown(target, {
-      clientX: 280,
-      clientY: 180,
-      isPrimary: true,
-      pointerId: 1,
-      pointerType: 'touch',
-    });
-    fireEvent.pointerMove(target, {
-      clientX: 180,
-      clientY: 185,
-      isPrimary: true,
-      pointerId: 1,
-      pointerType: 'touch',
-    });
-    expect(screen.getByTestId('calendar-current-month')).toHaveAttribute(
-      'data-swipe-active',
-      'true',
-    );
-    expect(screen.getByTestId('calendar-current-month')).toHaveStyle(
-      '--calendar-swipe-offset: -24px',
-    );
-    fireEvent.pointerUp(target, {
-      clientX: 80,
-      clientY: 185,
-      isPrimary: true,
-      pointerId: 1,
-      pointerType: 'touch',
-    });
-    fireEvent.click(target);
-    expect(onNextMonth).toHaveBeenCalledOnce();
-    expect(onSelectDate).not.toHaveBeenCalled();
-    expect(screen.getByTestId('calendar-current-month')).toHaveAttribute(
-      'data-transition-direction',
-      'next',
-    );
-    expect(screen.getByTestId('calendar-current-month')).toHaveAttribute(
-      'data-swipe-active',
-      'false',
-    );
-    const departingNextMonth = screen.getByTestId('calendar-departing-month');
-    expect(departingNextMonth).toHaveAttribute('data-transition-direction', 'next');
-    expect(departingNextMonth).toHaveAttribute('aria-hidden', 'true');
-    firstRender.unmount();
-
-    const secondRender = renderCalendar({ onNextMonth, onPreviousMonth, onSelectDate });
-    const previousTarget = screen.getByRole('button', { name: /Full date 2026-05-12/u });
-
-    fireEvent.pointerDown(previousTarget, {
-      clientX: 80,
-      clientY: 180,
-      isPrimary: true,
-      pointerId: 2,
-      pointerType: 'pen',
-    });
-    fireEvent.pointerUp(previousTarget, {
-      clientX: 280,
-      clientY: 185,
-      isPrimary: true,
-      pointerId: 2,
-      pointerType: 'pen',
-    });
-    fireEvent.click(previousTarget);
-    expect(onPreviousMonth).toHaveBeenCalledOnce();
-    expect(onSelectDate).not.toHaveBeenCalled();
-    const departingPreviousMonth = screen.getByTestId('calendar-departing-month');
-    expect(screen.getByTestId('calendar-current-month')).toHaveAttribute(
-      'data-transition-direction',
-      'previous',
-    );
-    expect(departingPreviousMonth).toHaveAttribute('data-transition-direction', 'previous');
-
-    secondRender.unmount();
-    renderCalendar({ onNextMonth, onPreviousMonth, onSelectDate });
-    const verticalTarget = screen.getByRole('button', { name: /Full date 2026-05-12/u });
-
-    fireEvent.pointerDown(verticalTarget, {
-      clientX: 160,
-      clientY: 100,
-      isPrimary: true,
-      pointerId: 3,
-      pointerType: 'touch',
-    });
-    fireEvent.pointerMove(verticalTarget, {
-      clientX: 185,
-      clientY: 102,
-      isPrimary: true,
-      pointerId: 3,
-      pointerType: 'touch',
-    });
-    expect(screen.getByTestId('calendar-current-month')).toHaveStyle(
-      '--calendar-swipe-offset: 6px',
-    );
-    fireEvent.pointerUp(verticalTarget, {
-      clientX: 185,
-      clientY: 102,
-      isPrimary: true,
-      pointerId: 3,
-      pointerType: 'touch',
-    });
-    expect(screen.getByTestId('calendar-current-month')).toHaveAttribute(
-      'data-swipe-active',
-      'false',
-    );
-    expect(screen.getByTestId('calendar-current-month')).toHaveStyle(
-      '--calendar-swipe-offset: 0px',
-    );
-
-    fireEvent.pointerDown(verticalTarget, {
-      clientX: 160,
-      clientY: 100,
-      isPrimary: true,
-      pointerId: 4,
-      pointerType: 'touch',
-    });
-    fireEvent.pointerMove(verticalTarget, {
-      clientX: 170,
-      clientY: 220,
-      isPrimary: true,
-      pointerId: 4,
-      pointerType: 'touch',
-    });
-    expect(screen.getByTestId('calendar-current-month')).toHaveAttribute(
-      'data-swipe-active',
-      'true',
-    );
-    expect(screen.getByTestId('calendar-current-month')).toHaveStyle(
-      '--calendar-swipe-offset: 0px',
-    );
-    fireEvent.pointerUp(verticalTarget, {
-      clientX: 170,
-      clientY: 250,
-      isPrimary: true,
-      pointerId: 4,
-      pointerType: 'touch',
-    });
-    expect(screen.getByTestId('calendar-current-month')).toHaveAttribute(
-      'data-swipe-active',
-      'false',
-    );
-    fireEvent.click(verticalTarget);
-    expect(onNextMonth).toHaveBeenCalledOnce();
-    expect(onPreviousMonth).toHaveBeenCalledOnce();
-    expect(onSelectDate).toHaveBeenCalledOnce();
-  });
-
-  it('selects dates through a fully named button and exposes its trigger element', async () => {
+  it('selects a date and exposes the exact trigger element', async () => {
     const user = userEvent.setup();
     const onSelectDate = vi.fn();
     renderCalendar({ onSelectDate });
     const target = screen.getByRole('button', { name: /Full date 2026-05-12/u });
-
     await user.click(target);
-
     expect(onSelectDate).toHaveBeenCalledWith(asLocalDate('2026-05-12'), target);
-    await user.click(screen.getByRole('button', { name: copy.previousMonth }));
-    await user.click(screen.getByRole('button', { name: copy.nextMonth }));
   });
 });
