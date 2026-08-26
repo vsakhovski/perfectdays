@@ -26,6 +26,11 @@
   color: var(--color-text-muted);
 }
 
+.selectedDayCard > .selectedDayPeriod {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
 .selectedDaySummary {
   display: flex;
   flex-wrap: wrap;

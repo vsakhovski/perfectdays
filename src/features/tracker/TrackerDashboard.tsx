@@ -1083,6 +1083,26 @@ export function TrackerCalendar({
   const selectedLog = payload.logs.find((log) => log.date === selectedDate);
   const selectedFlow = selectedLog?.flow;
   const selectedHasCheckIn = hasUserEnteredObservation(selectedLog);
+  const selectedIsToday = selectedDate === today;
+  const selectedPeriod = periodContainingDate(payload, selectedDate);
+  const selectedPeriodDescription =
+    selectedPeriod === undefined
+      ? undefined
+      : selectedPeriod.endDate === undefined
+        ? t(($) => $.mobile.calendar.selectedDay.periodActive, {
+            date: formatLocalDate(selectedPeriod.startDate, resolvedLanguage),
+          })
+        : selectedPeriod.durationKnown === false
+          ? t(($) => $.mobile.calendar.selectedDay.periodUnknown, {
+              date: formatLocalDate(selectedPeriod.startDate, resolvedLanguage),
+            })
+          : t(($) => $.mobile.calendar.selectedDay.periodKnown, {
+              range: formatLocalDateRange(
+                selectedPeriod.startDate,
+                selectedPeriod.endDate,
+                resolvedLanguage,
+              ),
+            });
   const selectedRatings = (['energy', 'confidence', 'tension', 'pain'] as const).flatMap(
     (field) => {
       const value = selectedLog?.[field];
@@ -1134,14 +1154,23 @@ export function TrackerCalendar({
 
         <section className={styles['selectedDayCard']} aria-labelledby="selected-day-title">
           <h3 id="selected-day-title">
-            {t(($) => $.mobile.calendar.selectedDay.title, {
-              date: formatLocalDate(selectedDate, resolvedLanguage, {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              }),
-            })}
+            {t(
+              ($) =>
+                selectedIsToday
+                  ? $.mobile.calendar.selectedDay.titleToday
+                  : $.mobile.calendar.selectedDay.title,
+              {
+                date: formatLocalDate(selectedDate, resolvedLanguage, {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                }),
+              },
+            )}
           </h3>
+          {selectedPeriodDescription === undefined ? null : (
+            <p className={styles['selectedDayPeriod']}>{selectedPeriodDescription}</p>
+          )}
           {!selectedHasCheckIn ? (
             <p>{t(($) => $.mobile.calendar.selectedDay.noCheckIn)}</p>
           ) : (
@@ -1168,15 +1197,23 @@ export function TrackerCalendar({
             }}
             type="button"
           >
-            {selectedHasCheckIn
-              ? t(($) => $.mobile.calendar.selectedDay.edit)
-              : t(($) => $.mobile.calendar.selectedDay.start)}
+            {selectedIsToday
+              ? t(($) => $.mobile.calendar.selectedDay.startToday)
+              : selectedHasCheckIn
+                ? t(($) => $.mobile.calendar.selectedDay.edit)
+                : t(($) => $.mobile.calendar.selectedDay.start)}
           </button>
         </section>
 
         <section className={styles['forecast']} aria-labelledby="tracker-forecast-title">
-          <h3 id="tracker-forecast-title">{t(($) => $.mobile.calendar.forecast.title)}</h3>
-          <p className={styles['forecastLead']}>{forecastHeadline}</p>
+          <h3 id="tracker-forecast-title">
+            {activeEpisode === undefined
+              ? t(($) => $.mobile.calendar.forecast.title)
+              : t(($) => $.mobile.calendar.forecast.states.active.title)}
+          </h3>
+          {activeEpisode === undefined ? (
+            <p className={styles['forecastLead']}>{forecastHeadline}</p>
+          ) : null}
           <p>{forecastSummary}</p>
           {forecast?.calendarMarkersSuppressed ? (
             <p>{t(($) => $.mobile.calendar.forecast.states.variable.description)}</p>

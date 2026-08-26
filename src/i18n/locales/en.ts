@@ -510,7 +510,7 @@ export const en = {
           active: {
             title: 'Current period is active',
             description: 'The next estimated start is not available yet.',
-            nextEstimatedStart: 'Next estimated period starts on {{date}}.',
+            nextEstimatedStart: 'Next period starts approximately on {{date}}.',
           },
           unavailable: {
             title: 'Estimate unavailable',
@@ -548,11 +548,16 @@ export const en = {
       },
       selectedDay: {
         title: '{{date}}',
+        titleToday: '{{date}} (today)',
         selected: 'Selected calendar day',
+        periodKnown: 'Period: {{range}}.',
+        periodActive: 'Active period started {{date}}.',
+        periodUnknown: 'Period started {{date}}; end date unknown.',
         noCheckIn: 'No check-in has been saved for this day.',
         flow: 'Flow: {{flow}}',
         rating: '{{label}}: {{value}}',
         start: 'Check in for this day',
+        startToday: 'Check in today',
         edit: 'Edit this day’s check-in',
       },
     },

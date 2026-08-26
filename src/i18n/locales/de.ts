@@ -529,7 +529,7 @@ export const de = {
           active: {
             title: 'Die aktuelle Periode ist aktiv',
             description: 'Der nächste geschätzte Beginn ist noch nicht verfügbar.',
-            nextEstimatedStart: 'Die nächste Periode beginnt voraussichtlich am {{date}}.',
+            nextEstimatedStart: 'Die nächste Periode beginnt ungefähr am {{date}}.',
           },
           unavailable: {
             title: 'Keine Schätzung verfügbar',
@@ -568,11 +568,16 @@ export const de = {
       },
       selectedDay: {
         title: '{{date}}',
+        titleToday: '{{date}} (heute)',
         selected: 'Ausgewählter Kalendertag',
+        periodKnown: 'Periode: {{range}}.',
+        periodActive: 'Aktive Periode, begonnen am {{date}}.',
+        periodUnknown: 'Periode begann am {{date}}; Enddatum unbekannt.',
         noCheckIn: 'Für diesen Tag wurde noch kein Check-in gespeichert.',
         flow: 'Blutung: {{flow}}',
         rating: '{{label}}: {{value}}',
         start: 'Für diesen Tag eintragen',
+        startToday: 'Heute eintragen',
         edit: 'Check-in dieses Tages bearbeiten',
       },
     },

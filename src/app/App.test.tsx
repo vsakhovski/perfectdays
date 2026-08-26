@@ -366,6 +366,15 @@ async function openRootDestination(
   await user.click(screen.getByRole('button', { name: destination }));
 }
 
+function persistentCheckInTodayButton(): HTMLElement {
+  const buttons = screen.getAllByRole('button', { name: 'Check in today' });
+  const button = buttons.at(-1);
+  if (button === undefined) {
+    throw new Error('Expected the persistent Check in today action.');
+  }
+  return button;
+}
+
 describe('App', () => {
   it('renders the private local-first foundation in English', async () => {
     await renderApp();
@@ -406,7 +415,7 @@ describe('App', () => {
       'page',
     );
     expect(screen.getAllByRole('navigation')).toHaveLength(1);
-    const checkInTrigger = screen.getByRole('button', { name: 'Check in today' });
+    const checkInTrigger = persistentCheckInTodayButton();
     await user.click(checkInTrigger);
     expect(screen.getByRole('dialog', { name: 'Check in today' })).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -429,7 +438,7 @@ describe('App', () => {
 
     await openRootDestination(user, 'Calendar');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Check in today' })).toBeVisible();
+    expect(persistentCheckInTodayButton()).toBeVisible();
   }, 10_000);
 
   it('keeps Go to today in the header and disables it for the current month', async () => {
@@ -463,17 +472,17 @@ describe('App', () => {
     const user = userEvent.setup();
     await renderApp({ onboardingCompleted: true });
 
-    await user.click(screen.getByRole('button', { name: 'Check in today' }));
+    await user.click(persistentCheckInTodayButton());
     expect(screen.getByRole('button', { name: 'Hide note and details' })).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Hide note and details' }));
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
-    await user.click(screen.getByRole('button', { name: 'Check in today' }));
+    await user.click(persistentCheckInTodayButton());
     expect(screen.getByRole('button', { name: 'Add note or details (optional)' })).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Add note or details (optional)' }));
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
-    await user.click(screen.getByRole('button', { name: 'Check in today' }));
+    await user.click(persistentCheckInTodayButton());
     expect(screen.getByRole('button', { name: 'Hide note and details' })).toBeVisible();
   });
 
@@ -512,7 +521,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Skip setup' }));
 
     expect(await screen.findByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Check in today' }));
+    await user.click(persistentCheckInTodayButton());
     expect(screen.getByRole('button', { name: 'Save and done' })).toHaveAttribute(
       'aria-disabled',
       'true',
@@ -651,7 +660,7 @@ describe('App', () => {
     });
     expect(predictedStart).toBeVisible();
     fireEvent.click(predictedStart);
-    expect(screen.getByRole('heading', { name: 'August 8, 2026' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'August 8, 2026 (today)' })).toBeVisible();
     expect(screen.queryByRole('dialog', { name: 'Daily check-in' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
