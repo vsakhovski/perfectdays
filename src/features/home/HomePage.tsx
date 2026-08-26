@@ -7,17 +7,14 @@ import { BackupAndRestoreSettings } from '../backup/BackupAndRestoreSettings';
 import { LanguageControl } from '../settings/LanguageControl';
 import { EraseDataControl, PinSecurityPanel } from '../settings/PinSecurityPanel';
 import { ThemeControl } from '../settings/ThemeControl';
+import { TrackerPreferenceCards } from '../settings/TrackerPreferenceCards';
 import { WeekStartControl } from '../settings/WeekStartControl';
 import {
   MobileAppShell,
   type MobileAppShellCopy,
   type RootDestination,
 } from '../shell/MobileAppShell';
-import {
-  TrackerDashboard,
-  TrackerOnboardingFlow,
-  TrackerPreferences,
-} from '../tracker/TrackerDashboard';
+import { TrackerDashboard, TrackerOnboardingFlow } from '../tracker/TrackerDashboard';
 import { TrackerHistorySection } from '../tracker/TrackerHistorySection';
 import styles from './HomePage.module.css';
 
@@ -98,21 +95,36 @@ function SettingsDestination({ payload }: { readonly payload: VaultPayload }) {
 
   return (
     <div className={styles['screenStack']}>
-      <p className={styles['screenDescription']}>{t(($) => $.mobile.settings.description)}</p>
-      <TrackerPreferences payload={payload} />
       <section className={styles['settingsCard']}>
-        <h2>{t(($) => $.mobile.settings.sections.appearance)}</h2>
-        <div className={styles['preferenceControls']}>
-          <ThemeControl />
-          <LanguageControl />
-          <WeekStartControl payload={payload} />
-        </div>
+        <h2>{t(($) => $.mobile.settings.cards.theme)}</h2>
+        <ThemeControl compact />
       </section>
+      <section className={styles['settingsCard']}>
+        <h2>{t(($) => $.mobile.settings.cards.language)}</h2>
+        <LanguageControl compact hideLabel />
+      </section>
+      <section className={styles['settingsCard']}>
+        <h2>{t(($) => $.mobile.settings.cards.weekStart)}</h2>
+        <WeekStartControl hideLabel payload={payload} />
+      </section>
+      <TrackerPreferenceCards payload={payload} />
       <section className={styles['informationCard']}>
         <h2>{t(($) => $.mobile.settings.about.title)}</h2>
+        <p>{t(($) => $.mobile.settings.about.version, { version: __APP_VERSION__ })}</p>
         <p>{t(($) => $.mobile.settings.about.description)}</p>
+        <p>{t(($) => $.mobile.settings.about.development)}</p>
         <h3>{t(($) => $.mobile.settings.about.limitationsTitle)}</h3>
         <p>{t(($) => $.mobile.settings.about.limitations)}</p>
+        <h3>{t(($) => $.mobile.settings.about.authorTitle)}</h3>
+        <p>{t(($) => $.mobile.settings.about.author)}</p>
+        <a
+          className={styles['aboutLink']}
+          href="https://www.paypal.com/donate"
+          rel="noreferrer"
+          target="_blank"
+        >
+          {t(($) => $.mobile.settings.about.donate)}
+        </a>
       </section>
     </div>
   );

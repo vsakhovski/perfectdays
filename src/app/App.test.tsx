@@ -433,7 +433,13 @@ describe('App', () => {
 
     await openRootDestination(user, 'Settings');
     expect(screen.getByRole('heading', { name: 'Settings', level: 1 })).toHaveFocus();
-    expect(screen.getByRole('heading', { name: 'Estimates and pre-period window' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Theme' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Language' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'First day of the week' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Pre-period window' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Usual period estimates' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'About' })).toBeVisible();
+    expect(screen.queryByText(/Manage estimates, calendar layout/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Check in today' })).not.toBeInTheDocument();
 
     await openRootDestination(user, 'Calendar');

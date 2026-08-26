@@ -603,16 +603,52 @@ export const de = {
     settings: {
       title: 'Einstellungen',
       description: 'Verwalte Schätzungen, Kalenderdarstellung, Design und Sprache.',
+      cards: {
+        theme: 'Design',
+        language: 'Sprache',
+        weekStart: 'Erster Tag der Woche',
+      },
       sections: {
         tracking: 'Tracking und Schätzungen',
         appearance: 'Design, Sprache und Kalender',
       },
+      prePeriod: {
+        title: 'Zeitraum vor der Periode',
+        description:
+          'Hebt optionale Tage vor einer geschätzten Periode hervor, damit du deine eigenen Muster beobachten und festhalten kannst.',
+        enabled: 'Zeitraum vor der Periode im Kalender anzeigen',
+        days: 'Anzahl der Tage vor der Periode',
+      },
+      fallbacks: {
+        title: 'Übliche Periodenschätzungen',
+        description:
+          'Diese optionalen Startwerte werden nur verwendet, bis deine aufgezeichneten Perioden dieselben Informationen liefern.',
+        cycleLength: 'Übliche Zykluslänge',
+        bleedDuration: 'Übliche Blutungstage',
+        cycleOverridden:
+          'Aufgezeichnete Zykluslängen bestimmen nun die Schätzung; dieser Startwert wird nicht mehr verwendet.',
+        bleedOverridden:
+          'Aufgezeichnete Blutungsdauern bestimmen nun die Schätzung; dieser Startwert wird nicht mehr verwendet.',
+      },
+      autoSave: {
+        saving: 'Wird automatisch gespeichert…',
+        saved: 'Automatisch gespeichert.',
+        failed: 'Die Änderung konnte nicht gespeichert werden.',
+      },
       about: {
         title: 'Über die App',
-        description: 'Erfahre, wie Schätzungen und Kalendermarkierungen funktionieren.',
+        version: 'Version {{version}}',
+        description:
+          'Perfect Days ist ein privates, lokal gespeichertes Tagebuch für Perioden, tägliche Beobachtungen und persönliche Schätzungen.',
+        development:
+          'Die App wird als installierbare Web-App mit Offline-Unterstützung und optionaler Verschlüsselung auf dem Gerät entwickelt.',
         limitationsTitle: 'Was dieses Tagebuch nicht bestimmen kann',
         limitations:
           'Schätzungen beschreiben Muster in aufgezeichneten Daten. Sie sind keine medizinische Beratung oder Diagnose.',
+        authorTitle: 'Über den Autor',
+        author:
+          'Erstellt von einem unabhängigen Entwickler. Angaben zum Autor werden vor der öffentlichen Veröffentlichung ergänzt.',
+        donate: 'Entwicklung mit PayPal unterstützen',
       },
     },
     checkIn: {

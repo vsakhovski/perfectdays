@@ -7,7 +7,13 @@ import type { VaultPayload, WeekStartPreference } from '../../domain/models';
 import { isWeekStartPreference, resolveWeekStartsOn } from '../../i18n/date-format';
 import styles from './WeekStartControl.module.css';
 
-export function WeekStartControl({ payload }: { readonly payload: VaultPayload }) {
+export function WeekStartControl({
+  hideLabel = false,
+  payload,
+}: {
+  readonly hideLabel?: boolean;
+  readonly payload: VaultPayload;
+}) {
   const { t } = useTranslation();
   const { resolvedLanguage, systemLanguages } = useLanguage();
   const { journalEnvironment, savePayload } = useVault();
@@ -45,7 +51,10 @@ export function WeekStartControl({ payload }: { readonly payload: VaultPayload }
 
   return (
     <div className={styles['control']}>
-      <label className={styles['label']} htmlFor="week-start-preference">
+      <label
+        className={hideLabel ? styles['visuallyHidden'] : styles['label']}
+        htmlFor="week-start-preference"
+      >
         {t(($) => $.settings.weekStart.label)}
       </label>
       <select

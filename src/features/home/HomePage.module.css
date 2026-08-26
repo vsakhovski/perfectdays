@@ -63,10 +63,23 @@
 
 .settingsCard,
 .informationCard {
+  display: grid;
+  gap: 0.85rem;
   padding: 1rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-large);
   background: var(--color-surface);
+}
+
+.aboutLink {
+  justify-self: start;
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.aboutLink:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
 }
 
 .preferenceControls > * + * {

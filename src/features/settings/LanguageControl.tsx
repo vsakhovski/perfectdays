@@ -27,7 +27,13 @@ const VIEWPORT_MARGIN = 8;
 const PICKER_GAP = 4;
 const EXPECTED_PICKER_HEIGHT = 96;
 
-export function LanguageControl({ compact = false }: { readonly compact?: boolean }) {
+export function LanguageControl({
+  compact = false,
+  hideLabel = false,
+}: {
+  readonly compact?: boolean;
+  readonly hideLabel?: boolean;
+}) {
   const { t } = useTranslation();
   const { resolvedLanguage, setPreference } = useLanguage();
   const [open, setOpen] = useState(false);
@@ -152,7 +158,11 @@ export function LanguageControl({ compact = false }: { readonly compact?: boolea
 
   return (
     <div className={styles['control']} data-compact={compact} ref={rootRef}>
-      <label className={styles['label']} htmlFor={controlId} id={labelId}>
+      <label
+        className={hideLabel ? styles['visuallyHidden'] : styles['label']}
+        htmlFor={controlId}
+        id={labelId}
+      >
         {t(($) => $.settings.language.label)}
       </label>
       <div className={styles['comboboxShell']}>

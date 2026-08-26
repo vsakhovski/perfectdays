@@ -583,16 +583,52 @@ export const en = {
     settings: {
       title: 'Settings',
       description: 'Manage estimates, calendar layout, appearance, and language.',
+      cards: {
+        theme: 'Theme',
+        language: 'Language',
+        weekStart: 'First day of the week',
+      },
       sections: {
         tracking: 'Tracking and estimates',
         appearance: 'Appearance, language, and calendar',
       },
+      prePeriod: {
+        title: 'Pre-period window',
+        description:
+          'Highlights the optional days before an estimated period so you can notice and record your own patterns.',
+        enabled: 'Show pre-period window in calendar',
+        days: 'Number of pre-period days',
+      },
+      fallbacks: {
+        title: 'Usual period estimates',
+        description:
+          'These optional starting values are used only until your recorded periods provide the same information.',
+        cycleLength: 'Usual cycle length',
+        bleedDuration: 'Usual bleeding days',
+        cycleOverridden:
+          'Recorded cycle lengths now determine estimates, so this starting value is no longer used.',
+        bleedOverridden:
+          'Recorded bleeding durations now determine estimates, so this starting value is no longer used.',
+      },
+      autoSave: {
+        saving: 'Saving automatically…',
+        saved: 'Saved automatically.',
+        failed: 'The change could not be saved.',
+      },
       about: {
         title: 'About',
-        description: 'Learn how estimates and calendar markers work.',
+        version: 'Version {{version}}',
+        description:
+          'Perfect Days is a private, local-first journal for recording periods, daily observations, and personal estimates.',
+        development:
+          'It is being developed as an installable web app with offline support and optional on-device encryption.',
         limitationsTitle: 'What this journal cannot determine',
         limitations:
           'Estimates describe patterns in recorded data. They are not medical advice or a diagnosis.',
+        authorTitle: 'About the author',
+        author:
+          'Created by an independent developer. Author details will be added before public release.',
+        donate: 'Support development with PayPal',
       },
     },
     checkIn: {

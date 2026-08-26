@@ -4,7 +4,7 @@ import { useTheme } from '../../app/theme/use-theme';
 import type { ThemePreference } from '../../domain/models';
 import styles from './ThemeControl.module.css';
 
-export function ThemeControl() {
+export function ThemeControl({ compact = false }: { readonly compact?: boolean }) {
   const { t } = useTranslation();
   const { preference, resolvedTheme, setPreference } = useTheme();
   const themeOptions = [
@@ -19,7 +19,9 @@ export function ThemeControl() {
 
   return (
     <fieldset className={styles['fieldset']}>
-      <legend className={styles['legend']}>{t(($) => $.settings.appearance.legend)}</legend>
+      <legend className={compact ? styles['visuallyHidden'] : styles['legend']}>
+        {t(($) => $.settings.appearance.legend)}
+      </legend>
       <div className={styles['options']}>
         {themeOptions.map(({ value, label }) => (
           <label className={styles['option']} key={value}>
@@ -36,9 +38,11 @@ export function ThemeControl() {
           </label>
         ))}
       </div>
-      <p className={styles['current']} aria-live="polite">
-        {t(($) => $.settings.appearance.current, { theme: resolvedThemeLabel })}
-      </p>
+      {compact ? null : (
+        <p className={styles['current']} aria-live="polite">
+          {t(($) => $.settings.appearance.current, { theme: resolvedThemeLabel })}
+        </p>
+      )}
     </fieldset>
   );
 }
