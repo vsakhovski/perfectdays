@@ -183,9 +183,13 @@ The mobile screen follows this order:
 │ Recorded · Predicted · Today    │
 │                                 │
 │ Next period                     │
-│ May start 18–21 August          │
-│ Medium confidence · 4 cycles    │
+│ Estimated range: 18–21 August   │
+│ Most probable start: 20 August  │
+│ Estimated period length: 5 days │
+│ Confidence: Medium              │
 │ Why this estimate?              │
+│ Based on: 4 completed cycles    │
+│ Recent cycle lengths: …         │
 │                                 │
 │       [ Check in today ]        │
 │ Calendar   Privacy   Settings   │
@@ -204,15 +208,7 @@ In the implemented first slice, tapping today or a past date opens the focused e
 
 ### Prediction below the calendar
 
-The forecast summary is textual and precedes retrospective detail. Its primary line is a range, not the central estimate, for example:
-
-> **Next period**
->
-> May start 18–21 August
->
-> Medium confidence · based on four completed cycles
-
-**Why this estimate?** reveals the source, recent cycle lengths, variability, central estimate, and other context without competing with the range. If the estimate falls in another month, **Show predicted month** moves the calendar without recalculating or changing it.
+Two compact cards follow the selected-day summary on Calendar; they are not repeated in Periods history. **Next period** shows the estimated start range first, followed by the most probable start, estimated period length, and confidence. **Why this estimate?** then shows what the estimate is based on, recent completed cycle lengths, the estimated cycle and period lengths used, and a plain-language consistency explanation. Raw variability and shortest-to-longest statistics remain internal rather than making the user interpret implementation-oriented metrics.
 
 The component has explicit states:
 
@@ -288,7 +284,7 @@ Forecasting must remain deterministic, explainable, and separately testable from
 
 1. Take the latest up to six completed cycle lengths when available. A cycle length is complete as soon as the next episode start is known, even if that newer episode is still active.
 2. Use their median as the central estimated cycle length. For an even number of integer samples, average the two middle values and round `.5` upward to the next whole calendar day.
-3. Add that length to the latest recorded period start for the central estimated start date.
+3. Add that length to the latest recorded period start for the most probable start date.
 4. Estimate bleeding duration separately using the same median rule on up to six recent episodes with an end date and `durationKnown !== false`. Use the optional usual duration only when no known completed duration exists; otherwise leave predicted duration unknown.
 5. Show an estimated range rather than presenting the central date as certain.
 

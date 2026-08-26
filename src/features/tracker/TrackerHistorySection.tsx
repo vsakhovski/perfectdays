@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 
 import { useLanguage } from '../../app/i18n/use-language';
 import { useVault } from '../../app/vault/use-vault';
-import { calculateForecast } from '../../domain/forecast';
 import { deriveTrackerInsights } from '../../domain/insights';
 import {
   correctPeriod,
@@ -12,13 +11,7 @@ import {
   type BleedingFlow,
   type JournalMutationResult,
 } from '../../domain/journal';
-import {
-  addDays,
-  addMonths,
-  calendarMonthGrid,
-  isSameMonth,
-  startOfMonth,
-} from '../../domain/local-date';
+import { addMonths, calendarMonthGrid, isSameMonth, startOfMonth } from '../../domain/local-date';
 import type { DailyLog, LocalDate, PeriodEpisode, VaultPayload } from '../../domain/models';
 import { importHistoricalEpisodes } from '../../domain/onboarding';
 import {
@@ -132,27 +125,19 @@ export function TrackerHistorySection({
   const [errorMessage, setErrorMessage] = useState<string>();
   const [statusMessage, setStatusMessage] = useState<string>();
   const calendarContainerRef = useRef<HTMLDivElement>(null);
+  const editorStatusRef = useRef<HTMLDivElement>(null);
   const selectedActionPanelRef = useRef<HTMLElement>(null);
   const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
 
-  const forecast = useMemo(
-    () =>
-      calculateForecast({
-        episodes: payload.episodes,
-        settings: payload.settings,
-        today,
-      }),
-    [payload.episodes, payload.settings, today],
-  );
   const insights = useMemo(
     () =>
       deriveTrackerInsights({
         episodes: payload.episodes,
-        forecast,
+        forecast: null,
         limit: Math.max(1, payload.episodes.length),
         logs: payload.logs,
       }),
-    [forecast, payload.episodes, payload.logs],
+    [payload.episodes, payload.logs],
   );
   const bleedingDurationByEpisode = useMemo(
     () =>
@@ -428,18 +413,13 @@ export function TrackerHistorySection({
     }
   };
 
-  const beginEditing = (entry: PeriodHistoryEntry, scrollFromTable = false): void => {
+  const beginEditing = (entry: PeriodHistoryEntry): void => {
     setSelectedEntryId(entry.id);
     setSelectedEmptyDate(undefined);
     setDraft({ episodeId: entry.id, stage: 'selecting' });
     setVisibleMonth(startOfMonth(entry.startDate));
     setErrorMessage(undefined);
     setStatusMessage(t(($) => $.tracker.history.calendar.selectBoundary));
-    if (scrollFromTable) {
-      window.requestAnimationFrame(() => {
-        calendarContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    }
   };
 
   const cancelSelection = (): void => {
@@ -540,32 +520,6 @@ export function TrackerHistorySection({
       : selectedEntry.endDate === undefined || !selectedEntry.durationKnown
         ? formatLocalDate(selectedEntry.startDate, resolvedLanguage)
         : formatLocalDateRange(selectedEntry.startDate, selectedEntry.endDate, resolvedLanguage);
-  const forecastInsight = insights.forecast;
-  const predictedBleedingDuration = forecastInsight?.predictedBleedingDuration ?? null;
-  const forecastVariability =
-    forecastInsight?.cycleLengthSummary.span == null
-      ? 'unavailable'
-      : forecastInsight.cycleLengthSummary.span <= 4
-        ? 'narrow'
-        : forecastInsight.cycleLengthSummary.span <= 10
-          ? 'variable'
-          : 'highlyVariable';
-  const activeEpisode = payload.episodes.find((episode) => episode.endDate === undefined);
-  const nextEstimateCentral =
-    forecastInsight === null
-      ? undefined
-      : activeEpisode === undefined
-        ? forecastInsight.centralStart
-        : addDays(activeEpisode.startDate, forecastInsight.estimatedCycleLengthDays);
-  const nextEstimateEarliest =
-    forecastInsight === null || nextEstimateCentral === undefined
-      ? undefined
-      : addDays(nextEstimateCentral, -forecastInsight.uncertaintyBeforeDays);
-  const nextEstimateLatest =
-    forecastInsight === null || nextEstimateCentral === undefined
-      ? undefined
-      : addDays(nextEstimateCentral, forecastInsight.uncertaintyAfterDays);
-
   useEffect(() => {
     if (draft !== undefined || selectedEntry === undefined) return;
     const frame = window.requestAnimationFrame(() => {
@@ -578,6 +532,19 @@ export function TrackerHistorySection({
       window.cancelAnimationFrame(frame);
     };
   }, [draft, selectedEntry]);
+
+  useEffect(() => {
+    if (draft?.stage !== 'selecting') return;
+    const frame = window.requestAnimationFrame(() => {
+      editorStatusRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'end',
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [draft?.stage]);
 
   return (
     <div className={styles['screen']}>
@@ -692,7 +659,17 @@ export function TrackerHistorySection({
       ) : null}
 
       {draft?.stage === 'selecting' || errorMessage !== undefined || statusMessage !== undefined ? (
-        <div className={styles['editorStatus']}>
+        <div className={styles['editorStatus']} ref={editorStatusRef}>
+          {errorMessage === undefined ? null : (
+            <p className={styles['error']} role="alert">
+              {errorMessage}
+            </p>
+          )}
+          {statusMessage === undefined ? null : (
+            <p aria-live="polite" className={styles['message']} role="status">
+              {statusMessage}
+            </p>
+          )}
           {draft?.stage !== 'selecting' ? null : (
             <div className={styles['editorActions']}>
               <button
@@ -704,16 +681,6 @@ export function TrackerHistorySection({
                 {t(($) => $.tracker.history.calendar.cancel)}
               </button>
             </div>
-          )}
-          {errorMessage === undefined ? null : (
-            <p className={styles['error']} role="alert">
-              {errorMessage}
-            </p>
-          )}
-          {statusMessage === undefined ? null : (
-            <p aria-live="polite" className={styles['message']} role="status">
-              {statusMessage}
-            </p>
           )}
         </div>
       ) : null}
@@ -727,7 +694,7 @@ export function TrackerHistorySection({
           formatLocalDateRange(startDate, endDate, resolvedLanguage)
         }
         onEdit={(entry) => {
-          beginEditing(entry, true);
+          beginEditing(entry);
         }}
         onDelete={(entry, trigger) => {
           deleteTriggerRef.current = trigger;
@@ -738,117 +705,6 @@ export function TrackerHistorySection({
         showSectionLabel={showSectionLabel}
         {...(selectedEntryId === undefined ? {} : { selectedEntryId })}
       />
-
-      <section aria-labelledby="next-estimate-title" className={styles['estimateCard']}>
-        <header className={styles['estimateHeader']}>
-          <h2 id="next-estimate-title">{t(($) => $.tracker.history.estimate.title)}</h2>
-        </header>
-        {forecastInsight === null ||
-        nextEstimateCentral === undefined ||
-        nextEstimateEarliest === undefined ||
-        nextEstimateLatest === undefined ? (
-          <p className={styles['message']}>{t(($) => $.tracker.insights.forecast.unavailable)}</p>
-        ) : (
-          <dl className={styles['estimateDetails']}>
-            <div>
-              <dt>{t(($) => $.tracker.history.estimate.rangeLabel)}</dt>
-              <dd>
-                {formatLocalDateRange(nextEstimateEarliest, nextEstimateLatest, resolvedLanguage)}
-              </dd>
-            </div>
-            <div>
-              <dt>{t(($) => $.tracker.history.estimate.centralStartLabel)}</dt>
-              <dd>{formatLocalDate(nextEstimateCentral, resolvedLanguage)}</dd>
-            </div>
-            {predictedBleedingDuration === null ? null : (
-              <div>
-                <dt>{t(($) => $.tracker.history.estimate.durationLabel)}</dt>
-                <dd>
-                  {t(($) => $.tracker.insights.bleeding.days, {
-                    count: predictedBleedingDuration.days,
-                  })}
-                </dd>
-              </div>
-            )}
-            <div>
-              <dt>{t(($) => $.tracker.insights.forecast.confidenceLabel)}</dt>
-              <dd>{t(($) => $.tracker.forecast.confidence[forecastInsight.confidence])}</dd>
-            </div>
-          </dl>
-        )}
-      </section>
-
-      <section aria-labelledby="estimate-calculation-title" className={styles['estimateCard']}>
-        <header className={styles['estimateHeader']}>
-          <h2 id="estimate-calculation-title">
-            {t(($) => $.tracker.history.estimate.explanationTitle)}
-          </h2>
-          <p>{t(($) => $.tracker.history.estimate.explanation)}</p>
-        </header>
-        {forecastInsight === null ? (
-          <p className={styles['message']}>{t(($) => $.tracker.insights.forecast.unavailable)}</p>
-        ) : (
-          <dl className={styles['estimateDetails']}>
-            <div>
-              <dt>{t(($) => $.tracker.history.estimate.calculatedCycleLength)}</dt>
-              <dd>
-                {t(($) => $.tracker.insights.cycles.days, {
-                  count: forecastInsight.estimatedCycleLengthDays,
-                })}
-              </dd>
-            </div>
-            <div>
-              <dt>{t(($) => $.tracker.history.estimate.cycleLengthsUsed)}</dt>
-              <dd>
-                {forecastInsight.cycleLengthsUsed.length === 0
-                  ? t(($) => $.tracker.history.estimate.noRecordedCycleLengths)
-                  : forecastInsight.cycleLengthsUsed.join(', ')}
-              </dd>
-            </div>
-            <div>
-              <dt>{t(($) => $.tracker.insights.forecast.sourceLabel)}</dt>
-              <dd>
-                {t(($) => $.tracker.insights.forecast.source[forecastInsight.cycleLengthSource])}
-              </dd>
-            </div>
-            <div>
-              <dt>{t(($) => $.tracker.insights.forecast.cyclesUsedLabel)}</dt>
-              <dd>
-                {t(($) => $.tracker.insights.forecast.cyclesUsed, {
-                  count: forecastInsight.completedCyclesUsed,
-                })}
-              </dd>
-            </div>
-            <div>
-              <dt>{t(($) => $.tracker.insights.forecast.variabilityLabel)}</dt>
-              <dd>{t(($) => $.tracker.insights.forecast.variability[forecastVariability])}</dd>
-            </div>
-            {forecastInsight.cycleLengthSummary.span === null ? null : (
-              <div>
-                <dt>{t(($) => $.tracker.insights.forecast.spanLabel)}</dt>
-                <dd>
-                  {t(($) => $.tracker.insights.forecast.span, {
-                    count: forecastInsight.cycleLengthSummary.span,
-                  })}
-                </dd>
-              </div>
-            )}
-            {predictedBleedingDuration === null ? null : (
-              <div>
-                <dt>{t(($) => $.tracker.history.estimate.calculatedBleedingDuration)}</dt>
-                <dd>
-                  {t(($) => $.tracker.history.estimate.durationWithSource, {
-                    count: predictedBleedingDuration.days,
-                    source: t(
-                      ($) => $.tracker.insights.forecast.source[predictedBleedingDuration.source],
-                    ),
-                  })}
-                </dd>
-              </div>
-            )}
-          </dl>
-        )}
-      </section>
 
       {draft?.stage !== 'confirming' ||
       draft.startDate === undefined ||

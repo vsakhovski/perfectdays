@@ -58,7 +58,7 @@
 }
 
 .header,
-.forecast {
+.estimateCard {
   padding: clamp(1.25rem, 4vw, 2rem);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-large);
@@ -67,9 +67,11 @@
 }
 
 .header h2,
-.forecast h3 {
+.estimateHeader h3,
+.estimateHeader p,
+.consistencyNote,
+.estimateMessage {
   margin: 0;
-  letter-spacing: -0.025em;
 }
 
 .header h2 {
@@ -77,7 +79,9 @@
 }
 
 .header > p:last-child,
-.forecast p {
+.estimateHeader p,
+.consistencyNote,
+.estimateMessage {
   max-inline-size: 48rem;
   color: var(--color-text-muted);
   line-height: 1.6;
@@ -96,38 +100,37 @@
   text-transform: uppercase;
 }
 
-.forecast {
+.estimateCard,
+.estimateHeader {
   display: grid;
-  gap: 0.55rem;
-  border-inline-start: 0.3rem solid var(--color-accent);
-  border-start-start-radius: var(--radius-small);
-  border-end-start-radius: var(--radius-small);
+  gap: 0.65rem;
 }
 
-.forecast h3 {
+.estimateHeader h3 {
   font-size: 1.15rem;
+  letter-spacing: -0.025em;
 }
 
-.forecast p {
+.estimateDetails {
   margin: 0;
 }
 
-.forecastLead {
-  color: var(--color-text) !important;
-  font-size: 1.05rem;
-  font-weight: 800;
-}
-
-.forecastDetails summary {
-  min-block-size: 2.75rem;
+.estimateDetails > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
   padding-block: 0.65rem;
-  color: var(--color-accent);
-  cursor: pointer;
-  font-weight: 750;
+  border-block-start: 1px solid var(--color-border);
 }
 
-.forecastDetails p + p {
-  margin-block-start: 0.45rem;
+.estimateDetails dt {
+  color: var(--color-text-muted);
+}
+
+.estimateDetails dd {
+  margin: 0;
+  text-align: end;
 }
 
 .secondaryAction,
@@ -145,8 +148,7 @@
 }
 
 .secondaryAction:focus-visible,
-.contextLinks button:focus-visible,
-.forecastDetails summary:focus-visible {
+.contextLinks button:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
@@ -174,8 +176,26 @@
   font-size: 0.9rem;
 }
 
+@media (max-width: 30rem) {
+  .estimateDetails > div {
+    align-items: start;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .estimateDetails dd {
+    text-align: start;
+  }
+}
+
 @media (max-width: 22rem) {
   .contextLinks {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (forced-colors: active) {
+  .estimateCard {
+    border: 1px solid CanvasText;
   }
 }

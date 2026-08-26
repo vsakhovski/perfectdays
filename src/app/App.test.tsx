@@ -641,8 +641,13 @@ describe('App', () => {
     expect(
       await screen.findByRole('heading', { name: 'Your recorded days and estimates' }),
     ).toBeVisible();
-    expect(screen.getByText(/May start/)).toBeVisible();
-    expect(screen.getByText(/rough confidence · based on 1 completed cycle/i)).toBeVisible();
+    const nextEstimate = within(sectionWithHeading('Next period'));
+    expect(nextEstimate.getByText('Estimated start range')).toBeVisible();
+    expect(nextEstimate.getByText('Most probable start')).toBeVisible();
+    expect(nextEstimate.getByText('Confidence')).toBeVisible();
+    const explanation = within(sectionWithHeading('Why this estimate?'));
+    expect(explanation.getByText('Based on')).toBeVisible();
+    expect(explanation.getByText('1 completed cycle')).toBeVisible();
 
     const snapshot = vaultController.getSnapshot();
     expect(snapshot.phase).toBe('unlocked');
@@ -689,20 +694,24 @@ describe('App', () => {
       vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
     });
 
+    const nextEstimate = within(sectionWithHeading('Next period'));
+    expect(nextEstimate.getByText('Estimated start range')).toBeVisible();
+    expect(nextEstimate.getByText('Confidence')).toBeVisible();
+
+    const explanation = within(sectionWithHeading('Why this estimate?'));
+    expect(explanation.getByText('Based on')).toBeVisible();
+    expect(explanation.getByText('2 completed cycles')).toBeVisible();
+    expect(explanation.getByText('Recent cycle lengths')).toBeVisible();
+    expect(explanation.getByText('28, 28 days')).toBeVisible();
+    expect(explanation.getByText('Estimated period length')).toBeVisible();
+
     await openRootDestination(user, 'History');
 
     expect(screen.getByRole('region', { name: 'Periods history' })).toBeVisible();
     expect(screen.getAllByText('Bleeding duration: 5 days')).toHaveLength(2);
     expect(screen.getAllByText('Cycle length: 28 days')).toHaveLength(2);
-
-    const nextEstimate = within(sectionWithHeading('Next period estimate'));
-    expect(nextEstimate.getByText('Estimated start range')).toBeVisible();
-    expect(nextEstimate.getByText('Confidence')).toBeVisible();
-
-    const explanation = within(sectionWithHeading('Why this estimate?'));
-    expect(explanation.getByText('Recorded cycle lengths used (days)')).toBeVisible();
-    expect(explanation.getByText('28, 28')).toBeVisible();
-    expect(explanation.getByText('Calculated bleeding duration')).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Next period' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Why this estimate?' })).not.toBeInTheDocument();
   });
 
   it('keeps an imported unknown period unchanged when date editing is cancelled', async () => {
@@ -714,7 +723,7 @@ describe('App', () => {
 
     await openRootDestination(user, 'History');
     await user.click(screen.getByRole('button', { name: /Edit period starting Jun 29, 2026/ }));
-    expect(screen.getByText('Select either the start or end date for this period.')).toBeVisible();
+    expect(screen.getByText('Select the start and end date for this period.')).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
     const snapshot = vaultController.getSnapshot();

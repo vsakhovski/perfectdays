@@ -7,12 +7,7 @@ import {
   buildDailyCheckInPayload,
   type PeriodTransition,
 } from '../../application/tracker/daily-check-in';
-import {
-  calculateForecast,
-  completedBleedDurations,
-  integerMedian,
-  type ForecastDetails,
-} from '../../domain/forecast';
+import { calculateForecast, completedBleedDurations, integerMedian } from '../../domain/forecast';
 import {
   deleteDailyCheckIn,
   JournalError,
@@ -371,48 +366,6 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
       pinProtectionAvailable={pinProtectionAvailable}
     />
   );
-}
-
-function forecastMessages(
-  forecast: ForecastDetails | null,
-  payload: VaultPayload,
-  language: 'en' | 'de',
-  t: ReturnType<typeof useTranslation>['t'],
-): readonly string[] {
-  if (payload.settings.forecastingPaused) {
-    return [t(($) => $.tracker.forecast.paused)];
-  }
-  if (!forecast) {
-    return [t(($) => $.tracker.forecast.unavailable)];
-  }
-
-  const messages: string[] = [
-    t(($) => $.tracker.forecast.range, {
-      range: formatLocalDateRange(forecast.earliestStart, forecast.latestStart, language),
-    }),
-    t(($) => $.tracker.forecast.central, {
-      date: formatLocalDate(forecast.centralStart, language),
-    }),
-    t(($) => $.tracker.forecast.confidenceLabel, {
-      confidence: t(($) => $.tracker.forecast.confidence[forecast.confidence]),
-    }),
-  ];
-
-  if (forecast.source === 'typical') {
-    messages.push(t(($) => $.tracker.forecast.typicalSource));
-  } else if (forecast.completedCyclesUsed > 0) {
-    messages.push(t(($) => $.tracker.forecast.basedOn, { count: forecast.completedCyclesUsed }));
-  }
-  if (forecast.predictedDuration !== undefined) {
-    messages.push(t(($) => $.tracker.forecast.duration, { count: forecast.predictedDuration }));
-  }
-  if (forecast.calendarMarkersSuppressed) {
-    messages.push(t(($) => $.tracker.forecast.variable));
-  }
-  if (forecast.isLate) {
-    messages.push(t(($) => $.tracker.forecast.late));
-  }
-  return messages;
 }
 
 export function TrackerPreferences({ payload }: { readonly payload: VaultPayload }) {
@@ -1048,38 +1001,32 @@ export function TrackerCalendar({
         : !editorHasObservation
           ? t(($) => $.mobile.checkIn.guidance.chooseObservation)
           : undefined;
-  const messages = forecastMessages(forecast, payload, resolvedLanguage, t);
-  const forecastHeadline =
-    activeEpisode !== undefined
-      ? t(($) => $.mobile.calendar.forecast.states.active.title)
-      : payload.settings.forecastingPaused
-        ? t(($) => $.mobile.calendar.forecast.states.paused.title)
-        : forecast === null
-          ? t(($) => $.mobile.calendar.forecast.states.unavailable.title)
-          : t(($) => $.mobile.calendar.forecast.range, {
-              range: formatLocalDateRange(
-                forecast.earliestStart,
-                forecast.latestStart,
-                resolvedLanguage,
-              ),
-            });
-  const forecastSummary =
-    activeEpisode !== undefined
-      ? activeNextEstimatedStart === undefined
-        ? t(($) => $.mobile.calendar.forecast.states.active.description)
-        : t(($) => $.mobile.calendar.forecast.states.active.nextEstimatedStart, {
-            date: formatLocalDate(activeNextEstimatedStart, resolvedLanguage),
-          })
-      : payload.settings.forecastingPaused
-        ? t(($) => $.mobile.calendar.forecast.states.paused.description)
-        : forecast === null
-          ? t(($) => $.mobile.calendar.forecast.states.unavailable.description)
-          : forecast.completedCyclesUsed > 0
-            ? t(($) => $.mobile.calendar.forecast.basis, {
-                confidence: t(($) => $.tracker.forecast.confidence[forecast.confidence]),
-                count: forecast.completedCyclesUsed,
-              })
-            : t(($) => $.tracker.forecast.typicalSource);
+  const nextEstimateCentral =
+    forecast === null
+      ? undefined
+      : activeEpisode === undefined
+        ? forecast.centralStart
+        : activeNextEstimatedStart;
+  const nextEstimateEarliest =
+    forecast === null || nextEstimateCentral === undefined
+      ? undefined
+      : addDays(nextEstimateCentral, -daysBetween(forecast.earliestStart, forecast.centralStart));
+  const nextEstimateLatest =
+    forecast === null || nextEstimateCentral === undefined
+      ? undefined
+      : addDays(nextEstimateCentral, daysBetween(forecast.centralStart, forecast.latestStart));
+  const cycleConsistency =
+    forecast?.recentCycleLengthSpan == null
+      ? 'unavailable'
+      : forecast.recentCycleLengthSpan <= 4
+        ? 'consistent'
+        : forecast.recentCycleLengthSpan <= 10
+          ? 'variable'
+          : 'highlyVariable';
+  const estimatedCycleLengthDays =
+    forecast === null || latestCompletedEpisode === undefined
+      ? undefined
+      : daysBetween(latestCompletedEpisode.startDate, forecast.centralStart);
   const selectedLog = payload.logs.find((log) => log.date === selectedDate);
   const selectedFlow = selectedLog?.flow;
   const selectedHasCheckIn = hasUserEnteredObservation(selectedLog);
@@ -1205,44 +1152,119 @@ export function TrackerCalendar({
           </button>
         </section>
 
-        <section className={styles['forecast']} aria-labelledby="tracker-forecast-title">
-          <h3 id="tracker-forecast-title">
-            {activeEpisode === undefined
-              ? t(($) => $.mobile.calendar.forecast.title)
-              : t(($) => $.mobile.calendar.forecast.states.active.title)}
-          </h3>
-          {activeEpisode === undefined ? (
-            <p className={styles['forecastLead']}>{forecastHeadline}</p>
-          ) : null}
-          <p>{forecastSummary}</p>
+        <section className={styles['estimateCard']} aria-labelledby="next-estimate-title">
+          <header className={styles['estimateHeader']}>
+            <h3 id="next-estimate-title">{t(($) => $.tracker.history.estimate.title)}</h3>
+          </header>
+          {forecast === null ||
+          nextEstimateCentral === undefined ||
+          nextEstimateEarliest === undefined ||
+          nextEstimateLatest === undefined ? (
+            <p className={styles['estimateMessage']}>
+              {payload.settings.forecastingPaused
+                ? t(($) => $.mobile.calendar.forecast.states.paused.description)
+                : t(($) => $.tracker.insights.forecast.unavailable)}
+            </p>
+          ) : (
+            <dl className={styles['estimateDetails']}>
+              <div>
+                <dt>{t(($) => $.tracker.history.estimate.rangeLabel)}</dt>
+                <dd>
+                  {formatLocalDateRange(nextEstimateEarliest, nextEstimateLatest, resolvedLanguage)}
+                </dd>
+              </div>
+              <div>
+                <dt>{t(($) => $.tracker.history.estimate.centralStartLabel)}</dt>
+                <dd>{formatLocalDate(nextEstimateCentral, resolvedLanguage)}</dd>
+              </div>
+              {forecast.predictedDuration === undefined ? null : (
+                <div>
+                  <dt>{t(($) => $.tracker.history.estimate.durationLabel)}</dt>
+                  <dd>
+                    {t(($) => $.tracker.insights.bleeding.days, {
+                      count: forecast.predictedDuration,
+                    })}
+                  </dd>
+                </div>
+              )}
+              <div>
+                <dt>{t(($) => $.tracker.insights.forecast.confidenceLabel)}</dt>
+                <dd>{t(($) => $.tracker.forecast.confidence[forecast.confidence])}</dd>
+              </div>
+            </dl>
+          )}
           {forecast?.calendarMarkersSuppressed ? (
-            <p>{t(($) => $.mobile.calendar.forecast.states.variable.description)}</p>
+            <p className={styles['estimateMessage']}>
+              {t(($) => $.mobile.calendar.forecast.states.variable.description)}
+            </p>
           ) : null}
-          {forecast?.isLate ? (
-            <p>{t(($) => $.mobile.calendar.forecast.states.late.description)}</p>
+          {forecast?.isLate && activeEpisode === undefined ? (
+            <p className={styles['estimateMessage']}>
+              {t(($) => $.mobile.calendar.forecast.states.late.description)}
+            </p>
           ) : null}
-          {activeEpisode === undefined && forecast !== null && messages.slice(1).length > 0 ? (
-            <details className={styles['forecastDetails']}>
-              <summary>{t(($) => $.mobile.calendar.forecast.why)}</summary>
-              {messages.slice(1).map((message) => (
-                <p key={message}>{message}</p>
-              ))}
-            </details>
-          ) : null}
-          {activeEpisode === undefined &&
-          forecast !== null &&
-          !isSameMonth(forecast.centralStart, visibleMonth) ? (
-            <button
-              className={styles['secondaryAction']}
-              onClick={() => {
-                setVisibleMonth(startOfMonth(forecast.centralStart));
-                setSelectedDate(forecast.centralStart);
-              }}
-              type="button"
-            >
-              {t(($) => $.mobile.calendar.forecast.showPredictedMonth)}
-            </button>
-          ) : null}
+        </section>
+
+        <section className={styles['estimateCard']} aria-labelledby="estimate-calculation-title">
+          <header className={styles['estimateHeader']}>
+            <h3 id="estimate-calculation-title">
+              {t(($) => $.tracker.history.estimate.explanationTitle)}
+            </h3>
+            <p>{t(($) => $.tracker.history.estimate.explanation)}</p>
+          </header>
+          {forecast === null ? (
+            <p className={styles['estimateMessage']}>
+              {t(($) => $.tracker.insights.forecast.unavailable)}
+            </p>
+          ) : (
+            <dl className={styles['estimateDetails']}>
+              <div>
+                <dt>{t(($) => $.tracker.history.estimate.basedOnLabel)}</dt>
+                <dd>
+                  {forecast.source === 'recorded'
+                    ? t(($) => $.tracker.history.estimate.basedOnRecorded, {
+                        count: forecast.completedCyclesUsed,
+                      })
+                    : t(($) => $.tracker.history.estimate.basedOnTypical)}
+                </dd>
+              </div>
+              {forecast.recentCycleLengths.length === 0 ? null : (
+                <div>
+                  <dt>{t(($) => $.tracker.history.estimate.recentCycleLengths)}</dt>
+                  <dd>
+                    {t(($) => $.tracker.history.estimate.recentCycleLengthsValue, {
+                      lengths: forecast.recentCycleLengths.join(', '),
+                    })}
+                  </dd>
+                </div>
+              )}
+              {estimatedCycleLengthDays === undefined ? null : (
+                <div>
+                  <dt>{t(($) => $.tracker.history.estimate.estimatedCycleLength)}</dt>
+                  <dd>
+                    {t(($) => $.tracker.insights.cycles.days, {
+                      count: estimatedCycleLengthDays,
+                    })}
+                  </dd>
+                </div>
+              )}
+              {forecast.predictedDuration === undefined ? null : (
+                <div>
+                  <dt>{t(($) => $.tracker.history.estimate.estimatedPeriodLength)}</dt>
+                  <dd>
+                    {t(($) => $.tracker.insights.bleeding.days, {
+                      count: forecast.predictedDuration,
+                    })}
+                  </dd>
+                </div>
+              )}
+            </dl>
+          )}
+          {forecast === null ? null : (
+            <p className={styles['consistencyNote']}>
+              {t(($) => $.tracker.history.estimate.consistency[cycleConsistency])}
+            </p>
+          )}
         </section>
 
         {onOpenInsights || onOpenHistory ? (

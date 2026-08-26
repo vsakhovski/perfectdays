@@ -159,7 +159,7 @@ export const de = {
       markers: {
         recordedRed: 'Aufgezeichneter Periodentag.',
         predictedRed: 'Geschätzter Periodentag.',
-        predictedStart: 'Zentrale Schätzung des Beginns.',
+        predictedStart: 'Wahrscheinlichster Beginn.',
         possibleStart: 'Möglicher Periodenbeginn.',
         orange: 'Möglicher Zeitraum vor der Periode.',
         green: 'Höheres Selbstvertrauen aufgezeichnet.',
@@ -279,25 +279,37 @@ export const de = {
       cycleLength_one: 'Zykluslänge: {{count}} Tag',
       cycleLength_other: 'Zykluslänge: {{count}} Tage',
       estimate: {
-        title: 'Schätzung der nächsten Periode',
+        title: 'Nächste Periode',
         rangeLabel: 'Geschätzter Startzeitraum',
-        centralStartLabel: 'Zentraler geschätzter Beginn',
+        centralStartLabel: 'Wahrscheinlichster Beginn',
         durationLabel: 'Geschätzte Blutungsdauer',
         explanationTitle: 'Warum diese Schätzung?',
         explanation:
-          'Die App berechnet den Median der aufgezeichneten Zykluslängen und addiert ihn zum Beginn der letzten abgeschlossenen Periode. Die kürzesten und längsten letzten Zyklen bilden zusammen mit einem Mindestspielraum den geschätzten Startzeitraum. Für die Blutungsdauer wird, wenn möglich, der Median abgeschlossener aufgezeichneter Perioden verwendet.',
-        calculatedCycleLength: 'Berechnete Zykluslänge',
-        cycleLengthsUsed: 'Verwendete aufgezeichnete Zykluslängen (Tage)',
-        noRecordedCycleLengths:
-          'Keine abgeschlossenen Zykluslängen; optionale Schätzung wird verwendet',
-        calculatedBleedingDuration: 'Berechnete Blutungsdauer',
-        durationWithSource: '{{count}} Tage · Quelle: {{source}}',
+          'Der wahrscheinlichste Beginn verwendet den mittleren Wert deiner letzten abgeschlossenen Zykluslängen. Unterschiede zwischen diesen Zyklen bestimmen, wie breit der geschätzte Zeitraum ist. Die geschätzte Periodenlänge verwendet den mittleren Wert deiner abgeschlossenen aufgezeichneten Perioden. Wenn noch nicht genügend Daten vorliegen, werden deine optionalen Startschätzungen verwendet.',
+        basedOnLabel: 'Basiert auf',
+        basedOnRecorded: '{{count}} abgeschlossenen Zyklen',
+        basedOnRecorded_one: '{{count}} abgeschlossenem Zyklus',
+        basedOnRecorded_other: '{{count}} abgeschlossenen Zyklen',
+        basedOnTypical: 'Deiner optionalen Startschätzung',
+        recentCycleLengths: 'Letzte Zykluslängen',
+        recentCycleLengthsValue: '{{lengths}} Tage',
+        estimatedCycleLength: 'Geschätzte Zykluslänge',
+        consistency: {
+          unavailable:
+            'Es gibt noch nicht genügend aufgezeichnete Zyklen, um ihre Regelmäßigkeit zu beschreiben.',
+          consistent: 'Deine letzten Zyklen waren weitgehend regelmäßig.',
+          variable:
+            'Deine letzten Zykluslängen schwanken, daher ist der geschätzte Zeitraum breiter.',
+          highlyVariable:
+            'Deine letzten Zykluslängen schwanken deutlich, daher ist der geschätzte Zeitraum breiter.',
+        },
+        estimatedPeriodLength: 'Geschätzte Periodenlänge',
       },
       calendar: {
         label: 'Kalender der aufgezeichneten Perioden',
         legend: 'Hintergrundfarben',
         cancel: 'Abbrechen',
-        selectBoundary: 'Wähle entweder das Start- oder Enddatum dieser Periode.',
+        selectBoundary: 'Wähle das Start- und Enddatum dieser Periode.',
         firstBoundary: 'Erste Grenze gewählt. Wähle die andere Grenze.',
         newFirstBoundary: 'Grenze der neuen Periode gewählt. Wähle die andere Grenze.',
         selectEndBoundary: 'Wähle ein Enddatum nach dem ausgewählten Startdatum.',
@@ -524,7 +536,6 @@ export const de = {
         basis_other:
           'Verlässlichkeit: {{confidence}} · basierend auf {{count}} abgeschlossenen Zyklen.',
         why: 'Warum diese Schätzung?',
-        showPredictedMonth: 'Monat der Schätzung anzeigen',
         states: {
           active: {
             title: 'Die aktuelle Periode ist aktiv',
