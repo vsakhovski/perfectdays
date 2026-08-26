@@ -25,6 +25,8 @@ export interface PeriodHistoryCopy {
   readonly startIntensity: Readonly<Record<PeriodStartIntensity, string>>;
   readonly edit: string;
   readonly editLabel: (dateLabel: string) => string;
+  readonly delete?: string;
+  readonly deleteLabel?: (dateLabel: string) => string;
 }
 
 export interface PeriodHistoryProps {
@@ -34,6 +36,7 @@ export interface PeriodHistoryProps {
   readonly formatDate: (date: LocalDate) => string;
   readonly formatDateRange: (startDate: LocalDate, endDate: LocalDate) => string;
   readonly onEdit: (entry: PeriodHistoryEntry, trigger: HTMLButtonElement) => void;
+  readonly onDelete?: (entry: PeriodHistoryEntry, trigger: HTMLButtonElement) => void;
   readonly selectedEntryId?: string;
   readonly showSectionLabel?: boolean;
 }
@@ -55,18 +58,27 @@ export function PeriodHistory({
   formatDate,
   formatDateRange,
   onEdit,
+  onDelete,
   selectedEntryId,
   showSectionLabel = true,
 }: PeriodHistoryProps) {
   const headingId = useId();
 
   return (
-    <section aria-busy={busy} aria-labelledby={headingId} className={styles['panel']}>
-      <header className={styles['heading']}>
-        {showSectionLabel ? <p className={styles['eyebrow']}>{copy.sectionLabel}</p> : null}
-        <h2 id={headingId}>{copy.title}</h2>
-        <p>{copy.description}</p>
-      </header>
+    <section
+      aria-busy={busy}
+      {...(showSectionLabel
+        ? { 'aria-labelledby': headingId }
+        : { 'aria-label': copy.sectionLabel })}
+      className={styles['panel']}
+    >
+      {showSectionLabel ? (
+        <header className={styles['heading']}>
+          <p className={styles['eyebrow']}>{copy.sectionLabel}</p>
+          <h2 id={headingId}>{copy.title}</h2>
+          <p>{copy.description}</p>
+        </header>
+      ) : null}
 
       {entries.length === 0 ? (
         <p className={styles['empty']}>{copy.empty}</p>
@@ -74,37 +86,49 @@ export function PeriodHistory({
         <ol className={styles['list']} role="list">
           {entries.map((entry) => {
             const dateLabel = entryDateLabel(entry, formatDate, formatDateRange);
-            const stateLabel =
+            const displayedDateLabel =
               entry.endDate === undefined
-                ? copy.active
+                ? `${formatDate(entry.startDate)} — ${copy.active}`
                 : entry.durationKnown
-                  ? copy.completed
-                  : copy.unknownDuration;
+                  ? dateLabel
+                  : `${formatDate(entry.startDate)} — ${copy.unknownDuration}`;
 
             return (
               <li className={styles['entry']} key={entry.id}>
-                <div className={styles['entrySummary']}>
-                  <div>
-                    <strong>{dateLabel}</strong>
-                    <span className={styles['state']}>{stateLabel}</span>
-                  </div>
-                  <p>
-                    <span>{copy.startIntensityLabel}</span>
-                    <strong>{copy.startIntensity[entry.startIntensity]}</strong>
-                  </p>
+                <strong className={styles['entryDates']}>{displayedDateLabel}</strong>
+                <div className={styles['entryActions']}>
+                  <button
+                    aria-label={copy.editLabel(dateLabel)}
+                    aria-pressed={entry.id === selectedEntryId}
+                    className={styles['editButton']}
+                    disabled={busy}
+                    onClick={(event) => {
+                      onEdit(entry, event.currentTarget);
+                    }}
+                    type="button"
+                  >
+                    <svg aria-hidden="true" viewBox="0 0 24 24">
+                      <path d="m4 16.5-.5 4 4-.5L19 8.5 15.5 5 4 16.5Zm9.5-9.5L17 10.5M3.5 20.5h17" />
+                    </svg>
+                  </button>
+                  {onDelete === undefined ||
+                  copy.delete === undefined ||
+                  copy.deleteLabel === undefined ? null : (
+                    <button
+                      aria-label={copy.deleteLabel(dateLabel)}
+                      className={styles['deleteButton']}
+                      disabled={busy}
+                      onClick={(event) => {
+                        onDelete(entry, event.currentTarget);
+                      }}
+                      type="button"
+                    >
+                      <svg aria-hidden="true" viewBox="0 0 24 24">
+                        <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
-                <button
-                  aria-label={copy.editLabel(dateLabel)}
-                  aria-pressed={entry.id === selectedEntryId}
-                  className={styles['editButton']}
-                  disabled={busy}
-                  onClick={(event) => {
-                    onEdit(entry, event.currentTarget);
-                  }}
-                  type="button"
-                >
-                  {copy.edit}
-                </button>
               </li>
             );
           })}

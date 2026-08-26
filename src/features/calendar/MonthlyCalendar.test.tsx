@@ -150,7 +150,7 @@ describe('MonthlyCalendar', () => {
     expect(inactiveDay).toHaveAttribute('data-active-month', 'false');
 
     const today = screen.getByRole('button', {
-      name: /Full date 2026-05-01.*Today.*Heavy flow.*Recorded period.*medium confidence.*Possible start.*Higher confidence.*Spotting recorded/u,
+      name: /Full date 2026-05-01.*Today.*Heavy flow.*Recorded period.*medium confidence.*Higher confidence.*Spotting recorded/u,
     });
     expect(today).toHaveAttribute('aria-current', 'date');
     expect(today).toHaveAttribute('data-flow', 'heavy');

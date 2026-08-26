@@ -109,26 +109,38 @@ export function LockScreen() {
           <span>{t(($) => $.vault.lock.eyebrow)}</span>
         </div>
         <h1 id="lock-title">{t(($) => $.vault.lock.title)}</h1>
-        {unlockFailed ? (
-          <p className={styles['error']} role="alert">
-            {t(($) => $.vault.lock.failed)}
-          </p>
-        ) : pending ? (
-          <p aria-live="polite" className={styles['introduction']} role="status">
-            {t(($) => $.vault.lock.unlocking)}
-          </p>
-        ) : (
-          <p className={styles['introduction']}>
-            {pinProtectionAvailable
-              ? t(($) => $.vault.lock.description)
-              : t(($) => $.vault.lock.cryptoUnavailable)}
-          </p>
-        )}
+        <div className={styles['lockMessage']}>
+          {unlockFailed ? (
+            <p className={styles['error']} role="alert">
+              {t(($) => $.vault.lock.failed)}
+            </p>
+          ) : pending ? (
+            <p aria-live="polite" className={styles['introduction']} role="status">
+              {t(($) => $.vault.lock.unlocking)}
+            </p>
+          ) : (
+            <p className={styles['introduction']}>
+              {pinProtectionAvailable
+                ? t(($) => $.vault.lock.description)
+                : t(($) => $.vault.lock.cryptoUnavailable)}
+            </p>
+          )}
+        </div>
 
         {pinProtectionAvailable ? (
           <div className={styles['lockPinEntry']}>
             <PinKeypad
-              autoFocus
+              bottomLeftControl={
+                <button
+                  aria-haspopup="dialog"
+                  className={styles['textButton']}
+                  onClick={openReset}
+                  ref={resetToggleRef}
+                  type="button"
+                >
+                  {t(($) => $.vault.lock.forgotPin)}
+                </button>
+              }
               deleteDigitLabel={t(($) => $.tracker.onboarding.pin.deleteDigit)}
               disabled={pending}
               hidePinLabel={t(($) => $.tracker.onboarding.pin.hidePin, {
@@ -147,17 +159,17 @@ export function LockScreen() {
               value={pin}
             />
           </div>
-        ) : null}
-
-        <button
-          aria-haspopup="dialog"
-          className={styles['textButton']}
-          onClick={openReset}
-          ref={resetToggleRef}
-          type="button"
-        >
-          {t(($) => $.vault.lock.forgotPin)}
-        </button>
+        ) : (
+          <button
+            aria-haspopup="dialog"
+            className={styles['textButton']}
+            onClick={openReset}
+            ref={resetToggleRef}
+            type="button"
+          >
+            {t(($) => $.vault.lock.forgotPin)}
+          </button>
+        )}
       </section>
 
       {showReset ? (

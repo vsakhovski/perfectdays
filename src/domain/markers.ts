@@ -1,4 +1,4 @@
-import { addDays } from './local-date';
+import { addDays, daysBetween } from './local-date';
 import type { DailyLog, LocalDate, PeriodEpisode } from './models';
 import type { ForecastDetails } from './forecast';
 
@@ -8,11 +8,15 @@ export interface DayMarkerSettings {
 }
 
 export interface DayMarkerInput {
+  /** Expected inclusive duration used only to project the remaining days of an open episode. */
+  activePredictedDuration?: number;
   date: LocalDate;
   episodes: readonly PeriodEpisode[];
   logs: readonly DailyLog[];
   forecast: ForecastDetails | null;
   settings: DayMarkerSettings;
+  /** Caps the visual range of an open episode; omitted callers show only explicitly logged days. */
+  today?: LocalDate;
 }
 
 export interface DayMarkers {
@@ -42,6 +46,39 @@ function isWithinCompletedEpisode(date: LocalDate, episode: PeriodEpisode): bool
   return episode.endDate !== undefined && date >= episode.startDate && date <= episode.endDate;
 }
 
+function projectedForecastStarts(
+  date: LocalDate,
+  forecast: ForecastDetails,
+  episodes: readonly PeriodEpisode[],
+  minimumIndex = 0,
+): readonly LocalDate[] {
+  let latestCompletedEpisode: PeriodEpisode | undefined;
+  for (const episode of episodes) {
+    if (
+      episode.endDate !== undefined &&
+      (latestCompletedEpisode === undefined || episode.startDate > latestCompletedEpisode.startDate)
+    ) {
+      latestCompletedEpisode = episode;
+    }
+  }
+  if (latestCompletedEpisode === undefined) {
+    return minimumIndex === 0 ? [forecast.centralStart] : [];
+  }
+
+  const centralCycleLength = daysBetween(latestCompletedEpisode.startDate, forecast.centralStart);
+  if (centralCycleLength <= 0) return minimumIndex === 0 ? [forecast.centralStart] : [];
+
+  const daysFromFirstPrediction = daysBetween(forecast.centralStart, date);
+  const nearestIndex = Math.max(
+    minimumIndex,
+    Math.floor(daysFromFirstPrediction / centralCycleLength),
+  );
+  return [
+    addDays(forecast.centralStart, nearestIndex * centralCycleLength),
+    addDays(forecast.centralStart, (nearestIndex + 1) * centralCycleLength),
+  ];
+}
+
 export function deriveDayMarkers(input: DayMarkerInput): DayMarkers {
   if (
     !Number.isSafeInteger(input.settings.orangeDays) ||
@@ -52,40 +89,71 @@ export function deriveDayMarkers(input: DayMarkerInput): DayMarkers {
   }
 
   const log = input.logs.find((candidate) => candidate.date === input.date);
+  const today = input.today;
+  const activeEpisode = input.episodes.find((episode) => episode.endDate === undefined);
   const recordedRed =
     input.episodes.some((episode) => isWithinCompletedEpisode(input.date, episode)) ||
+    (today !== undefined &&
+      input.episodes.some(
+        (episode) =>
+          episode.endDate === undefined && input.date >= episode.startDate && input.date <= today,
+      )) ||
     (log !== undefined && isRecordedRed(log, input.episodes));
   const spotting = log?.flow === 'spotting';
   const green = log?.confidence === 4 || log?.confidence === 5;
   const forecast = input.forecast;
+  const activePredictedEnd =
+    activeEpisode === undefined || input.activePredictedDuration === undefined
+      ? undefined
+      : addDays(activeEpisode.startDate, input.activePredictedDuration - 1);
+  const activeRemainingPredictedRed =
+    !recordedRed &&
+    activeEpisode !== undefined &&
+    today !== undefined &&
+    activePredictedEnd !== undefined &&
+    input.date > today &&
+    input.date >= activeEpisode.startDate &&
+    input.date <= activePredictedEnd;
 
   if (forecast === null || forecast.calendarMarkersSuppressed || recordedRed) {
     return {
       recordedRed,
       spotting,
       green,
-      predictedRed: false,
+      predictedRed: activeRemainingPredictedRed,
       predictedStart: false,
       possibleStart: false,
       orange: false,
     };
   }
 
-  const predictedEnd = addDays(forecast.centralStart, (forecast.predictedDuration ?? 1) - 1);
-  const predictedRed = input.date >= forecast.centralStart && input.date <= predictedEnd;
-  const possibleStart =
-    !predictedRed && input.date >= forecast.earliestStart && input.date <= forecast.latestStart;
-  const orangeStart = addDays(forecast.centralStart, -input.settings.orangeDays);
+  const projectedStarts = projectedForecastStarts(
+    input.date,
+    forecast,
+    input.episodes,
+    activeEpisode === undefined ? 0 : 1,
+  );
+  const predictedRed =
+    activeRemainingPredictedRed ||
+    projectedStarts.some((start) => {
+      const predictedEnd = addDays(start, (forecast.predictedDuration ?? 1) - 1);
+      return input.date >= start && input.date <= predictedEnd;
+    });
   const orange =
-    input.settings.orangeEnabled && input.date >= orangeStart && input.date < forecast.centralStart;
+    !predictedRed &&
+    input.settings.orangeEnabled &&
+    projectedStarts.some((start) => {
+      const orangeStart = addDays(start, -input.settings.orangeDays);
+      return input.date >= orangeStart && input.date < start;
+    });
 
   return {
     recordedRed,
     spotting,
     green,
     predictedRed,
-    predictedStart: predictedRed && input.date === forecast.centralStart,
-    possibleStart,
+    predictedStart: false,
+    possibleStart: false,
     orange,
   };
 }

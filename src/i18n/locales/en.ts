@@ -114,7 +114,7 @@ export const en = {
         cycleRange: 'Choose a whole number from 1 to 365 days.',
         bleedRange: 'Choose a whole number from 1 to 90 days.',
         orangeRange: 'Choose a whole number from 1 to 14.',
-        futureDate: 'Future dates cannot be added to period history.',
+        futureDate: 'Future dates cannot be added to periods history.',
         pinSixDigits: 'Enter a six-digit PIN in both fields.',
         pinMismatch: 'The PINs do not match.',
         pinFailed: 'PIN protection could not be enabled. Your journal was not changed.',
@@ -159,6 +159,8 @@ export const en = {
       },
       markerConfidence: {
         predictedRed: 'Predicted period day. Forecast confidence: {{confidence}}.',
+        activePredictedRed:
+          'Estimated remaining period day based on recorded or usual bleeding duration.',
         possibleStart: 'Possible period start. Forecast confidence: {{confidence}}.',
         orange: 'Possible pre-period window. Forecast confidence: {{confidence}}.',
       },
@@ -242,10 +244,10 @@ export const en = {
       },
     },
     history: {
-      sectionLabel: 'Period history',
-      title: 'Review and correct period dates',
+      sectionLabel: 'Periods history',
+      title: 'Recorded periods',
       description:
-        'Edit the start and inclusive end of a recorded period. Split and merge tools are not part of this version.',
+        'Select a recorded period, or select an empty calendar date to begin a new one, then choose its two boundaries.',
       empty: 'No periods have been recorded yet.',
       active: 'Active period',
       completed: 'Completed; duration known',
@@ -257,8 +259,39 @@ export const en = {
         medium: 'Medium',
         heavy: 'Heavy',
       },
-      edit: 'Correct dates',
-      editLabel: 'Correct period starting {{date}}',
+      edit: 'Edit dates',
+      editLabel: 'Edit period starting {{date}}',
+      calendar: {
+        label: 'Recorded periods calendar',
+        legend: 'Calendar markers',
+        cancel: 'Cancel',
+        selectBoundary: 'Select either the start or end date for this period.',
+        firstBoundary: 'First boundary selected. Select the other boundary.',
+        newFirstBoundary: 'New period boundary selected. Select the other boundary.',
+        selectedStart: 'Selected period start date',
+        selectedEnd: 'Selected period end date',
+        selectedRange: 'Inside the selected period range',
+        saved: 'Period dates updated.',
+        added: 'New period added.',
+        configure: {
+          title: 'Configure period {{range}}',
+          description: 'Save these start and end dates for the period?',
+          save: 'Save period',
+          saving: 'Saving period…',
+          cancel: 'Cancel',
+        },
+      },
+      delete: {
+        action: 'Delete period',
+        label: 'Delete period {{date}}',
+        title: 'Delete period {{range}}?',
+        description:
+          'This removes the complete recorded period. Ratings, notes, and other unrelated daily observations are kept.',
+        confirm: 'Delete period',
+        deleting: 'Deleting period…',
+        cancel: 'Cancel',
+        deleted: 'Period deleted.',
+      },
       correction: {
         title: 'Correct period dates',
         close: 'Close period correction',
@@ -362,7 +395,7 @@ export const en = {
         laterPeriodDays:
           'This period has recorded days after this date. Remove those entries before ending it here.',
         noneRequiresPeriodCorrection:
-          'None cannot change a completed period or skip later recorded period days. Correct the period dates in Period history.',
+          'None cannot change a completed period or skip later recorded period days. Correct the period dates in Periods history.',
         periodConflict:
           'That period change conflicts with another period. Correct the existing dates first.',
         noActivePeriod: 'There is no active period to continue or end.',
@@ -472,9 +505,9 @@ export const en = {
       context: {
         navigationLabel: 'Calendar details',
         insights: 'Insights',
-        periodHistory: 'Period history',
+        periodHistory: 'Periods history',
         closeInsights: 'Close Insights',
-        closePeriodHistory: 'Close Period history',
+        closePeriodHistory: 'Close Periods history',
       },
       day: {
         title: 'Details for {{date}}',

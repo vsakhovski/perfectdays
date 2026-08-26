@@ -168,6 +168,8 @@ export const de = {
       },
       markerConfidence: {
         predictedRed: 'Geschätzter Periodentag. Prognosesicherheit: {{confidence}}.',
+        activePredictedRed:
+          'Geschätzter verbleibender Periodentag auf Grundlage der aufgezeichneten oder üblichen Blutungsdauer.',
         possibleStart: 'Möglicher Periodenbeginn. Prognosesicherheit: {{confidence}}.',
         orange: 'Möglicher Zeitraum vor der Periode. Prognosesicherheit: {{confidence}}.',
       },
@@ -253,9 +255,9 @@ export const de = {
     },
     history: {
       sectionLabel: 'Periodenverlauf',
-      title: 'Periodendaten prüfen und korrigieren',
+      title: 'Aufgezeichnete Perioden',
       description:
-        'Bearbeite den Start und das einschließliche Ende einer aufgezeichneten Periode. Teilen und Zusammenführen gehören noch nicht zu dieser Version.',
+        'Wähle eine aufgezeichnete Periode oder beginne eine neue über ein leeres Kalenderdatum und bestimme dann ihre beiden Grenzen.',
       empty: 'Noch keine Periode aufgezeichnet.',
       active: 'Aktive Periode',
       completed: 'Beendet; Dauer bekannt',
@@ -267,8 +269,39 @@ export const de = {
         medium: 'Mittel',
         heavy: 'Stark',
       },
-      edit: 'Daten korrigieren',
-      editLabel: 'Periode ab {{date}} korrigieren',
+      edit: 'Daten bearbeiten',
+      editLabel: 'Periode ab {{date}} bearbeiten',
+      calendar: {
+        label: 'Kalender der aufgezeichneten Perioden',
+        legend: 'Kalendermarkierungen',
+        cancel: 'Abbrechen',
+        selectBoundary: 'Wähle entweder das Start- oder Enddatum dieser Periode.',
+        firstBoundary: 'Erste Grenze gewählt. Wähle die andere Grenze.',
+        newFirstBoundary: 'Grenze der neuen Periode gewählt. Wähle die andere Grenze.',
+        selectedStart: 'Gewähltes Startdatum der Periode',
+        selectedEnd: 'Gewähltes Enddatum der Periode',
+        selectedRange: 'Innerhalb des gewählten Periodenzeitraums',
+        saved: 'Periodendaten aktualisiert.',
+        added: 'Neue Periode hinzugefügt.',
+        configure: {
+          title: 'Periode {{range}} konfigurieren',
+          description: 'Diese Start- und Enddaten für die Periode speichern?',
+          save: 'Periode speichern',
+          saving: 'Periode wird gespeichert…',
+          cancel: 'Abbrechen',
+        },
+      },
+      delete: {
+        action: 'Periode löschen',
+        label: 'Periode {{date}} löschen',
+        title: 'Periode {{range}} löschen?',
+        description:
+          'Dadurch wird die gesamte aufgezeichnete Periode entfernt. Bewertungen, Notizen und andere unabhängige tägliche Beobachtungen bleiben erhalten.',
+        confirm: 'Periode löschen',
+        deleting: 'Periode wird gelöscht…',
+        cancel: 'Abbrechen',
+        deleted: 'Periode gelöscht.',
+      },
       correction: {
         title: 'Periodendaten korrigieren',
         close: 'Korrektur der Periodendaten schließen',

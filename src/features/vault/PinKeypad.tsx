@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 
 import styles from './PinKeypad.module.css';
 
@@ -7,6 +7,7 @@ const PIN_ZERO = '0';
 
 export interface PinKeypadProps {
   readonly autoFocus?: boolean;
+  readonly bottomLeftControl?: ReactNode;
   readonly deleteDigitLabel: string;
   readonly disabled?: boolean;
   readonly error?: string;
@@ -24,6 +25,7 @@ export interface PinKeypadProps {
 
 export function PinKeypad({
   autoFocus = false,
+  bottomLeftControl,
   deleteDigitLabel,
   disabled = false,
   error,
@@ -120,7 +122,12 @@ export function PinKeypad({
             {digit}
           </button>
         ))}
-        <span aria-hidden="true" className={styles['pinKeypadSpacer']} />
+        <span
+          aria-hidden={bottomLeftControl === undefined ? 'true' : undefined}
+          className={styles['pinKeypadAuxiliary']}
+        >
+          {bottomLeftControl}
+        </span>
         <button
           disabled={disabled || (value.length >= 6 && !replaceOnNextDigit)}
           onClick={() => {

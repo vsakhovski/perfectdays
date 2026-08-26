@@ -78,7 +78,11 @@ export function completedCycleLengths(
   episodes: readonly PeriodEpisode[],
   limit = MAX_RECENT_SAMPLES,
 ): number[] {
-  const sorted = [...episodes].sort(compareEpisodes);
+  const sorted = episodes
+    .filter((episode): episode is PeriodEpisode & { endDate: LocalDate } =>
+      Boolean(episode.endDate),
+    )
+    .sort(compareEpisodes);
   const lengths: number[] = [];
 
   for (let index = 1; index < sorted.length; index += 1) {
@@ -126,11 +130,15 @@ function maximumDate(left: LocalDate, right: LocalDate): LocalDate {
 }
 
 export function calculateForecast(input: ForecastInput): ForecastDetails | null {
-  if (input.settings.forecastingPaused || input.episodes.length === 0) {
+  if (input.settings.forecastingPaused) {
     return null;
   }
 
-  const episodes = [...input.episodes].sort(compareEpisodes);
+  const episodes = input.episodes
+    .filter((episode): episode is PeriodEpisode & { endDate: LocalDate } =>
+      Boolean(episode.endDate),
+    )
+    .sort(compareEpisodes);
   const latestEpisode = episodes.at(-1);
 
   if (!latestEpisode) {

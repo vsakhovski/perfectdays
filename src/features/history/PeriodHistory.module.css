@@ -75,6 +75,16 @@
   background: var(--color-surface-subtle);
 }
 
+.entryDates {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.entryActions {
+  display: flex;
+  gap: 0.45rem;
+}
+
 .entrySummary {
   gap: 0.65rem;
   min-inline-size: 0;
@@ -102,6 +112,7 @@
 }
 
 .editButton,
+.deleteButton,
 .saveButton,
 .secondaryButton,
 .closeButton {
@@ -111,6 +122,31 @@
   border-radius: 999px;
   cursor: pointer;
   font-weight: 750;
+}
+
+.editButton,
+.deleteButton {
+  display: grid;
+  place-items: center;
+  inline-size: 2.75rem;
+  padding: 0;
+  border-radius: var(--radius-small);
+}
+
+.editButton svg,
+.deleteButton svg {
+  inline-size: 1.35rem;
+  block-size: 1.35rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.deleteButton {
+  border-color: var(--color-marker-red);
+  color: var(--color-danger);
 }
 
 .editButton,
@@ -320,6 +356,7 @@
 }
 
 .editButton:focus-visible,
+.deleteButton:focus-visible,
 .closeButton:focus-visible,
 .saveButton:focus-visible,
 .secondaryButton:focus-visible,
@@ -331,6 +368,7 @@
 }
 
 .editButton:disabled,
+.deleteButton:disabled,
 .closeButton:disabled,
 .saveButton:disabled,
 .secondaryButton:disabled,
@@ -370,11 +408,7 @@
 
 @media (max-width: 30rem) {
   .entry {
-    grid-template-columns: 1fr;
-  }
-
-  .editButton {
-    justify-self: stretch;
+    padding: 0.8rem;
   }
 }
 

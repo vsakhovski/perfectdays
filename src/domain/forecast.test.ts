@@ -11,11 +11,16 @@ import {
 
 const timestamp = '2026-01-01T12:00:00.000Z';
 
-function episode(id: string, startDate: string, endDate?: string): PeriodEpisode {
+function episode(
+  id: string,
+  startDate: string,
+  endDate: string | null = startDate,
+  durationKnown = true,
+): PeriodEpisode {
   return {
     id,
     startDate: asLocalDate(startDate),
-    ...(endDate === undefined ? {} : { endDate: asLocalDate(endDate) }),
+    ...(endDate === null ? {} : { endDate: asLocalDate(endDate), durationKnown }),
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -23,11 +28,11 @@ function episode(id: string, startDate: string, endDate?: string): PeriodEpisode
 
 function episodesFromLengths(first: string, lengths: readonly number[]): PeriodEpisode[] {
   let start = asLocalDate(first);
-  const result = [episode('episode-0', start)];
+  const result = [episode('episode-0', start, start, false)];
 
   lengths.forEach((length, index) => {
     start = addDays(start, length);
-    result.push(episode(`episode-${String(index + 1)}`, start));
+    result.push(episode(`episode-${String(index + 1)}`, start, start, false));
   });
 
   return result;
@@ -61,14 +66,14 @@ describe('forecast statistics', () => {
     expect(() => integerMedian([28, 29.5])).toThrow(RangeError);
   });
 
-  it('derives cycle lengths from sorted successive starts, including an active latest episode', () => {
+  it('derives cycle lengths only from sorted completed episodes', () => {
     const episodes = [
-      episode('third', '2026-03-02'),
+      episode('active-third', '2026-03-02', null),
       episode('first', '2026-01-01', '2026-01-05'),
       episode('second', '2026-01-31', '2026-02-04'),
     ];
 
-    expect(completedCycleLengths(episodes)).toEqual([30, 30]);
+    expect(completedCycleLengths(episodes)).toEqual([30]);
   });
 
   it('uses only the latest six completed cycle lengths', () => {
@@ -80,7 +85,7 @@ describe('forecast statistics', () => {
 
   it('calculates inclusive completed durations and skips active episodes', () => {
     const episodes = [
-      episode('second', '2026-02-01'),
+      episode('second', '2026-02-01', null),
       episode('first', '2026-01-01', '2026-01-05'),
       episode('third', '2026-03-01', '2026-03-01'),
     ];
@@ -133,7 +138,7 @@ describe('calculateForecast', () => {
 
   it('uses a typical-length fallback with a fixed plus-or-minus four-day rough range', () => {
     const forecast = calculateForecast({
-      episodes: [episode('one', '2026-01-31')],
+      episodes: [episode('one', '2026-01-31', '2026-01-31', false)],
       settings: {
         forecastingPaused: false,
         typicalCycleLength: 28,

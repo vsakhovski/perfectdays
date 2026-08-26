@@ -7,7 +7,12 @@ import {
   buildDailyCheckInPayload,
   type PeriodTransition,
 } from '../../application/tracker/daily-check-in';
-import { calculateForecast, type ForecastDetails } from '../../domain/forecast';
+import {
+  calculateForecast,
+  completedBleedDurations,
+  integerMedian,
+  type ForecastDetails,
+} from '../../domain/forecast';
 import {
   deleteDailyCheckIn,
   JournalError,
@@ -15,7 +20,13 @@ import {
   type BleedingFlow,
   type JournalMutationResult,
 } from '../../domain/journal';
-import { addMonths, calendarMonthGrid, isSameMonth, startOfMonth } from '../../domain/local-date';
+import {
+  addDays,
+  addMonths,
+  calendarMonthGrid,
+  isSameMonth,
+  startOfMonth,
+} from '../../domain/local-date';
 import { deriveDayMarkers } from '../../domain/markers';
 import type { DailyLog, LocalDate, Rating, VaultPayload } from '../../domain/models';
 import { completeOnboarding, skipOnboarding } from '../../domain/onboarding';
@@ -67,6 +78,18 @@ function valueFromLog(log: DailyLog | undefined): DayDetailValue {
     ...(log.pain !== undefined ? { pain: log.pain } : {}),
     ...(log.note !== undefined ? { note: log.note } : {}),
   };
+}
+
+function hasUserEnteredObservation(log: DailyLog | undefined): boolean {
+  return (
+    log !== undefined &&
+    (log.flow !== undefined ||
+      log.confidence !== undefined ||
+      log.tension !== undefined ||
+      log.energy !== undefined ||
+      log.pain !== undefined ||
+      log.note !== undefined)
+  );
 }
 
 function periodContainingDate(payload: VaultPayload, date: LocalDate) {
@@ -535,6 +558,16 @@ export function TrackerCalendar({
   const handledCheckInRequestRef = useRef(0);
   const handledGoTodayRequestRef = useRef(0);
   const acknowledgedGoTodayRequestRef = useRef(0);
+  const activeEpisode = payload.episodes.find((episode) => episode.endDate === undefined);
+  const activePredictedDuration =
+    activeEpisode === undefined
+      ? undefined
+      : (integerMedian(completedBleedDurations(payload.episodes)) ??
+        payload.settings.typicalBleedDuration);
+  const activePredictedEnd =
+    activeEpisode === undefined || activePredictedDuration === undefined
+      ? undefined
+      : addDays(activeEpisode.startDate, activePredictedDuration - 1);
   const forecast = useMemo(
     () =>
       calculateForecast({
@@ -648,24 +681,32 @@ export function TrackerCalendar({
           predictedRed: t(($) => $.tracker.calendar.markerConfidence.predictedRed, {
             confidence: forecastConfidence,
           }),
-          possibleStart: t(($) => $.tracker.calendar.markerConfidence.possibleStart, {
-            confidence: forecastConfidence,
-          }),
           orange: t(($) => $.tracker.calendar.markerConfidence.orange, {
             confidence: forecastConfidence,
           }),
         };
+  const activeRemainingMarkerDescriptions = {
+    predictedRed: t(($) => $.tracker.calendar.markerConfidence.activePredictedRed),
+  } as const;
   const calendarMonths: CalendarMonth[] = [];
   for (let month = calendarRangeStart; month <= calendarRangeEnd; month = addMonths(month, 1)) {
     const renderedMonth = month;
     const days: readonly CalendarDay[] = calendarMonthGrid(renderedMonth, firstDay).map((date) => {
       const log = payload.logs.find((candidate) => candidate.date === date);
-      const episode = periodContainingDate(payload, date);
+      const episode = date <= today ? periodContainingDate(payload, date) : undefined;
       const flow = isBleedingFlow(log?.flow)
         ? log.flow
         : log?.flow === undefined && episode !== undefined
           ? 'medium'
           : undefined;
+      const markerDescriptions =
+        activeEpisode !== undefined &&
+        activePredictedEnd !== undefined &&
+        date > today &&
+        date >= activeEpisode.startDate &&
+        date <= activePredictedEnd
+          ? activeRemainingMarkerDescriptions
+          : forecastMarkerDescriptions;
 
       return {
         date,
@@ -678,11 +719,13 @@ export function TrackerCalendar({
         dayNumberLabel: numberFormatter.format(Number(date.slice(8, 10))),
         isCurrentMonth: isSameMonth(date, renderedMonth),
         markers: deriveDayMarkers({
+          ...(activePredictedDuration === undefined ? {} : { activePredictedDuration }),
           date,
           episodes: payload.episodes,
           logs: payload.logs,
           forecast,
           settings: payload.settings,
+          today,
         }),
         ...(flow === undefined
           ? {}
@@ -690,9 +733,7 @@ export function TrackerCalendar({
               flow,
               flowDescription: t(($) => $.tracker.dayDetail.flowOptions[flow]),
             }),
-        ...(forecastMarkerDescriptions === null
-          ? {}
-          : { markerDescriptions: forecastMarkerDescriptions }),
+        ...(markerDescriptions === null ? {} : { markerDescriptions }),
         ...(date > today ? { disabledDescription: t(($) => $.tracker.calendar.future) } : {}),
       };
     });
@@ -743,7 +784,7 @@ export function TrackerCalendar({
     pain: ratingCopy('pain'),
   } satisfies Readonly<Record<RatingField, RatingScaleCopy>>;
   const dayDetailCopy: DayDetailCopy = {
-    title: payload.logs.some((log) => log.date === selectedDate)
+    title: hasUserEnteredObservation(payload.logs.find((log) => log.date === selectedDate))
       ? selectedDate === today
         ? t(($) => $.mobile.checkIn.editTitle)
         : t(($) => $.mobile.checkIn.editDayTitle)
@@ -960,7 +1001,6 @@ export function TrackerCalendar({
 
   const existingLog = payload.logs.find((log) => log.date === selectedDate);
   const selectedEpisode = periodContainingDate(payload, selectedDate);
-  const activeEpisode = payload.episodes.find((episode) => episode.endDate === undefined);
   const selectedDateHasLaterActiveDays =
     activeEpisode !== undefined &&
     payload.logs.some((log) => log.episodeId === activeEpisode.id && log.date > selectedDate);
@@ -1078,7 +1118,9 @@ export function TrackerCalendar({
               ))}
             </details>
           ) : null}
-          {forecast && !isSameMonth(forecast.centralStart, visibleMonth) ? (
+          {activeEpisode === undefined &&
+          forecast !== null &&
+          !isSameMonth(forecast.centralStart, visibleMonth) ? (
             <button
               className={styles['secondaryAction']}
               onClick={() => {
@@ -1129,7 +1171,7 @@ export function TrackerCalendar({
             setEditorOpen(false);
             onEditorOpenChange?.(false);
           }}
-          {...(existingLog === undefined ? {} : { onDelete: deleteCheckIn })}
+          {...(!hasUserEnteredObservation(existingLog) ? {} : { onDelete: deleteCheckIn })}
           {...(onDetailsOpenChange === undefined ? {} : { onDetailsOpenChange })}
           onPeriodAction={handlePeriodAction}
           onSave={saveCheckIn}

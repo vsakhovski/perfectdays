@@ -550,47 +550,36 @@ test.describe('English application shell', () => {
     );
     expect(hasNoHorizontalOverflow).toBe(true);
 
-    await page.getByRole('button', { name: 'Period history' }).click();
-    await page.getByRole('button', { name: /Correct period starting/ }).click();
-    const correctionDialog = page.getByRole('dialog', { name: 'Correct period dates' });
-    const startDateInput = correctionDialog.getByLabel('Start date');
-    await correctionDialog.getByRole('radio', { name: /Ended.*date known/u }).check();
-    const endDateInput = correctionDialog.getByLabel('Inclusive end date');
-    const recordedDate = await startDateInput.inputValue();
-    await endDateInput.fill(recordedDate);
-    const correctedStartDate = await page.evaluate((startDate) => {
-      const date = new Date(`${startDate}T12:00:00.000Z`);
-      date.setUTCDate(date.getUTCDate() - 1);
-      return date.toISOString().slice(0, 10);
-    }, recordedDate);
+    const periodDates = await page.evaluate(() => {
+      const end = new Date();
+      const start = new Date(end);
+      start.setDate(end.getDate() - 1);
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        day: 'numeric',
+        month: 'long',
+        weekday: 'long',
+        year: 'numeric',
+      });
+      return { endLabel: formatter.format(end), startLabel: formatter.format(start) };
+    });
 
-    await startDateInput.fill(correctedStartDate);
-    await correctionDialog.getByRole('radio', { name: 'Heavy' }).check();
-    await correctionDialog.getByRole('button', { name: 'Save corrected dates' }).click();
-    await expect(correctionDialog.getByText('Period dates corrected.')).toBeVisible();
+    await page.getByRole('button', { name: 'Periods history' }).click();
+    await page.getByRole('button', { name: /Edit period starting/ }).click();
+    await page.getByRole('button', { name: new RegExp(`^${periodDates.startLabel}`) }).click();
+    await page.getByRole('button', { name: new RegExp(`^${periodDates.endLabel}`) }).click();
+    const correctionDialog = page.getByRole('dialog', { name: /Configure period/ });
     const accessibilityScan = await new AxeBuilder({ page }).analyze();
     expect(accessibilityScan.violations).toEqual([]);
-    await correctionDialog.getByRole('button', { name: 'Close period correction' }).click();
+    await correctionDialog.getByRole('button', { name: 'Save period' }).click();
+    await expect(page.getByText('Period dates updated.')).toBeVisible();
 
     await page.reload();
     await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
-    await page.getByRole('button', { name: 'Period history' }).click();
-    await page.getByRole('button', { name: /Correct period starting/ }).click();
-
-    const persistedCorrectionDialog = page.getByRole('dialog', {
-      name: 'Correct period dates',
-    });
-    await expect(persistedCorrectionDialog.getByLabel('Start date')).toHaveValue(
-      correctedStartDate,
+    await page.getByRole('button', { name: 'Periods history' }).click();
+    await expect(page.getByRole('button', { name: /Edit period starting/ })).toHaveAccessibleName(
+      /Edit period starting .*–.*/u,
     );
-    await expect(persistedCorrectionDialog.getByLabel('Inclusive end date')).toHaveValue(
-      recordedDate,
-    );
-    await expect(persistedCorrectionDialog.getByRole('radio', { name: 'Heavy' })).toBeChecked();
-    await persistedCorrectionDialog
-      .getByRole('button', { name: 'Close period correction' })
-      .click();
-    await page.getByRole('button', { name: 'Close Period history' }).click();
+    await page.getByRole('button', { name: 'Close Periods history' }).click();
 
     const persistedToday = page.locator('button[aria-current="date"]');
     await expect(persistedToday).toHaveAccessibleName(/Recorded period day/);
@@ -823,13 +812,13 @@ test.describe('Phase 5 compact mobile shell', () => {
     await closeInsights.click();
     await expect(insightsTrigger).toBeFocused();
 
-    const historyTrigger = page.getByRole('button', { name: 'Period history' });
+    const historyTrigger = page.getByRole('button', { name: 'Periods history' });
     await historyTrigger.click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Period history' })).toBeFocused();
-    await expect(page.getByText('Period history', { exact: true })).toHaveCount(1);
+    await expect(page.getByRole('heading', { level: 1, name: 'Periods history' })).toBeFocused();
+    await expect(page.getByText('Periods history', { exact: true })).toHaveCount(1);
     await expect(navigation).toBeHidden();
     await expect(checkInAction).toBeHidden();
-    await page.getByRole('button', { name: 'Close Period history' }).click();
+    await page.getByRole('button', { name: 'Close Periods history' }).click();
     await expect(historyTrigger).toBeFocused();
 
     const calendarUsesOnlyVerticalInnerScrolling = await page.evaluate<boolean>(
@@ -981,7 +970,13 @@ test.describe('Phase 5 compact mobile shell', () => {
         ),
       )
       .toBeGreaterThan(1);
+    // Start the reverse-direction assertion from a settled calendar. WebKit can coalesce
+    // immediately reversed smooth-scroll requests, which is not representative of a fresh tap.
+    await page.reload();
+    await expect(monthHeading).toHaveText(monthBeforeButtonNavigation ?? '');
     await page.getByRole('button', { name: 'Previous month' }).click();
+    await expect(monthHeading).not.toHaveText(monthBeforeButtonNavigation ?? '');
+    await goToToday.click();
     await expect(monthHeading).toHaveText(monthBeforeButtonNavigation ?? '');
 
     const todayCell = page.locator('button[aria-current="date"]');

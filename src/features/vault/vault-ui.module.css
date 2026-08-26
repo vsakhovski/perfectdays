@@ -75,6 +75,16 @@
   justify-items: center;
 }
 
+.lockMessage {
+  block-size: 3.2rem;
+  margin-block-start: 0.65rem;
+  overflow-y: auto;
+}
+
+.lockMessage > p {
+  margin: 0;
+}
+
 .field {
   display: grid;
   gap: 0.45rem;

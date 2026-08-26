@@ -150,8 +150,8 @@ describe('deriveDayMarkers recorded observations', () => {
 });
 
 describe('deriveDayMarkers forecast states', () => {
-  it('marks the predicted start and its known-duration continuation separately', () => {
-    expect(markers('2026-04-01')).toMatchObject({ predictedRed: true, predictedStart: true });
+  it('marks every predicted day without a separate central-start marker', () => {
+    expect(markers('2026-04-01')).toMatchObject({ predictedRed: true, predictedStart: false });
     expect(markers('2026-04-04')).toMatchObject({ predictedRed: true, predictedStart: false });
     expect(markers('2026-04-05').predictedRed).toBe(false);
   });
@@ -164,9 +164,9 @@ describe('deriveDayMarkers forecast states', () => {
     expect(markers('2026-04-02', [], withoutDuration).predictedRed).toBe(false);
   });
 
-  it('uses a possible-start outline throughout the range except predicted-red dates', () => {
-    expect(markers('2026-03-29').possibleStart).toBe(true);
-    expect(markers('2026-03-31').possibleStart).toBe(true);
+  it('does not expose the retired possible-start marker', () => {
+    expect(markers('2026-03-29').possibleStart).toBe(false);
+    expect(markers('2026-03-31').possibleStart).toBe(false);
     expect(markers('2026-04-01').possibleStart).toBe(false);
     expect(markers('2026-04-04').possibleStart).toBe(false);
     expect(markers('2026-04-05').possibleStart).toBe(false);
@@ -179,8 +179,8 @@ describe('deriveDayMarkers forecast states', () => {
     expect(markers('2026-04-01').orange).toBe(false);
   });
 
-  it('lets orange and a possible-start outline coexist', () => {
-    expect(markers('2026-03-29')).toMatchObject({ orange: true, possibleStart: true });
+  it('shows the pre-period marker without a possible-start outline', () => {
+    expect(markers('2026-03-29')).toMatchObject({ orange: true, possibleStart: false });
   });
 
   it('withholds orange when disabled or no usable forecast exists', () => {
@@ -217,7 +217,7 @@ describe('deriveDayMarkers forecast states', () => {
   it('allows spotting to coexist with forecast context', () => {
     expect(markers('2026-03-29', [log('2026-03-29', { flow: 'spotting' })])).toMatchObject({
       spotting: true,
-      possibleStart: true,
+      possibleStart: false,
       orange: true,
     });
   });

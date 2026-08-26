@@ -141,8 +141,23 @@
   cursor: pointer;
 }
 
-.pinKeypadSpacer {
+.pinKeypadAuxiliary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
   min-block-size: 2.75rem;
+}
+
+.pinKeypadAuxiliary > button {
+  inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding: 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  font-size: 0.78rem;
+  line-height: 1.15;
+  text-align: start;
 }
 
 .pinRevealButton:focus-visible,

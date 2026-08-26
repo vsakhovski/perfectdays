@@ -967,17 +967,28 @@ describe('daily check-in mutations', () => {
     expect(state).toEqual(snapshot);
   });
 
-  it('deletes a normal daily log but protects the required episode-start log', () => {
+  it('deletes a normal daily log and reduces a completed episode start to its structural link', () => {
     const state = {
       ...completedState(),
       logs: [...completedState().logs, log('2026-08-03', { episodeId: 'period-1', flow: 'light' })],
     };
 
     expect(deleteDailyCheckIn(state, asLocalDate('2026-08-03'), context()).logs).toHaveLength(1);
-    expectJournalError(
-      () => deleteDailyCheckIn(state, asLocalDate('2026-08-01'), context()),
-      'episode-start-log-required',
-    );
+    expect(deleteDailyCheckIn(state, asLocalDate('2026-08-01'), context()).logs).toEqual([
+      {
+        date: asLocalDate('2026-08-01'),
+        episodeId: 'period-1',
+        updatedAt: changedAt,
+      },
+      log('2026-08-03', { episodeId: 'period-1', flow: 'light' }),
+    ]);
+  });
+
+  it('removes an active episode when its final entered check-in is deleted', () => {
+    expect(deleteDailyCheckIn(activeState(), asLocalDate('2026-08-15'), context())).toEqual({
+      episodes: [],
+      logs: [],
+    });
   });
 
   it('treats deletion of a missing day as a safe no-op and rejects a future date', () => {

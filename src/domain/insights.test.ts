@@ -175,7 +175,7 @@ describe('insight records', () => {
 
 describe('forecast explanation data', () => {
   it('explains a typical fallback without adding user-facing prose', () => {
-    const episodes = [episode('anchor', '2026-01-31')];
+    const episodes = [episode('anchor', '2026-01-31', '2026-01-31', false)];
     const forecast = calculateForecast({
       episodes,
       settings: {
@@ -267,7 +267,7 @@ describe('forecast explanation data', () => {
   });
 
   it('rejects a missing anchor or a range that does not contain its center', () => {
-    const episodes = [episode('anchor', '2026-01-01')];
+    const episodes = [episode('anchor', '2026-01-01', '2026-01-01', false)];
     const forecast = calculateForecast({
       episodes,
       settings: { forecastingPaused: false, typicalCycleLength: 28 },

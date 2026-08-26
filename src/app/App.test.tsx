@@ -436,14 +436,14 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Close Insights' }));
     expect(screen.getByRole('button', { name: 'Insights' })).toHaveFocus();
 
-    const historyTrigger = screen.getByRole('button', { name: 'Period history' });
+    const historyTrigger = screen.getByRole('button', { name: 'Periods history' });
     await user.click(historyTrigger);
-    expect(screen.getByRole('heading', { name: 'Period history', level: 1 })).toHaveFocus();
-    expect(screen.queryByText('Period history', { selector: 'p' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Periods history', level: 1 })).toHaveFocus();
+    expect(screen.queryByText('Periods history', { selector: 'p' })).not.toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Check in today' })).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Close Period history' }));
-    expect(screen.getByRole('button', { name: 'Period history' })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Close Periods history' }));
+    expect(screen.getByRole('button', { name: 'Periods history' })).toHaveFocus();
   }, 10_000);
 
   it('keeps Go to today in the header and disables it for the current month', async () => {
@@ -658,7 +658,7 @@ describe('App', () => {
     }
 
     const predictedStart = screen.getByRole('button', {
-      name: /Wednesday, August 26, 2026.*Predicted period day.*Forecast confidence: rough.*Central predicted start/i,
+      name: /Wednesday, August 26, 2026.*Predicted period day.*Forecast confidence: rough/i,
     });
     expect(predictedStart).toBeVisible();
     fireEvent.click(predictedStart);
@@ -720,22 +720,17 @@ describe('App', () => {
     expect(forecastExplanation.getByText('0 days')).toBeVisible();
   });
 
-  it('keeps an imported unknown period end unknown when it is saved unchanged', async () => {
+  it('keeps an imported unknown period unchanged when date editing is cancelled', async () => {
     const user = userEvent.setup();
     const payload = createRecordedMultiCyclePayload();
     const { vaultController } = await renderApp({
       vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
     });
 
-    await user.click(screen.getByRole('button', { name: 'Period history' }));
-    await user.click(screen.getByRole('button', { name: /Correct period starting Jun 29, 2026/ }));
-    const dialog = screen.getByRole('dialog', { name: 'Correct period dates' });
-    expect(within(dialog).getByRole('radio', { name: 'Ended — date unknown' })).toBeChecked();
-    expect(within(dialog).getByLabelText('Inclusive end date')).toBeDisabled();
-    expect(within(dialog).getByLabelText('Inclusive end date')).toHaveValue('');
-
-    await user.click(within(dialog).getByRole('button', { name: 'Save corrected dates' }));
-    expect(await within(dialog).findByText('Period dates corrected.')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Periods history' }));
+    await user.click(screen.getByRole('button', { name: /Edit period starting Jun 29, 2026/ }));
+    expect(screen.getByText('Select either the start or end date for this period.')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
     const snapshot = vaultController.getSnapshot();
     expect(snapshot.phase).toBe('unlocked');
@@ -760,23 +755,18 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Periodenverlauf' }));
     await user.click(
       screen.getByRole('button', {
-        name: /Periode ab 27\. Juli 2026.*31\. Juli 2026 korrigieren/,
+        name: /Periode ab 27\. Juli 2026.*31\. Juli 2026 bearbeiten/,
       }),
     );
-    const dialog = screen.getByRole('dialog', { name: 'Periodendaten korrigieren' });
-    fireEvent.change(within(dialog).getByLabelText('Startdatum'), {
-      target: { value: '2026-07-28' },
-    });
-    fireEvent.change(within(dialog).getByLabelText(/^Einschließliches Enddatum$/), {
-      target: { value: '2026-07-30' },
-    });
-    await user.click(within(dialog).getByRole('radio', { name: 'Stark' }));
-    await user.click(within(dialog).getByRole('button', { name: 'Korrigierte Daten speichern' }));
+    await user.click(screen.getByRole('button', { name: /Dienstag, 28\. Juli 2026/ }));
+    await user.click(screen.getByRole('button', { name: /Donnerstag, 30\. Juli 2026/ }));
+    const dialog = screen.getByRole('dialog', { name: /Periode .* konfigurieren/ });
+    await user.click(within(dialog).getByRole('button', { name: 'Periode speichern' }));
 
-    expect(await within(dialog).findByText('Periodendaten korrigiert.')).toBeVisible();
+    expect(await screen.findByText('Periodendaten aktualisiert.')).toBeVisible();
     expect(
       screen.getByRole('button', {
-        name: /Periode ab 28\. Juli 2026.*30\. Juli 2026 korrigieren/,
+        name: /Periode ab 28\. Juli 2026.*30\. Juli 2026 bearbeiten/,
       }),
     ).toBeVisible();
 
@@ -799,11 +789,11 @@ describe('App', () => {
     expect(correctedStartLog).toEqual(
       expect.objectContaining({
         episodeId: 'episode-july-27',
-        flow: 'heavy',
         confidence: 4,
         note: 'Keep the check-in on the corrected start.',
       }),
     );
+    expect(correctedStartLog).not.toHaveProperty('flow');
 
     const preservedOutsideLog = snapshot.payload.logs.find((log) => log.date === '2026-07-31');
     expect(preservedOutsideLog).toEqual(
@@ -1202,7 +1192,7 @@ describe('App', () => {
       screen.queryByRole('heading', { name: 'Lock-screen preferences' }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Unlock' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '1' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: '1' })).not.toHaveFocus();
     await waitFor(() => {
       expect(document.title).toBe('Perfect Days — locked');
     });

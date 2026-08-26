@@ -25,6 +25,7 @@ export interface CalendarDayMarkers {
 
 export type CalendarMarker = keyof CalendarDayMarkers;
 export type CalendarFlow = Exclude<Flow, 'none' | 'spotting'>;
+export type CalendarDaySelection = 'start' | 'end' | 'range' | 'single';
 
 export interface CalendarDay {
   readonly date: LocalDate;
@@ -34,6 +35,8 @@ export interface CalendarDay {
   readonly markers: CalendarDayMarkers;
   readonly flow?: CalendarFlow;
   readonly flowDescription?: string;
+  readonly selection?: CalendarDaySelection;
+  readonly selectionDescription?: string;
   readonly markerDescriptions?: Partial<Readonly<Record<CalendarMarker, string>>>;
   readonly disabled?: boolean;
   readonly disabledDescription?: string;
@@ -71,6 +74,7 @@ export interface CalendarCopy {
 export interface MonthlyCalendarProps {
   readonly copy: CalendarCopy;
   readonly focusTodayRequest?: number;
+  readonly legendMode?: 'full' | 'recorded-only';
   readonly months: readonly CalendarMonth[];
   readonly onRequestMonth: (month: LocalDate) => void;
   readonly onSelectDate: (date: LocalDate, trigger: HTMLButtonElement) => void;
@@ -83,8 +87,6 @@ export interface MonthlyCalendarProps {
 const markerOrder: readonly CalendarMarker[] = [
   'recordedRed',
   'predictedRed',
-  'predictedStart',
-  'possibleStart',
   'orange',
   'green',
   'spotting',
@@ -141,13 +143,21 @@ function MarkerIcon({ marker }: { readonly marker: LegendMarker }) {
         </svg>
       );
     case 'predictedRed':
-      return <span aria-hidden="true">{'≈'}</span>;
+      return (
+        <svg aria-hidden="true" viewBox="0 0 16 20">
+          <path d="M8 0C6.3 3.5 2 7.9 2 12a6 6 0 0 0 12 0C14 7.9 9.7 3.5 8 0Z" />
+        </svg>
+      );
     case 'predictedStart':
       return <span aria-hidden="true">{'▾'}</span>;
     case 'possibleStart':
       return <span aria-hidden="true">{'?'}</span>;
     case 'orange':
-      return <span aria-hidden="true">{'◇'}</span>;
+      return (
+        <svg aria-hidden="true" viewBox="0 0 20 20">
+          <path d="M10 0c.55 5.75 4.25 9.45 10 10-5.75.55-9.45 4.25-10 10C9.45 14.25 5.75 10.55 0 10 5.75 9.45 9.45 5.75 10 0Z" />
+        </svg>
+      );
     case 'green':
       return <span aria-hidden="true">{'✓'}</span>;
     case 'spotting':
@@ -207,9 +217,18 @@ function MonthChevron({ direction }: { readonly direction: 'next' | 'previous' }
   );
 }
 
-export function CalendarLegend({ copy }: { readonly copy: CalendarCopy }) {
+export function CalendarLegend({
+  copy,
+  mode = 'full',
+}: {
+  readonly copy: CalendarCopy;
+  readonly mode?: 'full' | 'recorded-only';
+}) {
   const titleId = useId();
-  const essentialMarkers = ['recordedRed', 'predictedRed', 'today'] as const;
+  const essentialMarkers =
+    mode === 'recorded-only'
+      ? (['recordedRed', 'today'] as const)
+      : (['recordedRed', 'predictedRed', 'today'] as const);
   const additionalMarkers = markerOrder.filter(
     (marker) => marker !== 'recordedRed' && marker !== 'predictedRed',
   );
@@ -234,19 +253,21 @@ export function CalendarLegend({ copy }: { readonly copy: CalendarCopy }) {
           </li>
         ))}
       </ul>
-      <details className={styles['markerGuide']}>
-        <summary>{copy.markerGuide ?? copy.legendTitle}</summary>
-        <ul role="list">
-          {([...additionalMarkers, 'neutral'] as const).map((marker) => (
-            <li key={marker}>
-              <span className={combineClasses(styles['legendIcon'], styles[`marker-${marker}`])}>
-                <MarkerIcon marker={marker} />
-              </span>
-              <span>{labelFor(marker)}</span>
-            </li>
-          ))}
-        </ul>
-      </details>
+      {mode === 'full' ? (
+        <details className={styles['markerGuide']}>
+          <summary>{copy.markerGuide ?? copy.legendTitle}</summary>
+          <ul role="list">
+            {([...additionalMarkers, 'neutral'] as const).map((marker) => (
+              <li key={marker}>
+                <span className={combineClasses(styles['legendIcon'], styles[`marker-${marker}`])}>
+                  <MarkerIcon marker={marker} />
+                </span>
+                <span>{labelFor(marker)}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
     </section>
   );
 }
@@ -254,6 +275,7 @@ export function CalendarLegend({ copy }: { readonly copy: CalendarCopy }) {
 export function MonthlyCalendar({
   copy,
   focusTodayRequest = 0,
+  legendMode = 'full',
   months,
   onRequestMonth,
   onSelectDate,
@@ -595,17 +617,13 @@ export function MonthlyCalendar({
           data-flow={day.flow}
           data-green={day.markers.green}
           data-orange={day.markers.orange}
-          data-possible-start={day.markers.possibleStart}
-          data-predicted-after={day.markers.predictedRed && nextDay?.markers.predictedRed === true}
-          data-predicted-before={
-            day.markers.predictedRed && previousDay?.markers.predictedRed === true
-          }
           data-predicted-red={day.markers.predictedRed}
           data-recorded-after={day.markers.recordedRed && nextDay?.markers.recordedRed === true}
           data-recorded-before={
             day.markers.recordedRed && previousDay?.markers.recordedRed === true
           }
           data-recorded-red={day.markers.recordedRed}
+          data-selection={day.selection}
           data-spotting={day.markers.spotting}
           data-today={isToday}
           disabled={day.disabled}
@@ -655,6 +673,9 @@ export function MonthlyCalendar({
           </span>
           {day.flowDescription === undefined ? null : (
             <span className={styles['visuallyHidden']}>{day.flowDescription}</span>
+          )}
+          {day.selectionDescription === undefined ? null : (
+            <span className={styles['visuallyHidden']}>{day.selectionDescription}</span>
           )}
           {markerOrder.map((marker) =>
             day.markers[marker] ? (
@@ -736,7 +757,7 @@ export function MonthlyCalendar({
         </div>
       </div>
 
-      <CalendarLegend copy={copy} />
+      <CalendarLegend copy={copy} mode={legendMode} />
     </section>
   );
 }

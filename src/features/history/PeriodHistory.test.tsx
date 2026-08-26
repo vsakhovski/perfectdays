@@ -135,9 +135,9 @@ describe('PeriodHistory', () => {
       />,
     );
 
-    expect(screen.getByText(historyCopy.completed)).toBeVisible();
-    expect(screen.getByText(historyCopy.active)).toBeVisible();
-    expect(screen.getByText(historyCopy.unknownDuration)).toBeVisible();
+    expect(screen.getByText('range:2026-02-02:2026-02-06')).toBeVisible();
+    expect(screen.getByText(`date:2026-03-03 — ${historyCopy.active}`)).toBeVisible();
+    expect(screen.getByText(`date:2026-01-01 — ${historyCopy.unknownDuration}`)).toBeVisible();
     expect(screen.getByRole('list')).toBeVisible();
 
     const edit = screen.getByRole('button', {

@@ -4,7 +4,7 @@
 
 A private, mobile-first menstrual journal that records bleeding and helps its user notice her own recurring wellbeing patterns. The product uses red, orange, and green calendar markers, but treats them as personal context rather than biological verdicts or judgments about competence.
 
-**Status:** Phase 5 mobile engineering is implemented. First use now opens a focused, skippable six-screen onboarding flow with a placeholder brand splash and language selector, dot progress, privacy introduction, optional history and estimates, pre-period window configuration, and optional PIN setup. After onboarding or unlock, the app opens a compact Calendar-first shell with separate Calendar, Privacy, and Settings destinations; a persistent one-tap today check-in action; an atomic **Save and done** flow; contextual Insights and Period history screens; and mobile-browser coverage. Manual contrast, software-keyboard, forced-colors, screen-reader, and real-user usability review remain open, as do episode splitting/merging, evidence-driven forecast calibration, final naming, and public-beta clinical, legal, and independent security review.
+**Status:** Phase 5 mobile engineering is implemented. First use now opens a focused, skippable six-screen onboarding flow with a placeholder brand splash and language selector, dot progress, privacy introduction, optional history and estimates, pre-period window configuration, and optional PIN setup. After onboarding or unlock, the app opens a compact Calendar-first shell with separate Calendar, Privacy, and Settings destinations; a persistent one-tap today check-in action; an atomic **Save and done** flow; contextual Insights and Periods history screens; and mobile-browser coverage. Manual contrast, software-keyboard, forced-colors, screen-reader, and real-user usability review remain open, as do episode splitting/merging, evidence-driven forecast calibration, final naming, and public-beta clinical, legal, and independent security review.
 
 Store packaging, submission requirements, and release-readiness planning are tracked in [DISTRIBUTION.md](DISTRIBUTION.md).
 
@@ -43,9 +43,7 @@ Markers may overlap. For example, a person can be menstruating and also report h
 | --- | --- | --- |
 | **Recorded red** | Bleeding explicitly logged by the user | Solid red band joined within each calendar row, with rounded range ends, plus droplet icon and text label |
 | **Predicted red** | Estimated future menstruation | Pale striped red band joined within each calendar row and clearly labeled “predicted” |
-| **Predicted start** | Central estimated start date | Dedicated outlined or dotted start indicator and complete accessible label |
-| **Possible start** | Other dates in the estimated start range | Dashed or outlined range treatment rather than a solid fill |
-| **Orange** | Optional possible pre-period window | Thin golden-amber bar at the top of the cell, never a warning about competence |
+| **Orange** | Optional possible pre-period window | Striped golden background, never a warning about competence |
 | **Green** | A day with an explicitly logged high-confidence score | Green badge or accent; retrospective only in the MVP |
 | **Today** | The current local date | Strong blue cell border, heavier number weight, and a complete accessible “Today” label |
 | **Neutral** | Nothing recorded or insufficient evidence | Normal calendar styling |
@@ -126,7 +124,7 @@ Language to avoid:
 - Next-period range and confidence.
 - Number of completed cycles behind an estimate.
 - Retrospective high-confidence days.
-- Keep forecast context behind **Why this estimate?** below the calendar and keep period history and correction contextually reachable from Calendar rather than making **Patterns** a primary destination.
+- Keep forecast context behind **Why this estimate?** below the calendar and keep periods history and correction contextually reachable from Calendar rather than making **Patterns** a primary destination.
 - Use neutral, observational wording with sample sizes and counterexamples where useful.
 - Make no causal claims and give no universal phase advice.
 
@@ -164,9 +162,9 @@ This section describes the implemented Phase 5 mobile foundation and the remaini
 | **Settings** | Tracking and forecast preferences, orange-window configuration, appearance, language, calendar week start, and About/non-medical information |
 | **Check in today** | Persistent primary action above the navigation; opens or edits today's entry and is not a destination |
 
-There is no separate **Today** or **Patterns** bottom destination. Their useful content is redistributed: today's work begins through the persistent action, forecast reasoning appears below the calendar, and recent patterns plus period history remain available through contextual secondary screens.
+There is no separate **Today** or **Patterns** bottom destination. Their useful content is redistributed: today's work begins through the persistent action, forecast reasoning appears below the calendar, and recent patterns plus periods history remain available through contextual secondary screens.
 
-**Insights** and **Period history** open as focused secondary screens. Each uses the shell's single top title and a localized close icon in the top bar; the repeated inner section label, back button, check-in dock, and bottom navigation are omitted. Closing returns to Calendar and restores focus to the control that opened the screen.
+**Insights** and **Periods history** open as focused secondary screens. Each uses the shell's single top title and a localized close icon in the top bar; the repeated inner section label, back button, check-in dock, and bottom navigation are omitted. Closing returns to Calendar and restores focus to the control that opened the screen. Periods history reuses the continuous calendar in a recorded-only mode. Selecting a recorded period or its list-row edit icon starts boundary editing and scrolls the screen and calendar to it; selecting an empty past date starts a new period. Either boundary may be chosen first, and the two dates are normalized into start and inclusive end. Selecting the same date twice cancels instead of creating a one-day period. A red range preview and final confirmation dialog appear before the change is saved, with overlap validation still applied. Each compact period row also provides a confirmed delete control that retains unrelated daily observations.
 
 Only one primary screen is mounted and presented at a time; the app no longer reads as a sequence of large dashboard cards. The unlocked shell uses a compact top bar, `min-block-size: 100dvh`, a mobile content width of about `32rem` even when centered on desktop, and safe-area-aware bottom chrome. The action dock sits immediately above the three-destination navigation, whose icon-and-text controls retain 44 × 44 CSS-pixel targets. Secondary settings and explanations open as focused sub-screens instead of expanding the daily surface indefinitely.
 
@@ -198,8 +196,8 @@ The mobile screen follows this order:
 - **Go to today** sits beside the Calendar screen title, returns to the current local month, and moves the calendar's roving focus to today. It is disabled when that month is already shown.
 - At phone widths, the month toolbar contains only centered up/down chevrons and the localized month/year. Day cells retain a square aspect ratio while the viewport changes.
 - The semantic six-week grid retains localized weekday headers and complete accessible descriptions for every date.
-- Recorded periods form solid red bands across adjacent cells with rounded range ends. Predicted periods use visibly striped bands. Possible starts retain a dashed/outlined treatment, and the optional pre-period window uses a thin amber top bar.
-- The essential legend shows **Recorded**, **Predicted**, and **Today** directly below the grid. A **Marker guide** disclosure explains spotting, possible start, amber, green, overlaps, icons, and patterns.
+- Recorded periods form solid red bands across adjacent cells with rounded range ends. Predicted periods use visibly striped bands plus a red drop pictogram. The possible-start range remains in explanatory text instead of adding individual start markers, and the optional pre-period window uses a striped golden background.
+- The essential legend shows **Recorded**, **Predicted**, and **Today** directly below the grid. A **Marker guide** disclosure explains spotting, the golden pre-period treatment, green, overlaps, icons, and patterns.
 - Bottom content receives enough safe-area and action-bar padding that neither the check-in dock nor navigation covers a date, explanation, or control.
 
 In the implemented first slice, tapping today or a past date opens the focused editor directly, while selecting a future date keeps editing closed and shows a read-only notice. A compact intermediate day sheet combining recorded observations and forecast status remains a follow-up refinement. The global **Check in today** action remains the fastest route to today's task even while another month or date is displayed.
@@ -224,7 +222,7 @@ The component has explicit states:
 | Available estimate | Show localized range, confidence, and completed-cycle count |
 | Insufficient history | Explain what is missing and offer the relevant next action without inventing a date |
 | Forecast paused | Say that forecasting is paused and keep recorded history visible |
-| Highly variable history | Keep the honest textual range but suppress predicted-period, possible-start, and amber calendar coloring |
+| Highly variable history | Keep the honest textual range but suppress predicted-period and golden pre-period calendar coloring |
 | Late estimate | Keep the original fixed range and explain that it has passed; do not move the date forward each day |
 
 Orange remains an optional estimated pre-period window, never advice about conflict or competence. Green remains a retrospective badge based only on a recorded confidence score of 4 or 5 and is never forecast into the future.
@@ -299,7 +297,7 @@ Initial uncertainty behavior:
 - **No completed cycle:** do not forecast unless there is at least one recorded period start to anchor the estimate and the user supplied a usual cycle length. A fallback uses a ±4-day window and is labeled “rough.”
 - **One or two completed cycles:** label the result “rough” and show a window of at least ±3 days.
 - **Three to six completed cycles:** use the shortest and longest recent lengths to produce the initial earliest/latest bounds; the median remains the central estimate but is not assumed to be the midpoint. Apply a minimum ±2-day uncertainty floor around the central estimate even when the recorded cycles were identical, until pilot calibration supports a different floor.
-- **Highly variable history:** a recent length span greater than 10 days is “low” confidence. Show the textual range but suppress all forecast calendar coloring—predicted red, predicted/possible-start indicators, and orange—instead of creating false precision.
+- **Highly variable history:** a recent length span greater than 10 days is “low” confidence. Show the textual range but suppress all forecast calendar coloring—predicted red and the golden pre-period background—instead of creating false precision.
 - **Late period:** do not silently move an exact forecast forward every day. Mark the estimate as uncertain and wait for a new record or user correction.
 
 For one or two completed lengths, the earliest/latest bounds are the union of the observed bounds and `centralStart ± 3 days`. For three to six, they are the union of the shortest/longest-derived bounds and `centralStart ± 2 days`.
@@ -315,10 +313,15 @@ Initial confidence labels:
 ### Red forecast
 
 - Recorded red always overrides a forecast.
+- An open period is displayed as recorded solid red from its start through the current local day. Unlogged days in that range use the default flow pictogram, while an explicit daily flow uses its recorded pictogram. If a known-duration median or usual bleeding duration is available, only the remaining future days of that duration extend as a striped prediction from the actual start.
+- Forecast samples and anchoring use only periods with a recorded end. A still-open period is excluded until it is closed.
+- Deleting check-ins from an open period also removes the open period itself once no user-entered check-in remains; structural-only episode links are not kept as an invisible period.
+- While a period is open, the first forecast occurrence is replaced by the actual start and its remaining-duration projection. Later recurring predicted periods and their golden pre-period windows remain visible, but still use only completed periods for their cycle estimate. Central-start and possible-start markers remain omitted.
 - The central predicted episode is visually patterned or pale and explicitly announced as predicted. If predicted duration is unknown, only the central start receives predicted-red styling.
-- Possible start dates receive an outline/range indicator rather than full predicted-red styling, preventing the entire uncertainty window from looking like predicted bleeding.
-- A length span greater than 10 days suppresses predicted red, predicted/possible-start indicators, and orange; the textual range remains available.
-- Editing or deleting period history recalculates the prediction immediately.
+- Central-start and possible-start dates are explained in the textual forecast range but do not receive separate calendar markers.
+- Future months derive display-only recurring predicted-period and golden pre-period markers as soon as their days are rendered. Each occurrence repeats the same current central cycle-length and expected-duration estimate; generated occurrences are never persisted as recorded periods, and the textual summary continues to describe only the next expected start.
+- A length span greater than 10 days suppresses predicted red and golden pre-period coloring; the textual start range remains available.
+- Editing or deleting periods history recalculates the prediction immediately.
 
 ### Orange window
 
@@ -660,16 +663,16 @@ app -> composition of all layers
 - Strict TypeScript, type-aware ESLint, Prettier, Vitest, Testing Library, Playwright, and an automated axe accessibility smoke test.
 - Setup that imports optional historical starts/ends and bounded fallback values, validates dates and overlap, configures the orange window, and can be explicitly finished without history or invented observations.
 - Pure, separately tested journal mutations for starting, continuing, ending, correcting, and removing a period and for creating, editing, clearing, and deleting daily check-ins.
-- A localized six-week monthly calendar with recorded, predicted, possible-start, orange, retrospective-green, spotting, and neutral markers; a non-color legend; and keyboard navigation.
+- A localized continuous calendar with recorded, predicted, golden pre-period, retrospective-green, spotting, and neutral markers; a non-color legend; and keyboard navigation.
 - A modal daily editor for flow, confidence, tension, energy, pain, and private notes, with focus return and explicit confirmation for daily deletion and whole-period removal.
 - A fixed-height, safe-area-aware mobile shell whose bottom navigation contains exactly Calendar, Privacy, and Settings and whose separate primary dock opens or edits today's check-in from every destination.
-- Calendar as the default post-onboarding and post-unlock destination, with a continuously vertical month stream, adjacent up/down month controls, a header-level **Go to today** action, configurable week start, square day cells, a compact essential legend plus marker guide, joined recorded/predicted ranges, a distinct amber top bar, and a range-first forecast summary below the grid.
+- Calendar as the default post-onboarding and post-unlock destination, with a continuously vertical month stream, adjacent up/down month controls, a header-level **Go to today** action, configurable week start, square day cells, a compact essential legend plus marker guide, joined recorded/predicted ranges, a striped golden pre-period treatment, and a range-first forecast summary below the grid.
 - A focused full-height small-screen check-in editor that keeps flow immediately available, moves ratings and notes behind progressive disclosure, disables empty or structurally invalid saves with an explanation, and closes after a successful durable save.
 - One pure application operation that combines period start/continuation/end with the day's observations into one next payload and one vault save; spotting never starts a period and `none` never ends one implicitly.
-- Contextual Insights and Period history screens under Calendar, plus dedicated Privacy and Settings destinations, without a prominent Patterns or Today navigation item.
+- Contextual Insights and Periods history screens under Calendar, plus dedicated Privacy and Settings destinations, without a prominent Patterns or Today navigation item.
 - Deterministic forecast statistics, uncertainty ranges, late-estimate behavior, marker suppression for highly variable histories, and tracking preferences for fallbacks, orange, and forecast pause.
 - Derived, presentation-neutral insight summaries for the six most recent successive cycle lengths, known completed bleeding durations, and explicitly recorded confidence-4-or-5 days, plus the forecast source, confidence, history count, variability, and span shown in localized insight cards.
-- A localized, accessible period-history list and modal correction editor for changing one episode's start, explicit known/unknown/active end state, and start-day flow without weakening journal invariants, converting start-only history into invented durations, or silently deleting unrelated daily observations.
+- A localized, accessible recorded-only history calendar and compact period table. Calendar days and row edit icons start two-boundary correction, empty past dates can start a new period, and the shared journal invariants prevent overlapping or future ranges while preserving unrelated daily observations.
 - A pure expanding-window backtest evaluator that holds out each later episode start in turn and reports per-sample signed and absolute start error, range inclusion, training-history variability band, skipped targets, aggregate median absolute error, empirical range coverage, and the same aggregate metrics segmented by variability for developer evaluation only.
 - Vault-backed saves for tracker observations and preferences, with a real-browser test covering setup, period/check-in entry, and IndexedDB persistence across reloads in all configured Playwright projects.
 - A localized backup/restore panel that gates encrypted export on PIN protection, routes directly to PIN setup, requires a two-step confirmation for human-readable export, validates an encrypted backup before opening a PIN dialog, reveals replacement consent only after successful decryption, clears submitted secrets, and reports generic non-destructive failures.
@@ -796,7 +799,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Add the localized monthly calendar with recorded and forecast states, today/selection distinctions, non-color semantics, and an accessible legend.
 - [x] Add period actions and a daily editor for flow, spotting, confidence, tension, energy, pain, and notes.
 - [x] Derive retrospective green badges only from recorded confidence values of 4–5.
-- [x] Implement and test cycle/duration medians, uncertainty and confidence rules, predicted/possible-start styling, orange behavior, variable-history suppression, and fixed late estimates.
+- [x] Implement and test cycle/duration medians, uncertainty and confidence rules, predicted-period styling, golden pre-period behavior, variable-history suppression, and fixed late estimates.
 - [x] Persist tracker data through the versioned vault, recalculate derived forecasts after saves, and verify a setup-to-check-in reload flow against real IndexedDB in every Playwright project.
 
 ### Phase 3 — Forecast refinement and insights (engineering slice complete)
@@ -823,7 +826,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Add the persistent **Check in today** action separately from navigation and implement the focused, atomic **Save and done** flow.
 - [x] Add a smoothly and freely vertical month stream, animated up/down month navigation and **Go to today**, revised recorded/predicted bands and amber marker, a compact legend, and the forecast summary below the calendar.
 - [x] Keep forecast reasoning, recent patterns, and history/correction contextually reachable without a **Patterns** bottom destination.
-- [x] Present Insights and Period history as focused secondary screens with one title, a top-bar close action, restored trigger focus, and no bottom chrome.
+- [x] Present Insights and Periods history as focused secondary screens with one title, a top-bar close action, restored trigger focus, and no bottom chrome.
 - [x] Move PIN protection, backup/restore, human-readable export, storage explanation, and confirmed erasure into Privacy; move tracking, appearance, language, calendar week start, and About into Settings.
 - [x] Add all new English and German copy, component/unit coverage, mobile browser flows, and navigation/check-in privacy-leakage assertions.
 - [x] Refactor onboarding into focused consecutive screens with icon-only Back/Skip controls, accessible dot progress, horizontal swipe navigation, directional slide-and-fade transitions, a placeholder logo, package version and a resolved English/Deutsch language selector, light-mode/device-language resolution defaults, touch-friendly hybrid period-estimate controls, and optional PIN as the final step. During a horizontal gesture the current screen follows the finger by a short, damped distance before the transition begins, or settles back when the gesture is rejected. Forward navigation enters from the right and backward navigation from the left; all gesture and transition movement is disabled for `prefers-reduced-motion`. Programmatic heading focus still announces the destination to assistive technology without drawing a focus border on the non-interactive heading; interactive controls retain visible focus indicators. Swipe-left follows the same per-step validation as Continue, swipe-right returns to the preceding step, and vertical scrolling or gestures beginning on form controls are not treated as navigation.
@@ -845,7 +848,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Onboarding preserves its in-memory draft across Back/Continue, exposes accessible icon-only Back/Skip actions, displays dot progress instead of numeric text, and shows only language—not appearance or week-start—on the splash.
 - [x] A user can finish onboarding with or without PIN protection; failed PIN activation or setup persistence remains visible and retryable rather than silently completing.
 - [x] A user can start, continue, end, and remove periods and create, edit, clear, and delete eligible daily check-ins.
-- [x] A user can directly correct arbitrary start/end boundaries for one period, including changing its active state and start-day intensity, without creating overlap or discarding unrelated daily observations.
+- [x] A user can directly correct one period's start and inclusive end on the recorded-only history calendar, or add a new completed period by selecting either boundary first and confirming the normalized range, without creating one-day periods, overlap, or discarding unrelated daily observations.
 - [ ] A user can explicitly split or merge episodes if research confirms that the added correction workflow is needed.
 - [x] Spotting does not start a period automatically.
 - [x] Choosing bleeding in today's focused check-in changes the final action to **Start period and save**, which records the period boundary and daily observation atomically.
@@ -866,12 +869,13 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] The calendar scrolls continuously up and down without month snapping; previous and next controls animate to the adjacent month with up/down icons; **Go to today** returns to the current local month, is disabled there, and places roving calendar focus on today.
 - [ ] Today remains visibly and semantically distinct from keyboard focus, recorded periods, predictions, amber, green, and spotting in normal and forced-colors modes.
 - [x] System/Monday/Sunday week-start selection appears after Language in Settings, follows the device region by default, and survives reload.
-- [x] Recorded periods use joined solid red bands, predicted periods use visibly striped bands, possible starts use outlined treatment, and the pre-period window uses a thin amber top bar.
+- [x] Recorded periods use joined solid red bands, predicted periods use visibly striped bands with red drop pictograms, central/possible starts remain textual rather than separately marked, and the pre-period window uses a striped golden background.
 - [x] Recorded observations override conflicting forecasts, while green can coexist as a retrospective badge and spotting remains distinct; every overlap has text/icon/pattern semantics in addition to color.
 - [x] The localized forecast summary follows the calendar and legend and leads with a range, confidence, and completed-cycle count; **Why this estimate?** reveals secondary detail.
 - [ ] Insufficient-history, paused, active, late, and highly-variable states use honest localized text; highly variable history retains text while suppressing forecast and amber calendar coloring.
-- [x] Forecast context, recent cycle lengths, known durations, retrospective high-confidence days, and period history/correction remain contextually reachable without a **Patterns** destination.
-- [x] Insights and Period history avoid duplicate section labels and back buttons; their top-bar close control returns to Calendar, and their check-in dock and primary navigation stay hidden.
+- [x] Forecast context, recent cycle lengths, known durations, retrospective high-confidence days, and periods history/correction remain contextually reachable without a **Patterns** destination.
+- [x] Insights and Periods history avoid duplicate section labels and back buttons; their top-bar close control returns to Calendar, and their check-in dock and primary navigation stay hidden.
+- [x] Periods history reuses the continuous calendar with only recorded-period markers, scrolls the screen and calendar to a period selected from the list, previews and edits a range through two order-independent calendar selections, cancels when the same day is selected twice, confirms a valid two-day-or-longer range before saving, starts a new period from an empty past date, and offers confirmed deletion from each compact row.
 - [x] A basic today entry can be opened, given a flow value, and durably saved and closed in three taps; ratings remain optional and unknown values are not preselected.
 - [x] Starting or continuing a period and recording the day's observations use one logical payload mutation and one vault save; spotting never starts a period and `none` never implicitly ends one.
 - [x] Check-in uses stable sticky top and bottom panels; opening optional details does not resize the action panel, and its open/closed state is reused for later check-ins in the unlocked session.
@@ -942,7 +946,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - Today's check-in should open in one tap from every primary destination; a basic flow-only entry should take no more than three taps and should be completed in under 15 seconds in moderated usability testing.
 - Editing today's existing entry should be reachable in no more than two taps.
 - No primary screen or check-in state should present more than one dominant primary action.
-- Participants should find period history, forecast reasoning, backup/restore, and erasure without mistaking any of them for daily navigation.
+- Participants should find periods history, forecast reasoning, backup/restore, and erasure without mistaking any of them for daily navigation.
 - The developer-facing evaluator now reports per-sample signed/absolute start-date error and range inclusion plus aggregate median absolute error and empirical range coverage, segmented by the variability of the training history. Interpretation against pilot data remains validation work.
 - An intended 80% prediction interval should cover approximately 80% of held-out starts before it is described that way in the UI.
 - Deletion should leave no application-controlled copy recoverable through normal product behavior.

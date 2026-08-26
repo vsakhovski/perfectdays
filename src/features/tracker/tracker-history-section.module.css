@@ -1,0 +1,143 @@
+.screen {
+  display: grid;
+  gap: 1rem;
+}
+
+.calendarTarget {
+  scroll-margin-block-start: 0.75rem;
+}
+
+.editorStatus {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  background: var(--color-surface-subtle);
+}
+
+.editorActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.cancelButton,
+.confirmDeleteButton,
+.saveButton {
+  min-block-size: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 750;
+}
+
+.saveButton {
+  border-color: transparent;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.cancelButton {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.confirmDeleteButton {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-on-danger, white);
+}
+
+.cancelButton:focus-visible,
+.confirmDeleteButton:focus-visible,
+.saveButton:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.cancelButton:disabled,
+.confirmDeleteButton:disabled,
+.saveButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.message,
+.error {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.configureBackdrop,
+.deleteBackdrop {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  background: rgb(20 12 17 / 58%);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+.configureDialog,
+.deleteDialog {
+  display: grid;
+  gap: 1rem;
+  inline-size: min(100%, 28rem);
+  padding: 1.25rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.configureDialog h2,
+.configureDialog p,
+.deleteDialog h2,
+.deleteDialog p {
+  margin: 0;
+}
+
+.configureDialog p,
+.deleteDialog p {
+  line-height: 1.5;
+}
+
+.configureActions,
+.deleteActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.message {
+  color: var(--color-text-muted);
+}
+
+.error {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+@media (max-width: 30rem) {
+  .editorActions > button {
+    flex: 1 1 auto;
+  }
+}
+
+@media (forced-colors: active) {
+  .editorStatus,
+  .cancelButton,
+  .confirmDeleteButton,
+  .saveButton,
+  .configureDialog,
+  .deleteDialog {
+    border: 1px solid CanvasText;
+  }
+}

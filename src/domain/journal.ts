@@ -189,6 +189,12 @@ function hasLogContent(log: DailyLog): boolean {
   );
 }
 
+function hasUserEnteredObservation(log: DailyLog): boolean {
+  const observation = { ...log };
+  delete observation.episodeId;
+  return hasLogContent(observation);
+}
+
 export function assertJournalInvariants(state: JournalState): void {
   const episodeIds = new Set<string>();
 
@@ -631,27 +637,56 @@ export function upsertDailyCheckIn(
   return finalized(journal.episodes, hasLogContent(log) ? [...otherLogs, log] : otherLogs);
 }
 
-/** Deletes the whole day's log. An episode start must instead be removed with its episode. */
+/**
+ * Deletes the day's user-entered observations. At an episode start, the minimal structural link is
+ * retained so the episode remains valid while flow, ratings, pain, and note are cleared.
+ */
 export function deleteDailyCheckIn(
   state: JournalState,
   date: LocalDate,
   context: JournalMutationContext,
 ): JournalMutationResult {
   assertJournalInvariants(state);
-  actionDate(date, context);
+  const resolvedDate = actionDate(date, context);
+  const timestamp = context.now();
+  const activeEpisode = findActiveEpisode(state.episodes);
+  const deletedLog = state.logs.find((log) => log.date === resolvedDate);
 
-  if (
-    state.episodes.some(
-      (episode) =>
-        episode.startDate === date &&
-        state.logs.some((log) => log.date === date && log.episodeId === episode.id),
-    )
-  ) {
-    throw new JournalError('episode-start-log-required');
+  const startingEpisode = state.episodes.find((episode) => episode.startDate === resolvedDate);
+  const logs =
+    startingEpisode === undefined
+      ? state.logs.filter((log) => log.date !== resolvedDate)
+      : state.logs.map((log) =>
+          log.date === resolvedDate
+            ? {
+                date: resolvedDate,
+                episodeId: startingEpisode.id,
+                updatedAt: timestamp,
+              }
+            : log,
+        );
+
+  const affectsActiveEpisode =
+    activeEpisode !== undefined &&
+    (startingEpisode?.id === activeEpisode.id || deletedLog?.episodeId === activeEpisode.id);
+  const activeEpisodeHasCheckIn =
+    activeEpisode !== undefined &&
+    logs.some((log) => log.episodeId === activeEpisode.id && hasUserEnteredObservation(log));
+
+  if (activeEpisode !== undefined && affectsActiveEpisode && !activeEpisodeHasCheckIn) {
+    const remainingLogs = logs.flatMap((log) => {
+      if (log.episodeId !== activeEpisode.id) return [{ ...log }];
+
+      const unlinkedLog = { ...log };
+      delete unlinkedLog.episodeId;
+      return hasLogContent(unlinkedLog) ? [unlinkedLog] : [];
+    });
+
+    return finalized(
+      state.episodes.filter((episode) => episode.id !== activeEpisode.id),
+      remainingLogs,
+    );
   }
 
-  return finalized(
-    state.episodes,
-    state.logs.filter((log) => log.date !== date),
-  );
+  return finalized(state.episodes, logs);
 }
