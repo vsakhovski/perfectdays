@@ -361,7 +361,7 @@ function sectionWithHeading(name: string): HTMLElement {
 
 async function openRootDestination(
   user: ReturnType<typeof userEvent.setup>,
-  destination: 'Calendar' | 'Privacy' | 'Settings',
+  destination: 'Calendar' | 'History' | 'Privacy' | 'Settings',
 ): Promise<void> {
   await user.click(screen.getByRole('button', { name: destination }));
 }
@@ -396,7 +396,7 @@ describe('App', () => {
     expect(languageStore.read()).toBe('de');
   });
 
-  it('opens on Calendar and keeps today check-in one tap away from every root screen', async () => {
+  it('opens on Calendar and shows today check-in only on Calendar', async () => {
     const user = userEvent.setup();
     await renderApp({ onboardingCompleted: true });
 
@@ -405,45 +405,31 @@ describe('App', () => {
       'aria-current',
       'page',
     );
-    expect(screen.getAllByRole('navigation')).toHaveLength(2);
-
-    await openRootDestination(user, 'Privacy');
-    expect(screen.getByRole('heading', { name: 'Privacy', level: 1 })).toHaveFocus();
-    expect(screen.getByRole('heading', { name: 'Back up or restore your journal' })).toBeVisible();
-
+    expect(screen.getAllByRole('navigation')).toHaveLength(1);
     const checkInTrigger = screen.getByRole('button', { name: 'Check in today' });
     await user.click(checkInTrigger);
     expect(screen.getByRole('dialog', { name: 'Check in today' })).toBeVisible();
-    expect(
-      screen.queryByRole('navigation', { name: 'Primary navigation' }),
-    ).not.toBeInTheDocument();
-
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(checkInTrigger).toHaveFocus();
+
+    await openRootDestination(user, 'Privacy');
+    expect(screen.getByRole('heading', { name: 'Privacy', level: 1 })).toHaveFocus();
+    expect(screen.getByRole('heading', { name: 'Back up or restore' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Check in today' })).not.toBeInTheDocument();
+
+    await openRootDestination(user, 'History');
+    expect(screen.getByRole('heading', { name: 'History', level: 1 })).toHaveFocus();
+    expect(screen.getByRole('region', { name: 'Periods history' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Check in today' })).not.toBeInTheDocument();
+
     await openRootDestination(user, 'Settings');
     expect(screen.getByRole('heading', { name: 'Settings', level: 1 })).toHaveFocus();
     expect(screen.getByRole('heading', { name: 'Estimates and pre-period window' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Check in today' })).not.toBeInTheDocument();
 
     await openRootDestination(user, 'Calendar');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-
-    const insightsTrigger = screen.getByRole('button', { name: 'Insights' });
-    await user.click(insightsTrigger);
-    expect(screen.getByRole('heading', { name: 'Insights', level: 1 })).toHaveFocus();
-    expect(screen.queryByText('Insights', { selector: 'p' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Check in today' })).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Close Insights' }));
-    expect(screen.getByRole('button', { name: 'Insights' })).toHaveFocus();
-
-    const historyTrigger = screen.getByRole('button', { name: 'Periods history' });
-    await user.click(historyTrigger);
-    expect(screen.getByRole('heading', { name: 'Periods history', level: 1 })).toHaveFocus();
-    expect(screen.queryByText('Periods history', { selector: 'p' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Check in today' })).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Close Periods history' }));
-    expect(screen.getByRole('button', { name: 'Periods history' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Check in today' })).toBeVisible();
   }, 10_000);
 
   it('keeps Go to today in the header and disables it for the current month', async () => {
@@ -527,7 +513,10 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Check in today' }));
-    expect(screen.getByRole('button', { name: 'Save and done' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save and done' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     expect(screen.getByText('Choose at least one observation before saving.')).toBeVisible();
     await user.click(screen.getByRole('radio', { name: 'None' }));
     expect(screen.getByRole('button', { name: 'Save and done' })).toBeEnabled();
@@ -662,62 +651,43 @@ describe('App', () => {
     });
     expect(predictedStart).toBeVisible();
     fireEvent.click(predictedStart);
-    expect(screen.getByRole('status')).toHaveTextContent('Future date; check-ins are unavailable.');
+    expect(screen.getByRole('heading', { name: 'August 8, 2026' })).toBeVisible();
     expect(screen.queryByRole('dialog', { name: 'Daily check-in' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
     fireEvent.click(screen.getByRole('button', { name: /Wednesday, July 15, 2026/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Check in for this day' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Medium' }));
-    expect(screen.getByRole('button', { name: 'Save and done' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save and done' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     expect(
       screen.getByText(/A new open period cannot begin before a later recorded period/i),
     ).toBeVisible();
   });
 
-  it('renders localized insight data derived from recorded multi-cycle history', async () => {
+  it('integrates recorded cycle and forecast calculations into history', async () => {
     const user = userEvent.setup();
     const payload = createRecordedMultiCyclePayload();
     await renderApp({
       vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
     });
 
-    await user.click(screen.getByRole('button', { name: 'Insights' }));
+    await openRootDestination(user, 'History');
 
-    expect(
-      screen.getByRole('heading', { name: 'Recent patterns from your journal' }),
-    ).toBeVisible();
-    expect(
-      screen.getByText(
-        /These summaries use up to six recent recorded observations.*describe your history/i,
-      ),
-    ).toBeVisible();
+    expect(screen.getByRole('region', { name: 'Periods history' })).toBeVisible();
+    expect(screen.getAllByText('Bleeding duration: 5 days')).toHaveLength(2);
+    expect(screen.getAllByText('Cycle length: 28 days')).toHaveLength(2);
 
-    const cycleLengths = within(sectionWithHeading('Recent cycle lengths'));
-    expect(cycleLengths.getAllByText('28 days')).toHaveLength(2);
-    expect(cycleLengths.getByText(/Jun 29, 2026.*Jul 27, 2026/)).toBeVisible();
-    expect(cycleLengths.getByText(/Jun 1, 2026.*Jun 29, 2026/)).toBeVisible();
+    const nextEstimate = within(sectionWithHeading('Next period estimate'));
+    expect(nextEstimate.getByText('Estimated start range')).toBeVisible();
+    expect(nextEstimate.getByText('Confidence')).toBeVisible();
 
-    const bleedingDurations = within(sectionWithHeading('Known bleeding durations'));
-    expect(bleedingDurations.getAllByText('5 days')).toHaveLength(2);
-    expect(bleedingDurations.getByText(/Jul 27, 2026.*Jul 31, 2026/)).toBeVisible();
-    expect(bleedingDurations.getByText(/Jun 1, 2026.*Jun 5, 2026/)).toBeVisible();
-    expect(bleedingDurations.queryByText('Jun 29, 2026')).not.toBeInTheDocument();
-
-    const higherConfidenceDays = within(sectionWithHeading('Recent higher-confidence days'));
-    expect(higherConfidenceDays.getByText('2 recent records')).toBeVisible();
-    expect(higherConfidenceDays.getByText('Confidence 4 of 5')).toBeVisible();
-    expect(higherConfidenceDays.getByText('Confidence 5 of 5')).toBeVisible();
-    expect(higherConfidenceDays.getByText('Jul 28, 2026')).toBeVisible();
-    expect(higherConfidenceDays.getByText('Jul 31, 2026')).toBeVisible();
-    expect(higherConfidenceDays.queryByText('Aug 2, 2026')).not.toBeInTheDocument();
-
-    const forecastExplanation = within(sectionWithHeading('Why this estimate looks this way'));
-    expect(forecastExplanation.getByText('Recent recorded period starts')).toBeVisible();
-    expect(forecastExplanation.getByText('2 cycles')).toBeVisible();
-    expect(
-      forecastExplanation.getByText('Recent cycle lengths differ by 4 days or less'),
-    ).toBeVisible();
-    expect(forecastExplanation.getByText('0 days')).toBeVisible();
+    const explanation = within(sectionWithHeading('Why this estimate?'));
+    expect(explanation.getByText('Recorded cycle lengths used (days)')).toBeVisible();
+    expect(explanation.getByText('28, 28')).toBeVisible();
+    expect(explanation.getByText('Calculated bleeding duration')).toBeVisible();
   });
 
   it('keeps an imported unknown period unchanged when date editing is cancelled', async () => {
@@ -727,7 +697,7 @@ describe('App', () => {
       vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
     });
 
-    await user.click(screen.getByRole('button', { name: 'Periods history' }));
+    await openRootDestination(user, 'History');
     await user.click(screen.getByRole('button', { name: /Edit period starting Jun 29, 2026/ }));
     expect(screen.getByText('Select either the start or end date for this period.')).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -752,7 +722,7 @@ describe('App', () => {
       vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
     });
 
-    await user.click(screen.getByRole('button', { name: 'Periodenverlauf' }));
+    await user.click(screen.getByRole('button', { name: 'Verlauf' }));
     await user.click(
       screen.getByRole('button', {
         name: /Periode ab 27\. Juli 2026.*31\. Juli 2026 bearbeiten/,

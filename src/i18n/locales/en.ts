@@ -247,7 +247,7 @@ export const en = {
       sectionLabel: 'Periods history',
       title: 'Recorded periods',
       description:
-        'Select a recorded period, or select an empty calendar date to begin a new one, then choose its two boundaries.',
+        'Select a recorded period to review its details and actions, or select an empty calendar date to add a new period.',
       empty: 'No periods have been recorded yet.',
       active: 'Active period',
       completed: 'Completed; duration known',
@@ -261,13 +261,41 @@ export const en = {
       },
       edit: 'Edit dates',
       editLabel: 'Edit period starting {{date}}',
+      showMore: 'Show more',
+      bleedingDuration: 'Bleeding duration: {{count}} days',
+      bleedingDuration_one: 'Bleeding duration: {{count}} day',
+      bleedingDuration_other: 'Bleeding duration: {{count}} days',
+      cycleLength: 'Cycle length: {{count}} days',
+      cycleLength_one: 'Cycle length: {{count}} day',
+      cycleLength_other: 'Cycle length: {{count}} days',
+      estimate: {
+        title: 'Next period estimate',
+        rangeLabel: 'Estimated start range',
+        centralStartLabel: 'Central estimated start',
+        durationLabel: 'Estimated bleeding duration',
+        explanationTitle: 'Why this estimate?',
+        explanation:
+          'The app calculates the median of recorded cycle lengths and adds it to the latest completed period start. The shortest and longest recent cycles, plus a minimum uncertainty margin, form the estimated start range. Bleeding duration uses the median of completed recorded periods when available.',
+        calculatedCycleLength: 'Calculated cycle length',
+        cycleLengthsUsed: 'Recorded cycle lengths used (days)',
+        noRecordedCycleLengths: 'No completed cycle lengths; using your optional estimate',
+        calculatedBleedingDuration: 'Calculated bleeding duration',
+        durationWithSource: '{{count}} days · {{source}} source',
+      },
       calendar: {
         label: 'Recorded periods calendar',
-        legend: 'Calendar markers',
+        legend: 'Background colors',
         cancel: 'Cancel',
         selectBoundary: 'Select either the start or end date for this period.',
         firstBoundary: 'First boundary selected. Select the other boundary.',
         newFirstBoundary: 'New period boundary selected. Select the other boundary.',
+        selectEndBoundary: 'Select an end date after the chosen start date.',
+        endAfterStart: 'The end date must be after the selected start date.',
+        selectedPeriod: 'Period {{range}}',
+        emptyDate: '{{date}} is not part of a recorded period',
+        emptyDateDescription:
+          'Use this date as the start of a new period, then select its end date.',
+        addStartingHere: 'Start a new period here',
         selectedStart: 'Selected period start date',
         selectedEnd: 'Selected period end date',
         selectedRange: 'Inside the selected period range',
@@ -433,6 +461,7 @@ export const en = {
       navigation: {
         label: 'Primary navigation',
         calendar: 'Calendar',
+        history: 'History',
         privacy: 'Privacy',
         settings: 'Settings',
       },
@@ -453,9 +482,9 @@ export const en = {
         goToToday: 'Go to today',
       },
       legend: {
-        title: 'Calendar markers',
-        recorded: 'Recorded',
-        predicted: 'Predicted',
+        title: 'Background colors',
+        recorded: 'Recorded period',
+        predicted: 'Estimated period',
         today: 'Today',
         showGuide: 'Show marker guide',
         hideGuide: 'Hide marker guide',
@@ -479,8 +508,9 @@ export const en = {
         showPredictedMonth: 'Show predicted month',
         states: {
           active: {
-            title: 'Period recorded as active',
-            description: 'Recorded period days take priority over estimates.',
+            title: 'Current period is active',
+            description: 'The next estimated start is not available yet.',
+            nextEstimatedStart: 'Next estimated period starts on {{date}}.',
           },
           unavailable: {
             title: 'Estimate unavailable',
@@ -506,8 +536,7 @@ export const en = {
         navigationLabel: 'Calendar details',
         insights: 'Insights',
         periodHistory: 'Periods history',
-        closeInsights: 'Close Insights',
-        closePeriodHistory: 'Close Periods history',
+        backToCalendar: 'Back to Calendar',
       },
       day: {
         title: 'Details for {{date}}',
@@ -517,6 +546,15 @@ export const en = {
         future: 'Future dates are read-only.',
         close: 'Close day details',
       },
+      selectedDay: {
+        title: '{{date}}',
+        selected: 'Selected calendar day',
+        noCheckIn: 'No check-in has been saved for this day.',
+        flow: 'Flow: {{flow}}',
+        rating: '{{label}}: {{value}}',
+        start: 'Check in for this day',
+        edit: 'Edit this day’s check-in',
+      },
     },
     privacy: {
       title: 'Privacy',
@@ -525,7 +563,7 @@ export const en = {
         portability: 'Backup and export',
       },
       storage: {
-        title: 'Private journal data',
+        title: 'Journal data',
         description:
           'Journal data stays on this device unless you export a file or erase the local data.',
         downloads:
@@ -633,7 +671,7 @@ export const en = {
       },
     },
     backup: {
-      title: 'Back up or restore your journal',
+      title: 'Back up or restore',
       description:
         'Encrypted backups stay protected by their backup PIN. Downloaded files are outside this app and are not removed by Erase everything.',
       locked: 'Unlock the local vault before using backup or restore tools.',

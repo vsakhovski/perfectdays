@@ -1,11 +1,15 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 
 import type { LocalDate } from '../../domain/models';
 import styles from './PeriodHistory.module.css';
 
+const HISTORY_PAGE_SIZE = 3;
+
 export type PeriodStartIntensity = 'unspecified' | 'light' | 'medium' | 'heavy';
 
 export interface PeriodHistoryEntry {
+  readonly bleedingDurationDays?: number;
+  readonly cycleLengthDays?: number;
   readonly id: string;
   readonly startDate: LocalDate;
   readonly endDate?: LocalDate;
@@ -25,6 +29,9 @@ export interface PeriodHistoryCopy {
   readonly startIntensity: Readonly<Record<PeriodStartIntensity, string>>;
   readonly edit: string;
   readonly editLabel: (dateLabel: string) => string;
+  readonly bleedingDuration?: (days: number) => string;
+  readonly cycleLength?: (days: number) => string;
+  readonly showMore?: string;
   readonly delete?: string;
   readonly deleteLabel?: (dateLabel: string) => string;
 }
@@ -63,6 +70,14 @@ export function PeriodHistory({
   showSectionLabel = true,
 }: PeriodHistoryProps) {
   const headingId = useId();
+  const [visibleCount, setVisibleCount] = useState(HISTORY_PAGE_SIZE);
+  const selectedIndex = entries.findIndex((entry) => entry.id === selectedEntryId);
+  const selectedPageEnd =
+    selectedIndex < 0
+      ? HISTORY_PAGE_SIZE
+      : Math.ceil((selectedIndex + 1) / HISTORY_PAGE_SIZE) * HISTORY_PAGE_SIZE;
+  const effectiveVisibleCount = Math.max(visibleCount, selectedPageEnd);
+  const visibleEntries = entries.slice(0, effectiveVisibleCount);
 
   return (
     <section
@@ -84,8 +99,16 @@ export function PeriodHistory({
         <p className={styles['empty']}>{copy.empty}</p>
       ) : (
         <ol className={styles['list']} role="list">
-          {entries.map((entry) => {
+          {visibleEntries.map((entry) => {
             const dateLabel = entryDateLabel(entry, formatDate, formatDateRange);
+            const bleedingDurationLabel =
+              entry.bleedingDurationDays === undefined || copy.bleedingDuration === undefined
+                ? undefined
+                : copy.bleedingDuration(entry.bleedingDurationDays);
+            const cycleLengthLabel =
+              entry.cycleLengthDays === undefined || copy.cycleLength === undefined
+                ? undefined
+                : copy.cycleLength(entry.cycleLengthDays);
             const displayedDateLabel =
               entry.endDate === undefined
                 ? `${formatDate(entry.startDate)} — ${copy.active}`
@@ -95,7 +118,17 @@ export function PeriodHistory({
 
             return (
               <li className={styles['entry']} key={entry.id}>
-                <strong className={styles['entryDates']}>{displayedDateLabel}</strong>
+                <div className={styles['entrySummary']}>
+                  <strong className={styles['entryDates']}>{displayedDateLabel}</strong>
+                  {bleedingDurationLabel === undefined && cycleLengthLabel === undefined ? null : (
+                    <p className={styles['entryMetrics']}>
+                      {bleedingDurationLabel === undefined ? null : (
+                        <span>{bleedingDurationLabel}</span>
+                      )}
+                      {cycleLengthLabel === undefined ? null : <span>{cycleLengthLabel}</span>}
+                    </p>
+                  )}
+                </div>
                 <div className={styles['entryActions']}>
                   <button
                     aria-label={copy.editLabel(dateLabel)}
@@ -134,6 +167,19 @@ export function PeriodHistory({
           })}
         </ol>
       )}
+
+      {copy.showMore !== undefined && entries.length > effectiveVisibleCount ? (
+        <button
+          className={styles['showMoreButton']}
+          disabled={busy}
+          onClick={() => {
+            setVisibleCount(Math.min(effectiveVisibleCount + HISTORY_PAGE_SIZE, entries.length));
+          }}
+          type="button"
+        >
+          {copy.showMore}
+        </button>
+      ) : null}
     </section>
   );
 }

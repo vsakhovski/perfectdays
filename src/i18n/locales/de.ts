@@ -257,7 +257,7 @@ export const de = {
       sectionLabel: 'Periodenverlauf',
       title: 'Aufgezeichnete Perioden',
       description:
-        'Wähle eine aufgezeichnete Periode oder beginne eine neue über ein leeres Kalenderdatum und bestimme dann ihre beiden Grenzen.',
+        'Wähle eine aufgezeichnete Periode, um Details und Aktionen zu sehen, oder ein leeres Kalenderdatum, um eine neue Periode hinzuzufügen.',
       empty: 'Noch keine Periode aufgezeichnet.',
       active: 'Aktive Periode',
       completed: 'Beendet; Dauer bekannt',
@@ -271,13 +271,42 @@ export const de = {
       },
       edit: 'Daten bearbeiten',
       editLabel: 'Periode ab {{date}} bearbeiten',
+      showMore: 'Mehr anzeigen',
+      bleedingDuration: 'Blutungsdauer: {{count}} Tage',
+      bleedingDuration_one: 'Blutungsdauer: {{count}} Tag',
+      bleedingDuration_other: 'Blutungsdauer: {{count}} Tage',
+      cycleLength: 'Zykluslänge: {{count}} Tage',
+      cycleLength_one: 'Zykluslänge: {{count}} Tag',
+      cycleLength_other: 'Zykluslänge: {{count}} Tage',
+      estimate: {
+        title: 'Schätzung der nächsten Periode',
+        rangeLabel: 'Geschätzter Startzeitraum',
+        centralStartLabel: 'Zentraler geschätzter Beginn',
+        durationLabel: 'Geschätzte Blutungsdauer',
+        explanationTitle: 'Warum diese Schätzung?',
+        explanation:
+          'Die App berechnet den Median der aufgezeichneten Zykluslängen und addiert ihn zum Beginn der letzten abgeschlossenen Periode. Die kürzesten und längsten letzten Zyklen bilden zusammen mit einem Mindestspielraum den geschätzten Startzeitraum. Für die Blutungsdauer wird, wenn möglich, der Median abgeschlossener aufgezeichneter Perioden verwendet.',
+        calculatedCycleLength: 'Berechnete Zykluslänge',
+        cycleLengthsUsed: 'Verwendete aufgezeichnete Zykluslängen (Tage)',
+        noRecordedCycleLengths:
+          'Keine abgeschlossenen Zykluslängen; optionale Schätzung wird verwendet',
+        calculatedBleedingDuration: 'Berechnete Blutungsdauer',
+        durationWithSource: '{{count}} Tage · Quelle: {{source}}',
+      },
       calendar: {
         label: 'Kalender der aufgezeichneten Perioden',
-        legend: 'Kalendermarkierungen',
+        legend: 'Hintergrundfarben',
         cancel: 'Abbrechen',
         selectBoundary: 'Wähle entweder das Start- oder Enddatum dieser Periode.',
         firstBoundary: 'Erste Grenze gewählt. Wähle die andere Grenze.',
         newFirstBoundary: 'Grenze der neuen Periode gewählt. Wähle die andere Grenze.',
+        selectEndBoundary: 'Wähle ein Enddatum nach dem ausgewählten Startdatum.',
+        endAfterStart: 'Das Enddatum muss nach dem ausgewählten Startdatum liegen.',
+        selectedPeriod: 'Periode {{range}}',
+        emptyDate: '{{date}} gehört zu keiner aufgezeichneten Periode',
+        emptyDateDescription:
+          'Verwende dieses Datum als Start einer neuen Periode und wähle danach ihr Enddatum.',
+        addStartingHere: 'Neue Periode hier beginnen',
         selectedStart: 'Gewähltes Startdatum der Periode',
         selectedEnd: 'Gewähltes Enddatum der Periode',
         selectedRange: 'Innerhalb des gewählten Periodenzeitraums',
@@ -449,6 +478,7 @@ export const de = {
       navigation: {
         label: 'Hauptnavigation',
         calendar: 'Kalender',
+        history: 'Verlauf',
         privacy: 'Datenschutz',
         settings: 'Einstellungen',
       },
@@ -469,9 +499,9 @@ export const de = {
         goToToday: 'Heute anzeigen',
       },
       legend: {
-        title: 'Kalendermarkierungen',
-        recorded: 'Aufgezeichnet',
-        predicted: 'Geschätzt',
+        title: 'Hintergrundfarben',
+        recorded: 'Aufgezeichnete Periode',
+        predicted: 'Geschätzte Periode',
         today: 'Heute',
         showGuide: 'Markierungsübersicht anzeigen',
         hideGuide: 'Markierungsübersicht ausblenden',
@@ -497,8 +527,9 @@ export const de = {
         showPredictedMonth: 'Monat der Schätzung anzeigen',
         states: {
           active: {
-            title: 'Periode als aktiv aufgezeichnet',
-            description: 'Aufgezeichnete Periodentage haben Vorrang vor Schätzungen.',
+            title: 'Die aktuelle Periode ist aktiv',
+            description: 'Der nächste geschätzte Beginn ist noch nicht verfügbar.',
+            nextEstimatedStart: 'Die nächste Periode beginnt voraussichtlich am {{date}}.',
           },
           unavailable: {
             title: 'Keine Schätzung verfügbar',
@@ -525,8 +556,7 @@ export const de = {
         navigationLabel: 'Kalenderdetails',
         insights: 'Einblicke',
         periodHistory: 'Periodenverlauf',
-        closeInsights: 'Einblicke schließen',
-        closePeriodHistory: 'Periodenverlauf schließen',
+        backToCalendar: 'Zurück zum Kalender',
       },
       day: {
         title: 'Details für {{date}}',
@@ -536,6 +566,15 @@ export const de = {
         future: 'Zukünftige Daten können nur angesehen werden.',
         close: 'Tagesdetails schließen',
       },
+      selectedDay: {
+        title: '{{date}}',
+        selected: 'Ausgewählter Kalendertag',
+        noCheckIn: 'Für diesen Tag wurde noch kein Check-in gespeichert.',
+        flow: 'Blutung: {{flow}}',
+        rating: '{{label}}: {{value}}',
+        start: 'Für diesen Tag eintragen',
+        edit: 'Check-in dieses Tages bearbeiten',
+      },
     },
     privacy: {
       title: 'Datenschutz',
@@ -544,7 +583,7 @@ export const de = {
         portability: 'Sicherung und Export',
       },
       storage: {
-        title: 'Private Tagebuchdaten',
+        title: 'Tagebuchdaten',
         description:
           'Die Tagebuchdaten bleiben auf diesem Gerät, es sei denn, du exportierst eine Datei oder löschst die lokalen Daten.',
         downloads:
@@ -655,7 +694,7 @@ export const de = {
       },
     },
     backup: {
-      title: 'Tagebuch sichern oder wiederherstellen',
+      title: 'Sichern oder wiederherstellen',
       description:
         'Verschlüsselte Sicherungen bleiben durch ihre Sicherungs-PIN geschützt. Heruntergeladene Dateien liegen außerhalb dieser App und werden durch „Alles löschen“ nicht entfernt.',
       locked:

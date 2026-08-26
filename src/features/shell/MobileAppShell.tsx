@@ -2,14 +2,16 @@ import { useEffect, useRef, type ReactNode } from 'react';
 
 import styles from './MobileAppShell.module.css';
 
-export type RootDestination = 'calendar' | 'privacy' | 'settings';
+export type RootDestination = 'calendar' | 'history' | 'privacy' | 'settings';
 
 export interface MobileAppShellCopy {
   readonly checkInToday: string;
   readonly editTodayCheckIn: string;
   readonly lock: string;
   readonly navigationLabel: string;
-  readonly destinations: Readonly<Record<RootDestination, string>>;
+  readonly destinations: Readonly<
+    Record<Exclude<RootDestination, 'history'>, string> & { history?: string }
+  >;
 }
 
 export interface MobileAppShellProps {
@@ -20,21 +22,23 @@ export interface MobileAppShellProps {
   readonly hideBottomChrome?: boolean;
   readonly headerAction?: {
     readonly disabled?: boolean;
-    readonly icon?: 'close';
+    readonly icon?: 'back' | 'close';
     readonly label: string;
     readonly onActivate: () => void;
-    readonly placement?: 'default' | 'end';
+    readonly placement?: 'default' | 'end' | 'start';
   };
   readonly focusScreenTitle?: boolean;
   readonly onCheckIn: (trigger: HTMLButtonElement) => void;
   readonly onLock?: () => void;
   readonly onNavigate: (destination: RootDestination) => void;
   readonly screenKey?: string;
-  readonly screenTitle: string;
+  readonly screenTitle: string | undefined;
+  readonly showCheckInAction?: boolean;
 }
 
 const rootDestinations = [
   'calendar',
+  'history',
   'privacy',
   'settings',
 ] as const satisfies readonly RootDestination[];
@@ -50,6 +54,13 @@ function DestinationIcon({ destination }: DestinationIconProps) {
         <svg aria-hidden="true" className={styles['icon']} viewBox="0 0 24 24">
           <path d="M7 3v3m10-3v3M4.5 9h15M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
           <path d="M8 13h3v3H8z" />
+        </svg>
+      );
+    case 'history':
+      return (
+        <svg aria-hidden="true" className={styles['icon']} viewBox="0 0 24 24">
+          <path d="M6 4h12a2 2 0 0 1 2 2v14H4V6a2 2 0 0 1 2-2Z" />
+          <path d="M8 9h8M8 13h8M8 17h5" />
         </svg>
       );
     case 'privacy':
@@ -84,6 +95,14 @@ function CloseIcon() {
   );
 }
 
+function BackIcon() {
+  return (
+    <svg aria-hidden="true" className={styles['icon']} viewBox="0 0 24 24">
+      <path d="m15 5-7 7 7 7" />
+    </svg>
+  );
+}
+
 export function MobileAppShell({
   activeDestination,
   children,
@@ -97,7 +116,9 @@ export function MobileAppShell({
   onNavigate,
   screenKey = activeDestination,
   screenTitle,
+  showCheckInAction = true,
 }: MobileAppShellProps) {
+  const resolvedScreenTitle = screenTitle ?? copy.destinations.calendar;
   const headingRef = useRef<HTMLHeadingElement>(null);
   const contentRef = useRef<HTMLElement>(null);
   const pendingFocusDestinationRef = useRef<RootDestination | null>(null);
@@ -144,26 +165,36 @@ export function MobileAppShell({
 
   const headerActionButton = headerAction ? (
     <button
-      aria-label={headerAction.icon === 'close' ? headerAction.label : undefined}
+      aria-label={headerAction.icon === undefined ? undefined : headerAction.label}
       className={styles['headerActionButton']}
       data-icon={headerAction.icon}
       disabled={headerAction.disabled}
       onClick={headerAction.onActivate}
       type="button"
     >
-      {headerAction.icon === 'close' ? <CloseIcon /> : headerAction.label}
+      {headerAction.icon === 'back' ? (
+        <BackIcon />
+      ) : headerAction.icon === 'close' ? (
+        <CloseIcon />
+      ) : (
+        headerAction.label
+      )}
     </button>
   ) : null;
 
   return (
     <div className={styles['shell']}>
       <header className={styles['topBar']}>
+        <div className={styles['headerLeading']}>
+          {headerAction?.placement === 'start' ? headerActionButton : null}
+        </div>
         <h1 className={styles['screenTitle']} ref={headingRef} tabIndex={-1}>
-          {screenTitle}
+          {resolvedScreenTitle}
         </h1>
         <div className={styles['topActions']}>
-          {headerAction?.placement === 'end' ? lockButton : headerActionButton}
-          {headerAction?.placement === 'end' ? headerActionButton : lockButton}
+          {headerAction?.placement === 'end' ? lockButton : null}
+          {headerAction?.placement === 'start' ? null : headerActionButton}
+          {headerAction?.placement === 'end' ? null : lockButton}
         </div>
       </header>
 
@@ -172,22 +203,26 @@ export function MobileAppShell({
       </main>
 
       <div className={styles['bottomChrome']} hidden={hideBottomChrome}>
-        <div className={styles['actionDock']}>
-          <button
-            className={styles['checkInButton']}
-            onClick={(event) => {
-              onCheckIn(event.currentTarget);
-            }}
-            type="button"
-          >
-            {hasTodayCheckIn ? copy.editTodayCheckIn : copy.checkInToday}
-          </button>
-        </div>
+        {showCheckInAction ? (
+          <div className={styles['actionDock']}>
+            <button
+              className={styles['checkInButton']}
+              onClick={(event) => {
+                onCheckIn(event.currentTarget);
+              }}
+              type="button"
+            >
+              {hasTodayCheckIn ? copy.editTodayCheckIn : copy.checkInToday}
+            </button>
+          </div>
+        ) : null}
 
         <nav aria-label={copy.navigationLabel} className={styles['bottomNavigation']}>
           <ul className={styles['navigationList']} role="list">
             {rootDestinations.map((destination) => {
               const isActive = destination === activeDestination;
+              const label = copy.destinations[destination];
+              if (label === undefined) return null;
 
               return (
                 <li key={destination}>
@@ -201,7 +236,7 @@ export function MobileAppShell({
                     type="button"
                   >
                     <DestinationIcon destination={destination} />
-                    <span>{copy.destinations[destination]}</span>
+                    <span>{label}</span>
                   </button>
                 </li>
               );

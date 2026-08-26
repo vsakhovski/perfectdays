@@ -355,6 +355,11 @@
   color: var(--color-on-accent);
 }
 
+.saveButton[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .deleteButton {
   background: var(--color-danger);
   color: var(--color-on-danger);
@@ -425,6 +430,11 @@
   background: var(--color-surface-subtle);
   color: var(--color-text-muted);
   font-size: 0.9rem;
+}
+
+.saveGuidance:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 .status {

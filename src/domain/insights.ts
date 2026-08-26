@@ -237,7 +237,10 @@ export function deriveForecastExplanationData(
   forecast: ForecastDetails,
   episodes: readonly PeriodEpisode[],
 ): ForecastExplanationData {
-  const anchor = [...episodes].sort(compareEpisodes).at(-1);
+  const anchor = episodes
+    .filter((episode) => episode.endDate !== undefined)
+    .sort(compareEpisodes)
+    .at(-1);
 
   if (anchor === undefined) {
     throw new RangeError('A forecast explanation requires an anchor episode.');

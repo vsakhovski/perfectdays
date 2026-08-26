@@ -253,6 +253,7 @@ export function DayDetailEditor({
   const titleId = useId();
   const dateId = useId();
   const saveDisabledReasonId = useId();
+  const saveDisabledReasonRef = useRef<HTMLParagraphElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const removePeriodButtonRef = useRef<HTMLButtonElement>(null);
   const confirmRemovePeriodButtonRef = useRef<HTMLButtonElement>(null);
@@ -336,6 +337,11 @@ export function DayDetailEditor({
 
   const submit = (event: SyntheticEvent<HTMLFormElement>): void => {
     event.preventDefault();
+    if (saveDisabled) {
+      saveDisabledReasonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      saveDisabledReasonRef.current?.focus({ preventScroll: true });
+      return;
+    }
     onSave(value, date);
   };
   const explicitPeriodActions = periodActions.filter(
@@ -539,7 +545,12 @@ export function DayDetailEditor({
             </p>
           ) : null}
           {saveDisabled && saveDisabledReason ? (
-            <p className={styles['saveGuidance']} id={saveDisabledReasonId}>
+            <p
+              className={styles['saveGuidance']}
+              id={saveDisabledReasonId}
+              ref={saveDisabledReasonRef}
+              tabIndex={-1}
+            >
               {saveDisabledReason}
             </p>
           ) : null}
@@ -549,8 +560,9 @@ export function DayDetailEditor({
               aria-describedby={
                 saveDisabled && saveDisabledReason ? saveDisabledReasonId : undefined
               }
+              aria-disabled={saveDisabled}
               className={styles['saveButton']}
-              disabled={busy || saveDisabled}
+              disabled={busy}
               type="submit"
             >
               {busy ? copy.saving : copy.save}

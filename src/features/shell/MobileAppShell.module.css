@@ -13,9 +13,10 @@
 }
 
 .topBar {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
+  gap: 0.25rem;
   min-block-size: 3.5rem;
   padding-block: calc(0.5rem + env(safe-area-inset-top)) 0.5rem;
   padding-inline: 1rem;
@@ -55,6 +56,10 @@
   margin-inline-start: 0.5rem;
 }
 
+.topActions:empty {
+  margin-inline-start: 0;
+}
+
 .headerActionButton,
 .lockButton {
   min-block-size: 2.75rem;
@@ -74,7 +79,8 @@
   color: var(--color-accent);
 }
 
-.headerActionButton[data-icon='close'] {
+.headerActionButton[data-icon='close'],
+.headerActionButton[data-icon='back'] {
   display: inline-grid;
   place-items: center;
   padding: 0;
@@ -83,10 +89,17 @@
   color: var(--color-text);
 }
 
-.headerActionButton[data-icon='close'] .icon {
+.headerActionButton[data-icon='close'] .icon,
+.headerActionButton[data-icon='back'] .icon {
   inline-size: 1.4rem;
   block-size: 1.4rem;
   stroke-width: 2;
+}
+
+.headerLeading {
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
 }
 
 .headerActionButton:hover:not(:disabled),
@@ -157,7 +170,7 @@
 
 .navigationList {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.25rem;
   margin: 0;
   padding: 0;

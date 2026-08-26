@@ -37,6 +37,7 @@ export interface CalendarDay {
   readonly flowDescription?: string;
   readonly selection?: CalendarDaySelection;
   readonly selectionDescription?: string;
+  readonly selectionAnimated?: boolean;
   readonly markerDescriptions?: Partial<Readonly<Record<CalendarMarker, string>>>;
   readonly disabled?: boolean;
   readonly disabledDescription?: string;
@@ -75,6 +76,7 @@ export interface MonthlyCalendarProps {
   readonly copy: CalendarCopy;
   readonly focusTodayRequest?: number;
   readonly legendMode?: 'full' | 'recorded-only';
+  readonly maxMonth?: LocalDate;
   readonly months: readonly CalendarMonth[];
   readonly onRequestMonth: (month: LocalDate) => void;
   readonly onSelectDate: (date: LocalDate, trigger: HTMLButtonElement) => void;
@@ -225,13 +227,10 @@ export function CalendarLegend({
   readonly mode?: 'full' | 'recorded-only';
 }) {
   const titleId = useId();
-  const essentialMarkers =
+  const backgroundMarkers =
     mode === 'recorded-only'
-      ? (['recordedRed', 'today'] as const)
-      : (['recordedRed', 'predictedRed', 'today'] as const);
-  const additionalMarkers = markerOrder.filter(
-    (marker) => marker !== 'recordedRed' && marker !== 'predictedRed',
-  );
+      ? (['recordedRed'] as const)
+      : (['recordedRed', 'predictedRed', 'orange'] as const);
   const labelFor = (marker: LegendMarker): string => {
     if (marker === 'today') return copy.essentialLegend?.today ?? copy.today;
     if (marker === 'recordedRed') return copy.essentialLegend?.recorded ?? copy.markers.recordedRed;
@@ -244,30 +243,13 @@ export function CalendarLegend({
     <section className={styles['legend']} aria-labelledby={titleId}>
       <h3 id={titleId}>{copy.legendTitle}</h3>
       <ul className={styles['essentialLegend']} role="list">
-        {essentialMarkers.map((marker) => (
+        {backgroundMarkers.map((marker) => (
           <li key={marker}>
-            <span className={combineClasses(styles['legendIcon'], styles[`marker-${marker}`])}>
-              <MarkerIcon marker={marker} />
-            </span>
+            <span className={styles['backgroundSwatch']} data-background={marker} />
             <span>{labelFor(marker)}</span>
           </li>
         ))}
       </ul>
-      {mode === 'full' ? (
-        <details className={styles['markerGuide']}>
-          <summary>{copy.markerGuide ?? copy.legendTitle}</summary>
-          <ul role="list">
-            {([...additionalMarkers, 'neutral'] as const).map((marker) => (
-              <li key={marker}>
-                <span className={combineClasses(styles['legendIcon'], styles[`marker-${marker}`])}>
-                  <MarkerIcon marker={marker} />
-                </span>
-                <span>{labelFor(marker)}</span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      ) : null}
     </section>
   );
 }
@@ -276,6 +258,7 @@ export function MonthlyCalendar({
   copy,
   focusTodayRequest = 0,
   legendMode = 'full',
+  maxMonth,
   months,
   onRequestMonth,
   onSelectDate,
@@ -307,7 +290,13 @@ export function MonthlyCalendar({
   const scrollFrameRef = useRef<number | undefined>(undefined);
   const [focusedDate, setFocusedDate] = useState<LocalDate>(today);
 
-  const days = useMemo(() => continuousDays(months), [months]);
+  const days = useMemo(
+    () =>
+      continuousDays(months).filter(
+        (day) => maxMonth === undefined || startOfMonth(day.date) <= maxMonth,
+      ),
+    [maxMonth, months],
+  );
   const enabledDays = useMemo(() => days.filter((day) => !day.disabled), [days]);
   const effectiveFocusedDate =
     enabledDays.find((day) => day.date === focusedDate)?.date ??
@@ -318,11 +307,12 @@ export function MonthlyCalendar({
 
   const reportVisibleMonth = useCallback(
     (month: LocalDate) => {
-      if (month === visibleMonth) return;
-      lastReportedMonthRef.current = month;
-      onVisibleMonthChange(month);
+      const boundedMonth = maxMonth !== undefined && month > maxMonth ? maxMonth : month;
+      if (boundedMonth === visibleMonth) return;
+      lastReportedMonthRef.current = boundedMonth;
+      onVisibleMonthChange(boundedMonth);
     },
-    [onVisibleMonthChange, visibleMonth],
+    [maxMonth, onVisibleMonthChange, visibleMonth],
   );
 
   const capturePrependAnchor = useCallback((): void => {
@@ -344,22 +334,26 @@ export function MonthlyCalendar({
 
   const scrollToMonth = useCallback(
     (month: LocalDate, behavior: ScrollBehavior) => {
+      if (maxMonth !== undefined && month > maxMonth) return;
       const target = monthAnchorRefs.current.get(month);
       const renderedMonths = monthsRef.current;
       const targetIndex = renderedMonths.findIndex((candidate) => candidate.month === month);
       const targetNeedsLeadingSpace = targetIndex === 0;
-      const targetNeedsTrailingSpace = targetIndex === renderedMonths.length - 1;
+      const targetNeedsTrailingSpace =
+        targetIndex === renderedMonths.length - 1 && (maxMonth === undefined || month < maxMonth);
       if (!target || targetNeedsLeadingSpace || targetNeedsTrailingSpace) {
         pendingMonthRef.current = month;
         const first = renderedMonths[0]?.month;
         const last = renderedMonths.at(-1)?.month;
         if (first && month <= first) capturePrependAnchor();
-        onRequestMonth(
+        const requestedMonth =
           first && month <= first
             ? addMonths(month, -6)
             : last && month >= last
               ? addMonths(month, 6)
-              : month,
+              : month;
+        onRequestMonth(
+          maxMonth !== undefined && requestedMonth > maxMonth ? maxMonth : requestedMonth,
         );
         return;
       }
@@ -382,7 +376,7 @@ export function MonthlyCalendar({
       }
       reportVisibleMonth(month);
     },
-    [capturePrependAnchor, onRequestMonth, reportVisibleMonth],
+    [capturePrependAnchor, maxMonth, onRequestMonth, reportVisibleMonth],
   );
 
   useLayoutEffect(() => {
@@ -478,9 +472,13 @@ export function MonthlyCalendar({
       onRequestMonth(addMonths(firstMonth, -6));
     };
     const requestLaterMonths = (lastMonth: LocalDate): void => {
+      if (maxMonth !== undefined && lastMonth >= maxMonth) return;
       if (trailingRequestRef.current === lastMonth) return;
       trailingRequestRef.current = lastMonth;
-      onRequestMonth(addMonths(lastMonth, 6));
+      const requestedMonth = addMonths(lastMonth, 6);
+      onRequestMonth(
+        maxMonth !== undefined && requestedMonth > maxMonth ? maxMonth : requestedMonth,
+      );
     };
 
     const visibleAreaByMonth = new Map<LocalDate, number>();
@@ -624,6 +622,7 @@ export function MonthlyCalendar({
           }
           data-recorded-red={day.markers.recordedRed}
           data-selection={day.selection}
+          data-selection-animated={day.selectionAnimated}
           data-spotting={day.markers.spotting}
           data-today={isToday}
           disabled={day.disabled}
@@ -696,7 +695,9 @@ export function MonthlyCalendar({
   };
 
   const navigateMonth = (direction: -1 | 1): void => {
-    scrollToMonth(addMonths(visibleMonth, direction), 'smooth');
+    const targetMonth = addMonths(visibleMonth, direction);
+    if (maxMonth !== undefined && targetMonth > maxMonth) return;
+    scrollToMonth(targetMonth, 'smooth');
   };
 
   return (
@@ -718,6 +719,7 @@ export function MonthlyCalendar({
         <button
           aria-label={copy.nextMonth}
           className={styles['navigationButton']}
+          disabled={maxMonth !== undefined && visibleMonth >= maxMonth}
           onClick={() => {
             navigateMonth(1);
           }}

@@ -71,14 +71,6 @@
   background: var(--color-surface-subtle);
 }
 
-.restoreCard {
-  order: 2;
-}
-
-.plaintextCard {
-  order: 3;
-}
-
 .dialogBackdrop {
   position: fixed;
   z-index: 40;

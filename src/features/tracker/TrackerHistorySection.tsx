@@ -1,8 +1,10 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useLanguage } from '../../app/i18n/use-language';
 import { useVault } from '../../app/vault/use-vault';
+import { calculateForecast } from '../../domain/forecast';
+import { deriveTrackerInsights } from '../../domain/insights';
 import {
   correctPeriod,
   JournalError,
@@ -10,7 +12,13 @@ import {
   type BleedingFlow,
   type JournalMutationResult,
 } from '../../domain/journal';
-import { addMonths, calendarMonthGrid, isSameMonth, startOfMonth } from '../../domain/local-date';
+import {
+  addDays,
+  addMonths,
+  calendarMonthGrid,
+  isSameMonth,
+  startOfMonth,
+} from '../../domain/local-date';
 import type { DailyLog, LocalDate, PeriodEpisode, VaultPayload } from '../../domain/models';
 import { importHistoricalEpisodes } from '../../domain/onboarding';
 import {
@@ -105,34 +113,83 @@ export function TrackerHistorySection({
   const { resolvedLanguage, systemLanguages } = useLanguage();
   const { journalEnvironment, savePayload } = useVault();
   const today = journalEnvironment.today();
+  const currentMonth = startOfMonth(today);
   const latestPeriod = [...payload.episodes].sort((left, right) =>
     right.startDate.localeCompare(left.startDate),
   )[0];
   const initialMonth = startOfMonth(latestPeriod?.startDate ?? today);
   const [visibleMonth, setVisibleMonth] = useState(initialMonth);
   const [calendarRangeStart, setCalendarRangeStart] = useState(() => addMonths(initialMonth, -1));
-  const [calendarRangeEnd, setCalendarRangeEnd] = useState(() => addMonths(initialMonth, 1));
+  const [calendarRangeEnd, setCalendarRangeEnd] = useState(() => {
+    const initialEnd = addMonths(initialMonth, 1);
+    return initialEnd > currentMonth ? currentMonth : initialEnd;
+  });
   const [draft, setDraft] = useState<BoundaryDraft>();
   const [selectedEntryId, setSelectedEntryId] = useState<string>();
+  const [selectedEmptyDate, setSelectedEmptyDate] = useState<LocalDate>();
   const [deleteCandidate, setDeleteCandidate] = useState<PeriodHistoryEntry>();
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
   const [statusMessage, setStatusMessage] = useState<string>();
   const calendarContainerRef = useRef<HTMLDivElement>(null);
+  const selectedActionPanelRef = useRef<HTMLElement>(null);
   const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
+
+  const forecast = useMemo(
+    () =>
+      calculateForecast({
+        episodes: payload.episodes,
+        settings: payload.settings,
+        today,
+      }),
+    [payload.episodes, payload.settings, today],
+  );
+  const insights = useMemo(
+    () =>
+      deriveTrackerInsights({
+        episodes: payload.episodes,
+        forecast,
+        limit: Math.max(1, payload.episodes.length),
+        logs: payload.logs,
+      }),
+    [forecast, payload.episodes, payload.logs],
+  );
+  const bleedingDurationByEpisode = useMemo(
+    () =>
+      new Map(
+        insights.bleedingDurations.records.map((record) => [record.episodeId, record.durationDays]),
+      ),
+    [insights.bleedingDurations.records],
+  );
+  const cycleLengthByEpisode = useMemo(
+    () =>
+      new Map(
+        insights.cycleLengths.records.map((record) => [
+          record.previousEpisodeId,
+          record.lengthDays,
+        ]),
+      ),
+    [insights.cycleLengths.records],
+  );
 
   const entries = useMemo<readonly PeriodHistoryEntry[]>(
     () =>
       [...payload.episodes]
         .sort((left, right) => right.startDate.localeCompare(left.startDate))
-        .map((episode) => ({
-          id: episode.id,
-          startDate: episode.startDate,
-          ...(episode.endDate === undefined ? {} : { endDate: episode.endDate }),
-          durationKnown: episode.endDate !== undefined && episode.durationKnown !== false,
-          startIntensity: startIntensityForEpisode(episode, payload.logs),
-        })),
-    [payload.episodes, payload.logs],
+        .map((episode) => {
+          const bleedingDurationDays = bleedingDurationByEpisode.get(episode.id);
+          const cycleLengthDays = cycleLengthByEpisode.get(episode.id);
+          return {
+            id: episode.id,
+            startDate: episode.startDate,
+            ...(episode.endDate === undefined ? {} : { endDate: episode.endDate }),
+            ...(bleedingDurationDays === undefined ? {} : { bleedingDurationDays }),
+            ...(cycleLengthDays === undefined ? {} : { cycleLengthDays }),
+            durationKnown: episode.endDate !== undefined && episode.durationKnown !== false,
+            startIntensity: startIntensityForEpisode(episode, payload.logs),
+          };
+        }),
+    [bleedingDurationByEpisode, cycleLengthByEpisode, payload.episodes, payload.logs],
   );
 
   const intensityCopy = {
@@ -153,6 +210,9 @@ export function TrackerHistorySection({
     startIntensity: intensityCopy,
     edit: t(($) => $.tracker.history.edit),
     editLabel: (dateLabel) => t(($) => $.tracker.history.editLabel, { date: dateLabel }),
+    bleedingDuration: (days) => t(($) => $.tracker.history.bleedingDuration, { count: days }),
+    cycleLength: (days) => t(($) => $.tracker.history.cycleLength, { count: days }),
+    showMore: t(($) => $.tracker.history.showMore),
     delete: t(($) => $.tracker.history.delete.action),
     deleteLabel: (dateLabel) => t(($) => $.tracker.history.delete.label, { date: dateLabel }),
   };
@@ -199,21 +259,35 @@ export function TrackerHistorySection({
   );
 
   const selectedEpisode =
+    selectedEntryId === undefined
+      ? undefined
+      : payload.episodes.find((episode) => episode.id === selectedEntryId);
+  const editedEpisode =
     draft?.episodeId === undefined
       ? undefined
       : payload.episodes.find((episode) => episode.id === draft.episodeId);
-  const selectionStart = draft?.startDate ?? draft?.firstDate ?? selectedEpisode?.startDate;
+  const selectionStart =
+    draft?.startDate ??
+    draft?.firstDate ??
+    editedEpisode?.startDate ??
+    selectedEpisode?.startDate ??
+    selectedEmptyDate;
   const selectionEnd =
     draft?.endDate ??
     draft?.firstDate ??
-    (selectedEpisode === undefined ? undefined : episodeEndForDisplay(selectedEpisode, today));
+    (editedEpisode === undefined
+      ? selectedEpisode === undefined
+        ? undefined
+        : episodeEndForDisplay(selectedEpisode, today)
+      : episodeEndForDisplay(editedEpisode, today));
+  const effectiveSelectionEnd = selectionEnd ?? selectedEmptyDate;
 
   const calendarMonths: CalendarMonth[] = [];
   for (let month = calendarRangeStart; month <= calendarRangeEnd; month = addMonths(month, 1)) {
     const renderedMonth = month;
     const days: readonly CalendarDay[] = calendarMonthGrid(renderedMonth, firstDay).map((date) => {
       const recordedEpisode = episodeOnDate(payload.episodes, date, today);
-      const selection = selectionForDate(date, selectionStart, selectionEnd);
+      const selection = selectionForDate(date, selectionStart, effectiveSelectionEnd);
       return {
         date,
         accessibleName: formatLocalDate(date, resolvedLanguage, {
@@ -229,6 +303,9 @@ export function TrackerHistorySection({
           recordedRed: recordedEpisode !== undefined || selection !== undefined,
         },
         ...(selection === undefined ? {} : { selection }),
+        ...(selection === undefined || draft?.stage !== 'selecting'
+          ? {}
+          : { selectionAnimated: true }),
         ...(selection === undefined
           ? {}
           : {
@@ -256,10 +333,11 @@ export function TrackerHistorySection({
 
   const requestCalendarMonth = useCallback(
     (month: LocalDate): void => {
+      const boundedMonth = month > currentMonth ? currentMonth : month;
       setCalendarRangeStart((current) => (month < current ? month : current));
-      setCalendarRangeEnd((current) => (month > current ? month : current));
+      setCalendarRangeEnd((current) => (boundedMonth > current ? boundedMonth : current));
     },
-    [setCalendarRangeEnd, setCalendarRangeStart],
+    [currentMonth, setCalendarRangeEnd, setCalendarRangeStart],
   );
 
   const messageForError = (error: unknown): string => {
@@ -291,6 +369,7 @@ export function TrackerHistorySection({
       });
       setDraft(undefined);
       setSelectedEntryId(undefined);
+      setSelectedEmptyDate(undefined);
       setDeleteCandidate(undefined);
       setStatusMessage(successMessage);
     } catch (error) {
@@ -304,7 +383,7 @@ export function TrackerHistorySection({
     nextDraft: BoundaryDraft & { startDate: LocalDate; endDate: LocalDate },
   ): void => {
     if (nextDraft.startDate === nextDraft.endDate) {
-      cancelSelection();
+      cancelEditing();
       return;
     }
 
@@ -351,6 +430,7 @@ export function TrackerHistorySection({
 
   const beginEditing = (entry: PeriodHistoryEntry, scrollFromTable = false): void => {
     setSelectedEntryId(entry.id);
+    setSelectedEmptyDate(undefined);
     setDraft({ episodeId: entry.id, stage: 'selecting' });
     setVisibleMonth(startOfMonth(entry.startDate));
     setErrorMessage(undefined);
@@ -365,8 +445,34 @@ export function TrackerHistorySection({
   const cancelSelection = (): void => {
     setDraft(undefined);
     setSelectedEntryId(undefined);
+    setSelectedEmptyDate(undefined);
     setErrorMessage(undefined);
     setStatusMessage(undefined);
+  };
+
+  const cancelEditing = (): void => {
+    const editedEntryId = draft?.episodeId;
+    const anchoredDate = draft?.episodeId === undefined ? draft?.firstDate : undefined;
+    setDraft(undefined);
+    setSelectedEntryId(editedEntryId);
+    setSelectedEmptyDate(anchoredDate);
+    setErrorMessage(undefined);
+    setStatusMessage(undefined);
+  };
+
+  const selectPeriod = (entry: PeriodHistoryEntry): void => {
+    setDraft(undefined);
+    setSelectedEntryId(entry.id);
+    setSelectedEmptyDate(undefined);
+    setErrorMessage(undefined);
+    setStatusMessage(undefined);
+  };
+
+  const beginNewPeriod = (): void => {
+    if (selectedEmptyDate === undefined) return;
+    setDraft({ firstDate: selectedEmptyDate, stage: 'selecting' });
+    setErrorMessage(undefined);
+    setStatusMessage(t(($) => $.tracker.history.calendar.selectEndBoundary));
   };
 
   const selectDate = (date: LocalDate): void => {
@@ -389,7 +495,12 @@ export function TrackerHistorySection({
 
     if (draft?.stage === 'selecting' && draft.firstDate !== undefined) {
       if (date === draft.firstDate) {
-        cancelSelection();
+        cancelEditing();
+        return;
+      }
+
+      if (draft.episodeId === undefined && date < draft.firstDate) {
+        setErrorMessage(t(($) => $.tracker.history.calendar.endAfterStart));
         return;
       }
 
@@ -411,15 +522,62 @@ export function TrackerHistorySection({
     const recordedEpisode = episodeOnDate(payload.episodes, date, today);
     if (recordedEpisode !== undefined) {
       const entry = entries.find((candidate) => candidate.id === recordedEpisode.id);
-      if (entry !== undefined) beginEditing(entry);
+      if (entry !== undefined) selectPeriod(entry);
       return;
     }
 
     setSelectedEntryId(undefined);
-    setDraft({ firstDate: date, stage: 'selecting' });
+    setSelectedEmptyDate(date);
+    setDraft(undefined);
     setErrorMessage(undefined);
-    setStatusMessage(t(($) => $.tracker.history.calendar.newFirstBoundary));
+    setStatusMessage(undefined);
   };
+
+  const selectedEntry = entries.find((entry) => entry.id === selectedEntryId);
+  const selectedEntryRange =
+    selectedEntry === undefined
+      ? undefined
+      : selectedEntry.endDate === undefined || !selectedEntry.durationKnown
+        ? formatLocalDate(selectedEntry.startDate, resolvedLanguage)
+        : formatLocalDateRange(selectedEntry.startDate, selectedEntry.endDate, resolvedLanguage);
+  const forecastInsight = insights.forecast;
+  const predictedBleedingDuration = forecastInsight?.predictedBleedingDuration ?? null;
+  const forecastVariability =
+    forecastInsight?.cycleLengthSummary.span == null
+      ? 'unavailable'
+      : forecastInsight.cycleLengthSummary.span <= 4
+        ? 'narrow'
+        : forecastInsight.cycleLengthSummary.span <= 10
+          ? 'variable'
+          : 'highlyVariable';
+  const activeEpisode = payload.episodes.find((episode) => episode.endDate === undefined);
+  const nextEstimateCentral =
+    forecastInsight === null
+      ? undefined
+      : activeEpisode === undefined
+        ? forecastInsight.centralStart
+        : addDays(activeEpisode.startDate, forecastInsight.estimatedCycleLengthDays);
+  const nextEstimateEarliest =
+    forecastInsight === null || nextEstimateCentral === undefined
+      ? undefined
+      : addDays(nextEstimateCentral, -forecastInsight.uncertaintyBeforeDays);
+  const nextEstimateLatest =
+    forecastInsight === null || nextEstimateCentral === undefined
+      ? undefined
+      : addDays(nextEstimateCentral, forecastInsight.uncertaintyAfterDays);
+
+  useEffect(() => {
+    if (draft !== undefined || selectedEntry === undefined) return;
+    const frame = window.requestAnimationFrame(() => {
+      selectedActionPanelRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [draft, selectedEntry]);
 
   return (
     <div className={styles['screen']}>
@@ -427,6 +585,7 @@ export function TrackerHistorySection({
         <MonthlyCalendar
           copy={calendarCopy}
           legendMode="recorded-only"
+          maxMonth={currentMonth}
           months={calendarMonths}
           onRequestMonth={requestCalendarMonth}
           onSelectDate={(date) => {
@@ -439,6 +598,99 @@ export function TrackerHistorySection({
         />
       </div>
 
+      {draft === undefined && selectedEntry !== undefined && selectedEntryRange !== undefined ? (
+        <section
+          aria-labelledby="selected-period-title"
+          className={styles['actionPanel']}
+          ref={selectedActionPanelRef}
+        >
+          <div className={styles['actionPanelCopy']}>
+            <h2 id="selected-period-title">
+              {t(($) => $.tracker.history.calendar.selectedPeriod, {
+                range: selectedEntryRange,
+              })}
+            </h2>
+            <p>
+              {selectedEntry.endDate === undefined
+                ? historyCopy.active
+                : selectedEntry.durationKnown
+                  ? historyCopy.completed
+                  : historyCopy.unknownDuration}
+            </p>
+            <p>
+              {historyCopy.startIntensityLabel}{' '}
+              {historyCopy.startIntensity[selectedEntry.startIntensity]}
+            </p>
+          </div>
+          <div className={styles['actionPanelActions']}>
+            <button
+              className={styles['primaryActionButton']}
+              disabled={busy}
+              onClick={() => {
+                beginEditing(selectedEntry);
+              }}
+              type="button"
+            >
+              {historyCopy.edit}
+            </button>
+            <button
+              className={styles['dangerActionButton']}
+              disabled={busy}
+              onClick={(event) => {
+                deleteTriggerRef.current = event.currentTarget;
+                setDeleteCandidate(selectedEntry);
+                setErrorMessage(undefined);
+                setStatusMessage(undefined);
+              }}
+              type="button"
+            >
+              {historyCopy.delete}
+            </button>
+            <button
+              className={styles['cancelButton']}
+              disabled={busy}
+              onClick={cancelSelection}
+              type="button"
+            >
+              {t(($) => $.tracker.history.calendar.cancel)}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {draft === undefined && selectedEmptyDate !== undefined ? (
+        <section aria-labelledby="empty-date-title" className={styles['actionPanel']}>
+          <div className={styles['actionPanelCopy']}>
+            <h2 id="empty-date-title">
+              {t(($) => $.tracker.history.calendar.emptyDate, {
+                date: formatLocalDate(selectedEmptyDate, resolvedLanguage),
+              })}
+            </h2>
+            <p>{t(($) => $.tracker.history.calendar.emptyDateDescription)}</p>
+          </div>
+          <div className={styles['actionPanelActions']}>
+            <button
+              className={styles['primaryActionButton']}
+              disabled={busy}
+              onClick={() => {
+                beginNewPeriod();
+              }}
+              type="button"
+            >
+              {t(($) => $.tracker.history.calendar.addStartingHere)}
+            </button>
+            <button
+              className={styles['cancelButton']}
+              disabled={busy}
+              onClick={cancelSelection}
+              type="button"
+            >
+              {t(($) => $.tracker.history.calendar.cancel)}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       {draft?.stage === 'selecting' || errorMessage !== undefined || statusMessage !== undefined ? (
         <div className={styles['editorStatus']}>
           {draft?.stage !== 'selecting' ? null : (
@@ -446,7 +698,7 @@ export function TrackerHistorySection({
               <button
                 className={styles['cancelButton']}
                 disabled={busy}
-                onClick={cancelSelection}
+                onClick={cancelEditing}
                 type="button"
               >
                 {t(($) => $.tracker.history.calendar.cancel)}
@@ -487,6 +739,117 @@ export function TrackerHistorySection({
         {...(selectedEntryId === undefined ? {} : { selectedEntryId })}
       />
 
+      <section aria-labelledby="next-estimate-title" className={styles['estimateCard']}>
+        <header className={styles['estimateHeader']}>
+          <h2 id="next-estimate-title">{t(($) => $.tracker.history.estimate.title)}</h2>
+        </header>
+        {forecastInsight === null ||
+        nextEstimateCentral === undefined ||
+        nextEstimateEarliest === undefined ||
+        nextEstimateLatest === undefined ? (
+          <p className={styles['message']}>{t(($) => $.tracker.insights.forecast.unavailable)}</p>
+        ) : (
+          <dl className={styles['estimateDetails']}>
+            <div>
+              <dt>{t(($) => $.tracker.history.estimate.rangeLabel)}</dt>
+              <dd>
+                {formatLocalDateRange(nextEstimateEarliest, nextEstimateLatest, resolvedLanguage)}
+              </dd>
+            </div>
+            <div>
+              <dt>{t(($) => $.tracker.history.estimate.centralStartLabel)}</dt>
+              <dd>{formatLocalDate(nextEstimateCentral, resolvedLanguage)}</dd>
+            </div>
+            {predictedBleedingDuration === null ? null : (
+              <div>
+                <dt>{t(($) => $.tracker.history.estimate.durationLabel)}</dt>
+                <dd>
+                  {t(($) => $.tracker.insights.bleeding.days, {
+                    count: predictedBleedingDuration.days,
+                  })}
+                </dd>
+              </div>
+            )}
+            <div>
+              <dt>{t(($) => $.tracker.insights.forecast.confidenceLabel)}</dt>
+              <dd>{t(($) => $.tracker.forecast.confidence[forecastInsight.confidence])}</dd>
+            </div>
+          </dl>
+        )}
+      </section>
+
+      <section aria-labelledby="estimate-calculation-title" className={styles['estimateCard']}>
+        <header className={styles['estimateHeader']}>
+          <h2 id="estimate-calculation-title">
+            {t(($) => $.tracker.history.estimate.explanationTitle)}
+          </h2>
+          <p>{t(($) => $.tracker.history.estimate.explanation)}</p>
+        </header>
+        {forecastInsight === null ? (
+          <p className={styles['message']}>{t(($) => $.tracker.insights.forecast.unavailable)}</p>
+        ) : (
+          <dl className={styles['estimateDetails']}>
+            <div>
+              <dt>{t(($) => $.tracker.history.estimate.calculatedCycleLength)}</dt>
+              <dd>
+                {t(($) => $.tracker.insights.cycles.days, {
+                  count: forecastInsight.estimatedCycleLengthDays,
+                })}
+              </dd>
+            </div>
+            <div>
+              <dt>{t(($) => $.tracker.history.estimate.cycleLengthsUsed)}</dt>
+              <dd>
+                {forecastInsight.cycleLengthsUsed.length === 0
+                  ? t(($) => $.tracker.history.estimate.noRecordedCycleLengths)
+                  : forecastInsight.cycleLengthsUsed.join(', ')}
+              </dd>
+            </div>
+            <div>
+              <dt>{t(($) => $.tracker.insights.forecast.sourceLabel)}</dt>
+              <dd>
+                {t(($) => $.tracker.insights.forecast.source[forecastInsight.cycleLengthSource])}
+              </dd>
+            </div>
+            <div>
+              <dt>{t(($) => $.tracker.insights.forecast.cyclesUsedLabel)}</dt>
+              <dd>
+                {t(($) => $.tracker.insights.forecast.cyclesUsed, {
+                  count: forecastInsight.completedCyclesUsed,
+                })}
+              </dd>
+            </div>
+            <div>
+              <dt>{t(($) => $.tracker.insights.forecast.variabilityLabel)}</dt>
+              <dd>{t(($) => $.tracker.insights.forecast.variability[forecastVariability])}</dd>
+            </div>
+            {forecastInsight.cycleLengthSummary.span === null ? null : (
+              <div>
+                <dt>{t(($) => $.tracker.insights.forecast.spanLabel)}</dt>
+                <dd>
+                  {t(($) => $.tracker.insights.forecast.span, {
+                    count: forecastInsight.cycleLengthSummary.span,
+                  })}
+                </dd>
+              </div>
+            )}
+            {predictedBleedingDuration === null ? null : (
+              <div>
+                <dt>{t(($) => $.tracker.history.estimate.calculatedBleedingDuration)}</dt>
+                <dd>
+                  {t(($) => $.tracker.history.estimate.durationWithSource, {
+                    count: predictedBleedingDuration.days,
+                    source: t(
+                      ($) => $.tracker.insights.forecast.source[predictedBleedingDuration.source],
+                    ),
+                  })}
+                </dd>
+              </div>
+            )}
+          </dl>
+        )}
+      </section>
+
       {draft?.stage !== 'confirming' ||
       draft.startDate === undefined ||
       draft.endDate === undefined ? null : (
@@ -498,7 +861,7 @@ export function TrackerHistorySection({
             onKeyDown={(event) => {
               if (event.key === 'Escape' && !busy) {
                 event.preventDefault();
-                cancelSelection();
+                cancelEditing();
               }
             }}
             role="dialog"
@@ -536,7 +899,7 @@ export function TrackerHistorySection({
               <button
                 className={styles['cancelButton']}
                 disabled={busy}
-                onClick={cancelSelection}
+                onClick={cancelEditing}
                 type="button"
               >
                 {t(($) => $.tracker.history.calendar.configure.cancel)}

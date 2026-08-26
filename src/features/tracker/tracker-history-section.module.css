@@ -16,6 +16,92 @@
   background: var(--color-surface-subtle);
 }
 
+.actionPanel {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-soft);
+  scroll-margin-block: 0.75rem;
+}
+
+.actionPanelCopy {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.actionPanelCopy h2,
+.actionPanelCopy p {
+  margin: 0;
+}
+
+.actionPanelCopy h2 {
+  font-size: 1.05rem;
+}
+
+.actionPanelCopy p {
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.actionPanelActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.estimateCard,
+.estimateHeader {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.estimateCard {
+  padding: clamp(1rem, 3vw, 1.4rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.estimateHeader h2,
+.estimateHeader p {
+  margin: 0;
+}
+
+.estimateHeader h2 {
+  font-size: 1.1rem;
+}
+
+.estimateHeader p {
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.estimateDetails {
+  margin: 0;
+}
+
+.estimateDetails > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.65rem;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.estimateDetails dt {
+  color: var(--color-text-muted);
+}
+
+.estimateDetails dd {
+  margin: 0;
+  text-align: end;
+}
+
 .editorActions {
   display: flex;
   flex-wrap: wrap;
@@ -24,7 +110,9 @@
 
 .cancelButton,
 .confirmDeleteButton,
-.saveButton {
+.saveButton,
+.primaryActionButton,
+.dangerActionButton {
   min-block-size: 2.75rem;
   padding: 0.65rem 1rem;
   border: 1px solid var(--color-border-strong);
@@ -32,6 +120,18 @@
   cursor: pointer;
   font: inherit;
   font-weight: 750;
+}
+
+.primaryActionButton {
+  border-color: transparent;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.dangerActionButton {
+  border-color: var(--color-danger);
+  background: var(--color-surface);
+  color: var(--color-danger);
 }
 
 .saveButton {
@@ -53,14 +153,18 @@
 
 .cancelButton:focus-visible,
 .confirmDeleteButton:focus-visible,
-.saveButton:focus-visible {
+.saveButton:focus-visible,
+.primaryActionButton:focus-visible,
+.dangerActionButton:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 3px;
 }
 
 .cancelButton:disabled,
 .confirmDeleteButton:disabled,
-.saveButton:disabled {
+.saveButton:disabled,
+.primaryActionButton:disabled,
+.dangerActionButton:disabled {
   cursor: not-allowed;
   opacity: 0.62;
 }
@@ -126,16 +230,31 @@
 }
 
 @media (max-width: 30rem) {
-  .editorActions > button {
+  .editorActions > button,
+  .actionPanelActions > button {
     flex: 1 1 auto;
+  }
+
+  .estimateDetails > div {
+    align-items: start;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .estimateDetails dd {
+    text-align: start;
   }
 }
 
 @media (forced-colors: active) {
   .editorStatus,
+  .actionPanel,
+  .estimateCard,
   .cancelButton,
   .confirmDeleteButton,
   .saveButton,
+  .primaryActionButton,
+  .dangerActionButton,
   .configureDialog,
   .deleteDialog {
     border: 1px solid CanvasText;

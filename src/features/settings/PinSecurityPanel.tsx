@@ -42,6 +42,14 @@ function DisablePinIcon() {
   );
 }
 
+function LockIcon() {
+  return (
+    <svg aria-hidden="true" className={styles['pinActionIcon']} viewBox="0 0 24 24">
+      <path d="M7 10V8a5 5 0 0 1 10 0v2m-9 0h8a2 2 0 0 1 2 2v7H6v-7a2 2 0 0 1 2-2Z" />
+    </svg>
+  );
+}
+
 function FormButtons({
   cancel,
   pending,
@@ -711,11 +719,15 @@ export function EraseDataControl() {
 }
 
 export interface PinSecurityPanelProps {
+  readonly lockLabel?: string;
+  readonly onLock?: () => void;
   readonly onSetupRequestHandled?: (request: number) => void;
   readonly setupRequest?: number;
 }
 
 export function PinSecurityPanel({
+  lockLabel,
+  onLock,
   onSetupRequestHandled,
   setupRequest = 0,
 }: PinSecurityPanelProps) {
@@ -832,6 +844,12 @@ export function PinSecurityPanel({
           <div className={snapshot.pinEnabled ? styles['pinActions'] : styles['pinSetupActions']}>
             {snapshot.pinEnabled ? (
               <>
+                {onLock && lockLabel ? (
+                  <button className={styles['pinActionButton']} onClick={onLock} type="button">
+                    <LockIcon />
+                    <span>{lockLabel}</span>
+                  </button>
+                ) : null}
                 <button
                   className={styles['pinActionButton']}
                   onClick={() => {

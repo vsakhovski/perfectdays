@@ -243,7 +243,8 @@ describe('DayDetailEditor', () => {
     expect(onDelete).toHaveBeenCalledWith(asLocalDate('2026-05-12'));
   });
 
-  it('explains why saving is unavailable before the user submits', () => {
+  it('explains why saving is unavailable when the user submits', async () => {
+    const user = userEvent.setup();
     const reason = 'This bleeding day would overlap a later recorded period.';
     render(
       <DayDetailEditor
@@ -262,9 +263,13 @@ describe('DayDetailEditor', () => {
     );
 
     const save = screen.getByRole('button', { name: copy.save });
-    expect(save).toBeDisabled();
+    expect(save).not.toBeDisabled();
+    expect(save).toHaveAttribute('aria-disabled', 'true');
     expect(save).toHaveAccessibleDescription(reason);
-    expect(screen.getByText(reason)).toBeVisible();
+    const guidance = screen.getByText(reason);
+    expect(guidance).toBeVisible();
+    await user.click(save);
+    expect(guidance).toHaveFocus();
   });
 
   it('requires confirmation before removing a complete period and restores focus on cancel', async () => {

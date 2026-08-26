@@ -24,6 +24,7 @@ import {
   addDays,
   addMonths,
   calendarMonthGrid,
+  daysBetween,
   isSameMonth,
   startOfMonth,
 } from '../../domain/local-date';
@@ -136,10 +137,6 @@ function periodActionsForDate(
     if (log?.episodeId !== activeEpisode.id) {
       actions.push({ action: 'continue' });
     }
-  }
-
-  if (coveringEpisode) {
-    actions.push({ action: 'remove' });
   }
 
   return actions;
@@ -558,6 +555,7 @@ export function TrackerCalendar({
   const handledCheckInRequestRef = useRef(0);
   const handledGoTodayRequestRef = useRef(0);
   const acknowledgedGoTodayRequestRef = useRef(0);
+  const calendarContainerRef = useRef<HTMLDivElement>(null);
   const activeEpisode = payload.episodes.find((episode) => episode.endDate === undefined);
   const activePredictedDuration =
     activeEpisode === undefined
@@ -577,6 +575,17 @@ export function TrackerCalendar({
       }),
     [payload.episodes, payload.settings, today],
   );
+  const latestCompletedEpisode = [...payload.episodes]
+    .filter((episode) => episode.endDate !== undefined)
+    .sort((left, right) => left.startDate.localeCompare(right.startDate))
+    .at(-1);
+  const activeNextEstimatedStart =
+    activeEpisode === undefined || forecast === null || latestCompletedEpisode === undefined
+      ? undefined
+      : addDays(
+          activeEpisode.startDate,
+          daysBetween(latestCompletedEpisode.startDate, forecast.centralStart),
+        );
   const numberFormatter = useMemo(
     () => new Intl.NumberFormat(resolvedLanguage),
     [resolvedLanguage],
@@ -620,6 +629,9 @@ export function TrackerCalendar({
     setSelectedDate(today);
     setErrorMessage(undefined);
     setStatusMessage(undefined);
+    window.requestAnimationFrame(() => {
+      calendarContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }, [goTodayRequest, today]);
 
   useEffect(() => {
@@ -643,7 +655,6 @@ export function TrackerCalendar({
     today: t(($) => $.mobile.calendar.navigation.today),
     outsideMonth: t(($) => $.tracker.calendar.outsideMonth),
     legendTitle: t(($) => $.mobile.calendar.legend.title),
-    markerGuide: t(($) => $.mobile.calendar.legend.guideTitle),
     essentialLegend: {
       recorded: t(($) => $.mobile.calendar.legend.recorded),
       predicted: t(($) => $.mobile.calendar.legend.predicted),
@@ -734,6 +745,12 @@ export function TrackerCalendar({
               flowDescription: t(($) => $.tracker.dayDetail.flowOptions[flow]),
             }),
         ...(markerDescriptions === null ? {} : { markerDescriptions }),
+        ...(date === selectedDate
+          ? {
+              selection: 'single' as const,
+              selectionDescription: t(($) => $.mobile.calendar.selectedDay.selected),
+            }
+          : {}),
         ...(date > today ? { disabledDescription: t(($) => $.tracker.calendar.future) } : {}),
       };
     });
@@ -1048,7 +1065,11 @@ export function TrackerCalendar({
             });
   const forecastSummary =
     activeEpisode !== undefined
-      ? t(($) => $.mobile.calendar.forecast.states.active.description)
+      ? activeNextEstimatedStart === undefined
+        ? t(($) => $.mobile.calendar.forecast.states.active.description)
+        : t(($) => $.mobile.calendar.forecast.states.active.nextEstimatedStart, {
+            date: formatLocalDate(activeNextEstimatedStart, resolvedLanguage),
+          })
       : payload.settings.forecastingPaused
         ? t(($) => $.mobile.calendar.forecast.states.paused.description)
         : forecast === null
@@ -1059,6 +1080,31 @@ export function TrackerCalendar({
                 count: forecast.completedCyclesUsed,
               })
             : t(($) => $.tracker.forecast.typicalSource);
+  const selectedLog = payload.logs.find((log) => log.date === selectedDate);
+  const selectedFlow = selectedLog?.flow;
+  const selectedHasCheckIn = hasUserEnteredObservation(selectedLog);
+  const selectedRatings = (['energy', 'confidence', 'tension', 'pain'] as const).flatMap(
+    (field) => {
+      const value = selectedLog?.[field];
+      return value === undefined
+        ? []
+        : [
+            t(($) => $.mobile.calendar.selectedDay.rating, {
+              label: t(($) => $.tracker.dayDetail.ratings[field]),
+              value,
+            }),
+          ];
+    },
+  );
+
+  const openSelectedDateEditor = (trigger: HTMLElement): void => {
+    setEditorReturnFocusElement(trigger);
+    setEditorValue(valueFromLog(selectedLog));
+    setErrorMessage(undefined);
+    setStatusMessage(undefined);
+    setEditorOpen(true);
+    onEditorOpenChange?.(true);
+  };
 
   return (
     <>
@@ -1067,38 +1113,66 @@ export function TrackerCalendar({
           {t(($) => $.tracker.calendar.title)}
         </h2>
 
-        <MonthlyCalendar
-          copy={calendarCopy}
-          focusTodayRequest={goTodayRequest}
-          months={calendarMonths}
-          onRequestMonth={requestCalendarMonth}
-          onSelectDate={(date, trigger) => {
-            setSelectedDate(date);
-            if (date > today) {
-              setEditorOpen(false);
+        <div className={styles['calendarTarget']} ref={calendarContainerRef}>
+          <MonthlyCalendar
+            copy={calendarCopy}
+            focusTodayRequest={goTodayRequest}
+            months={calendarMonths}
+            onRequestMonth={requestCalendarMonth}
+            onSelectDate={(date) => {
+              if (date > today) return;
+              setSelectedDate(date);
               setErrorMessage(undefined);
               setStatusMessage(undefined);
-              onEditorOpenChange?.(false);
-              return;
-            }
-            setEditorReturnFocusElement(trigger);
-            setEditorValue(valueFromLog(payload.logs.find((log) => log.date === date)));
-            setErrorMessage(undefined);
-            setStatusMessage(undefined);
-            setEditorOpen(true);
-            onEditorOpenChange?.(true);
-          }}
-          onVisibleMonthChange={setVisibleMonth}
-          today={today}
-          visibleMonth={visibleMonth}
-          weekdays={weekdays}
-        />
+            }}
+            onVisibleMonthChange={setVisibleMonth}
+            today={today}
+            visibleMonth={visibleMonth}
+            weekdays={weekdays}
+          />
+        </div>
 
-        {selectedDate > today ? (
-          <p className={styles['calendarNotice']} role="status">
-            {t(($) => $.tracker.calendar.future)}
-          </p>
-        ) : null}
+        <section className={styles['selectedDayCard']} aria-labelledby="selected-day-title">
+          <h3 id="selected-day-title">
+            {t(($) => $.mobile.calendar.selectedDay.title, {
+              date: formatLocalDate(selectedDate, resolvedLanguage, {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              }),
+            })}
+          </h3>
+          {!selectedHasCheckIn ? (
+            <p>{t(($) => $.mobile.calendar.selectedDay.noCheckIn)}</p>
+          ) : (
+            <div className={styles['selectedDaySummary']}>
+              {selectedFlow == null ? null : (
+                <span>
+                  {t(($) => $.mobile.calendar.selectedDay.flow, {
+                    flow: t(($) => $.tracker.dayDetail.flowOptions[selectedFlow]),
+                  })}
+                </span>
+              )}
+              {selectedRatings.map((rating) => (
+                <span key={rating}>{rating}</span>
+              ))}
+              {selectedLog?.note === undefined ? null : (
+                <span className={styles['selectedDayNote']}>{selectedLog.note}</span>
+              )}
+            </div>
+          )}
+          <button
+            className={styles['secondaryAction']}
+            onClick={(event) => {
+              openSelectedDateEditor(event.currentTarget);
+            }}
+            type="button"
+          >
+            {selectedHasCheckIn
+              ? t(($) => $.mobile.calendar.selectedDay.edit)
+              : t(($) => $.mobile.calendar.selectedDay.start)}
+          </button>
+        </section>
 
         <section className={styles['forecast']} aria-labelledby="tracker-forecast-title">
           <h3 id="tracker-forecast-title">{t(($) => $.mobile.calendar.forecast.title)}</h3>

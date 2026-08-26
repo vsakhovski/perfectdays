@@ -68,14 +68,20 @@ function projectedForecastStarts(
   const centralCycleLength = daysBetween(latestCompletedEpisode.startDate, forecast.centralStart);
   if (centralCycleLength <= 0) return minimumIndex === 0 ? [forecast.centralStart] : [];
 
-  const daysFromFirstPrediction = daysBetween(forecast.centralStart, date);
+  const activeEpisode = episodes.find((episode) => episode.endDate === undefined);
+  const firstProjectedStart =
+    activeEpisode === undefined
+      ? forecast.centralStart
+      : addDays(activeEpisode.startDate, centralCycleLength);
+
+  const daysFromFirstPrediction = daysBetween(firstProjectedStart, date);
   const nearestIndex = Math.max(
     minimumIndex,
     Math.floor(daysFromFirstPrediction / centralCycleLength),
   );
   return [
-    addDays(forecast.centralStart, nearestIndex * centralCycleLength),
-    addDays(forecast.centralStart, (nearestIndex + 1) * centralCycleLength),
+    addDays(firstProjectedStart, nearestIndex * centralCycleLength),
+    addDays(firstProjectedStart, (nearestIndex + 1) * centralCycleLength),
   ];
 }
 
@@ -127,12 +133,7 @@ export function deriveDayMarkers(input: DayMarkerInput): DayMarkers {
     };
   }
 
-  const projectedStarts = projectedForecastStarts(
-    input.date,
-    forecast,
-    input.episodes,
-    activeEpisode === undefined ? 0 : 1,
-  );
+  const projectedStarts = projectedForecastStarts(input.date, forecast, input.episodes, 0);
   const predictedRed =
     activeRemainingPredictedRed ||
     projectedStarts.some((start) => {

@@ -132,8 +132,7 @@ function renderCalendar(
 }
 
 describe('MonthlyCalendar', () => {
-  it('renders a single continuous day grid with weekdays outside the scroller', async () => {
-    const user = userEvent.setup();
+  it('renders a single continuous day grid with weekdays outside the scroller', () => {
     renderCalendar();
 
     const scroller = screen.getByTestId('calendar-month-scroller');
@@ -157,9 +156,12 @@ describe('MonthlyCalendar', () => {
 
     const legend = screen.getByRole('heading', { name: copy.legendTitle }).closest('section');
     expect(legend).not.toBeNull();
-    if (!legend) return;
-    await user.click(within(legend).getByText(copy.markerGuide ?? copy.legendTitle));
+    const essentialLegend = copy.essentialLegend;
+    expect(essentialLegend).toBeDefined();
+    if (!legend || essentialLegend === undefined) return;
     expect(within(legend).getByText(copy.markers.orange)).toBeVisible();
+    expect(within(legend).getByText(essentialLegend.recorded)).toBeVisible();
+    expect(within(legend).getByText(essentialLegend.predicted)).toBeVisible();
   });
 
   it('smoothly scrolls to adjacent months with vertically oriented controls', async () => {

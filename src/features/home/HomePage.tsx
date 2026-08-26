@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useVault } from '../../app/vault/use-vault';
-import { calculateForecast } from '../../domain/forecast';
 import type { VaultPayload } from '../../domain/models';
 import { BackupAndRestoreSettings } from '../backup/BackupAndRestoreSettings';
 import { LanguageControl } from '../settings/LanguageControl';
@@ -20,115 +19,42 @@ import {
   TrackerPreferences,
 } from '../tracker/TrackerDashboard';
 import { TrackerHistorySection } from '../tracker/TrackerHistorySection';
-import { TrackerInsightsSection } from '../tracker/TrackerInsightsSection';
 import styles from './HomePage.module.css';
-
-type CalendarDetailScreen = 'history' | 'insights' | null;
-
-function ContentLockIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24">
-      <path d="M7 10V8a5 5 0 0 1 10 0v2m-9 0h8a2 2 0 0 1 2 2v7H6v-7a2 2 0 0 1 2-2Z" />
-    </svg>
-  );
-}
 
 function OnboardingHome({ payload }: { readonly payload: VaultPayload }) {
   return <TrackerOnboardingFlow payload={payload} />;
 }
 
-function ContextScreen({ children }: { readonly children: ReactNode }) {
-  return <div className={styles['contextScreen']}>{children}</div>;
-}
-
 function CalendarDestination({
   checkInReturnFocusElement,
   checkInRequest,
-  detailScreen,
   goTodayRequest,
-  onDetailScreenChange,
   onDetailsOpenChange,
   onEditorOpenChange,
   onCheckInRequestHandled,
   onGoTodayRequestHandled,
   onViewingCurrentMonthChange,
-  payload,
   rememberedDetailsOpen,
 }: {
   readonly checkInReturnFocusElement: HTMLButtonElement | null;
   readonly checkInRequest: number;
-  readonly detailScreen: CalendarDetailScreen;
   readonly goTodayRequest: number;
-  readonly onDetailScreenChange: (screen: CalendarDetailScreen) => void;
   readonly onDetailsOpenChange: (open: boolean) => void;
   readonly onEditorOpenChange: (open: boolean) => void;
   readonly onCheckInRequestHandled: (request: number) => void;
   readonly onGoTodayRequestHandled: (request: number) => void;
   readonly onViewingCurrentMonthChange: (isCurrentMonth: boolean) => void;
-  readonly payload: VaultPayload;
   readonly rememberedDetailsOpen: boolean | undefined;
 }) {
-  const { journalEnvironment } = useVault();
-  const insightsTriggerRef = useRef<HTMLButtonElement>(null);
-  const historyTriggerRef = useRef<HTMLButtonElement>(null);
-  const previousDetailScreenRef = useRef(detailScreen);
-  const today = journalEnvironment.today();
-  const forecast = useMemo(
-    () =>
-      calculateForecast({
-        episodes: payload.episodes,
-        settings: payload.settings,
-        today,
-      }),
-    [payload.episodes, payload.settings, today],
-  );
-
-  useEffect(() => {
-    const previousDetailScreen = previousDetailScreenRef.current;
-    previousDetailScreenRef.current = detailScreen;
-
-    if (detailScreen !== null || previousDetailScreen === null) {
-      return;
-    }
-
-    const target =
-      previousDetailScreen === 'insights' ? insightsTriggerRef.current : historyTriggerRef.current;
-    target?.focus();
-  }, [detailScreen]);
-
-  if (detailScreen === 'insights') {
-    return (
-      <ContextScreen>
-        <TrackerInsightsSection forecast={forecast} payload={payload} showSectionLabel={false} />
-      </ContextScreen>
-    );
-  }
-
-  if (detailScreen === 'history') {
-    return (
-      <ContextScreen>
-        <TrackerHistorySection payload={payload} showSectionLabel={false} />
-      </ContextScreen>
-    );
-  }
-
   return (
     <TrackerDashboard
       checkInReturnFocusElement={checkInReturnFocusElement}
       checkInRequest={checkInRequest}
       goTodayRequest={goTodayRequest}
-      historyTriggerRef={historyTriggerRef}
-      insightsTriggerRef={insightsTriggerRef}
       onCheckInRequestHandled={onCheckInRequestHandled}
       onDetailsOpenChange={onDetailsOpenChange}
       onGoTodayRequestHandled={onGoTodayRequestHandled}
       onEditorOpenChange={onEditorOpenChange}
-      onOpenHistory={() => {
-        onDetailScreenChange('history');
-      }}
-      onOpenInsights={() => {
-        onDetailScreenChange('insights');
-      }}
       onViewingCurrentMonthChange={onViewingCurrentMonthChange}
       {...(rememberedDetailsOpen === undefined ? {} : { rememberedDetailsOpen })}
     />
@@ -150,22 +76,18 @@ function PrivacyDestination({
 
   return (
     <div className={styles['screenStack']}>
-      {onLock ? (
-        <button className={styles['privacyLockButton']} onClick={onLock} type="button">
-          <ContentLockIcon />
-          <span>{t(($) => $.mobile.shell.actions.lock)}</span>
-        </button>
-      ) : null}
+      <PinSecurityPanel
+        lockLabel={t(($) => $.mobile.shell.actions.lock)}
+        {...(onLock ? { onLock } : {})}
+        onSetupRequestHandled={onPinSetupRequestHandled}
+        setupRequest={pinSetupRequest}
+      />
       <section className={styles['informationCard']}>
         <h2>{t(($) => $.mobile.privacy.storage.title)}</h2>
         <p>{t(($) => $.mobile.privacy.storage.description)}</p>
         <p>{t(($) => $.mobile.privacy.storage.downloads)}</p>
         <EraseDataControl />
       </section>
-      <PinSecurityPanel
-        onSetupRequestHandled={onPinSetupRequestHandled}
-        setupRequest={pinSetupRequest}
-      />
       <BackupAndRestoreSettings onEnablePin={onRequestPinSetup} />
     </div>
   );
@@ -200,7 +122,6 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   const { t } = useTranslation();
   const { journalEnvironment, lock, snapshot } = useVault();
   const [destination, setDestination] = useState<RootDestination>('calendar');
-  const [calendarDetail, setCalendarDetail] = useState<CalendarDetailScreen>(null);
   const [checkInRequest, setCheckInRequest] = useState<number>();
   const checkInRequestCounterRef = useRef(0);
   const [checkInReturnFocusElement, setCheckInReturnFocusElement] =
@@ -221,19 +142,14 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
     lock: t(($) => $.mobile.shell.actions.lock),
     destinations: {
       calendar: t(($) => $.mobile.shell.navigation.calendar),
+      history: t(($) => $.mobile.shell.navigation.history),
       privacy: t(($) => $.mobile.shell.navigation.privacy),
       settings: t(($) => $.mobile.shell.navigation.settings),
     },
   };
-  const screenTitle =
-    calendarDetail === 'insights'
-      ? t(($) => $.mobile.calendar.context.insights)
-      : calendarDetail === 'history'
-        ? t(($) => $.mobile.calendar.context.periodHistory)
-        : copy.destinations[destination];
+  const screenTitle = copy.destinations[destination];
 
   const navigate = (nextDestination: RootDestination): void => {
-    setCalendarDetail(null);
     if (nextDestination === 'calendar' && destination !== 'calendar') {
       setCalendarShowsCurrentMonth(true);
     }
@@ -245,9 +161,7 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
       <CalendarDestination
         checkInReturnFocusElement={checkInReturnFocusElement}
         checkInRequest={checkInRequest ?? 0}
-        detailScreen={calendarDetail}
         goTodayRequest={goTodayRequest ?? 0}
-        onDetailScreenChange={setCalendarDetail}
         onDetailsOpenChange={setCheckInDetailsOpen}
         onEditorOpenChange={setEditorOpen}
         onGoTodayRequestHandled={(request) => {
@@ -257,9 +171,10 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
           setCheckInRequest((current) => (current === request ? undefined : current));
         }}
         onViewingCurrentMonthChange={setCalendarShowsCurrentMonth}
-        payload={payload}
         rememberedDetailsOpen={checkInDetailsOpen}
       />
+    ) : destination === 'history' ? (
+      <TrackerHistorySection payload={payload} showSectionLabel={false} />
     ) : destination === 'privacy' ? (
       <PrivacyDestination
         {...(snapshot.pinEnabled ? { onLock: lock } : {})}
@@ -280,45 +195,30 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
     <MobileAppShell
       activeDestination={destination}
       copy={copy}
-      focusScreenTitle={calendarDetail !== null}
       hasTodayCheckIn={hasTodayCheckIn}
-      hideBottomChrome={editorOpen || calendarDetail !== null}
-      {...(destination === 'calendar' && calendarDetail !== null
+      hideBottomChrome={editorOpen}
+      {...(destination === 'calendar'
         ? {
             headerAction: {
-              icon: 'close' as const,
-              label:
-                calendarDetail === 'insights'
-                  ? t(($) => $.mobile.calendar.context.closeInsights)
-                  : t(($) => $.mobile.calendar.context.closePeriodHistory),
+              disabled: calendarShowsCurrentMonth,
+              label: t(($) => $.mobile.calendar.navigation.goToToday),
               onActivate: () => {
-                setCalendarDetail(null);
+                goTodayRequestCounterRef.current += 1;
+                setGoTodayRequest(goTodayRequestCounterRef.current);
               },
-              placement: 'end' as const,
             },
           }
-        : destination === 'calendar'
-          ? {
-              headerAction: {
-                disabled: calendarShowsCurrentMonth,
-                label: t(($) => $.mobile.calendar.navigation.goToToday),
-                onActivate: () => {
-                  goTodayRequestCounterRef.current += 1;
-                  setGoTodayRequest(goTodayRequestCounterRef.current);
-                },
-              },
-            }
-          : {})}
+        : {})}
       onCheckIn={(trigger) => {
         setCheckInReturnFocusElement(trigger);
-        setCalendarDetail(null);
         setDestination('calendar');
         checkInRequestCounterRef.current += 1;
         setCheckInRequest(checkInRequestCounterRef.current);
       }}
       onNavigate={navigate}
+      showCheckInAction={destination === 'calendar'}
       screenTitle={screenTitle}
-      screenKey={`${destination}:${calendarDetail ?? 'root'}`}
+      screenKey={destination}
     >
       {content}
     </MobileAppShell>
