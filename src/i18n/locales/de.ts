@@ -265,7 +265,7 @@ export const de = {
       sectionLabel: 'Periodenverlauf',
       title: 'Aufgezeichnete Perioden',
       description:
-        'Wähle eine aufgezeichnete Periode, um Details und Aktionen zu sehen, oder ein leeres Kalenderdatum, um eine neue Periode hinzuzufügen.',
+        'Hier kannst du aufgezeichnete Perioden überprüfen, bearbeiten, löschen oder hinzufügen.',
       empty: 'Noch keine Periode aufgezeichnet.',
       active: 'Aktive Periode',
       completed: 'Beendet; Dauer bekannt',
@@ -286,6 +286,38 @@ export const de = {
       cycleLength: 'Zykluslänge: {{count}} Tage',
       cycleLength_one: 'Zykluslänge: {{count}} Tag',
       cycleLength_other: 'Zykluslänge: {{count}} Tage',
+      cycleChecks: {
+        title: 'Überprüfung erforderlich',
+        description:
+          'Zyklusprüfungen weisen auf Einträge hin, die Schätzungen beeinflussen können. Dein Tagebuch wird nie automatisch geändert.',
+        interval: '{{from}} bis {{to}}',
+        possibleSplit: {
+          title: 'Zwei Perioden liegen sehr nah beieinander',
+          description:
+            'Zwischen diesen Perioden liegen nur {{count}} blutungsfreie Tage. Prüfe, ob beide Einträge stimmen.',
+          description_zero:
+            'Zwischen diesen Perioden liegt kein blutungsfreier Tag. Prüfe, ob beide Einträge stimmen.',
+          description_one:
+            'Zwischen diesen Perioden liegt nur {{count}} blutungsfreier Tag. Prüfe, ob beide Einträge stimmen.',
+          description_other:
+            'Zwischen diesen Perioden liegen nur {{count}} blutungsfreie Tage. Prüfe, ob beide Einträge stimmen.',
+        },
+        actions: {
+          reviewDates: 'Aufgezeichnete Daten prüfen',
+          keepAndUse: 'Behalten und für Schätzungen verwenden',
+          keepAndExclude: 'Behalten, aber aus Schätzungen ausschließen',
+          useAgain: 'Wieder verwenden',
+        },
+        excluded: {
+          title: 'Nicht für Schätzungen verwendet',
+          description:
+            'Die aufgezeichneten Perioden bleiben im Tagebuch. Nur diese Zykluslänge wird aus den Schätzungen ausgeschlossen.',
+        },
+        savedIncluded: 'Diese Zykluslänge wird für Schätzungen verwendet.',
+        savedExcluded: 'Diese Zykluslänge wird nicht für Schätzungen verwendet.',
+        saveFailed:
+          'Die Entscheidung konnte nicht gespeichert werden. Dein Tagebuch wurde nicht geändert.',
+      },
       estimate: {
         title: 'Nächste Periode',
         rangeLabel: 'Geschätzter Startzeitraum',
@@ -298,7 +330,22 @@ export const de = {
         basedOnRecorded: '{{count}} abgeschlossenen Zyklen',
         basedOnRecorded_one: '{{count}} abgeschlossenem Zyklus',
         basedOnRecorded_other: '{{count}} abgeschlossenen Zyklen',
+        basedOnReviewed: '{{used}} von {{available}} letzten Zyklen',
         basedOnTypical: 'Deiner optionalen Startschätzung',
+        pendingReview:
+          '{{count}} letzter Zyklus muss geprüft werden und wird derzeit nicht für diese Schätzung verwendet.',
+        pendingReview_one:
+          '{{count}} letzter Zyklus muss geprüft werden und wird derzeit nicht für diese Schätzung verwendet.',
+        pendingReview_other:
+          '{{count}} letzte Zyklen müssen geprüft werden und werden derzeit nicht für diese Schätzung verwendet.',
+        excluded:
+          '{{count}} geprüfter Zyklus ist von dieser Schätzung ausgeschlossen. Du kannst dies im Periodenverlauf ändern.',
+        excluded_one:
+          '{{count}} geprüfter Zyklus ist von dieser Schätzung ausgeschlossen. Du kannst dies im Periodenverlauf ändern.',
+        excluded_other:
+          '{{count}} geprüfte Zyklen sind von dieser Schätzung ausgeschlossen. Du kannst dies im Periodenverlauf ändern.',
+        reviewRequired:
+          'Zwei kürzlich aufgezeichnete Perioden müssen geprüft werden, bevor sie eine neue Schätzung verankern können. Öffne den Periodenverlauf, um sie zu prüfen.',
         recentCycleLengths: 'Letzte Zykluslängen',
         recentCycleLengthsValue: '{{lengths}} Tage',
         estimatedCycleLength: 'Geschätzte Zykluslänge',
@@ -421,6 +468,35 @@ export const de = {
       },
       periodEndsBeforeDay:
         'Wenn du „Keine“ speicherst, wird der vorherige Tag als letzter Periodentag markiert.',
+      extendPeriod: {
+        title: 'Aufgezeichnete Periode erweitern?',
+        startDescription:
+          'Zwischen diesem Check-in und der ab {{periodStart}} aufgezeichneten Periode liegen {{count}} blutungsfreie Tage. Soll diese Periode bereits am {{checkInDate}} beginnen?',
+        startDescription_zero:
+          'Dieser Check-in liegt direkt vor der ab {{periodStart}} aufgezeichneten Periode. Soll diese Periode bereits am {{checkInDate}} beginnen?',
+        startDescription_one:
+          'Zwischen diesem Check-in und der ab {{periodStart}} aufgezeichneten Periode liegt {{count}} blutungsfreier Tag. Soll diese Periode bereits am {{checkInDate}} beginnen?',
+        startDescription_other:
+          'Zwischen diesem Check-in und der ab {{periodStart}} aufgezeichneten Periode liegen {{count}} blutungsfreie Tage. Soll diese Periode bereits am {{checkInDate}} beginnen?',
+        endDescription:
+          'Zwischen der bis {{periodEnd}} aufgezeichneten Periode und diesem Check-in liegen {{count}} blutungsfreie Tage. Soll diese Periode bis {{checkInDate}} verlängert werden?',
+        endDescription_zero:
+          'Dieser Check-in liegt direkt nach der bis {{periodEnd}} aufgezeichneten Periode. Soll diese Periode bis {{checkInDate}} verlängert werden?',
+        endDescription_one:
+          'Zwischen der bis {{periodEnd}} aufgezeichneten Periode und diesem Check-in liegt {{count}} blutungsfreier Tag. Soll diese Periode bis {{checkInDate}} verlängert werden?',
+        endDescription_other:
+          'Zwischen der bis {{periodEnd}} aufgezeichneten Periode und diesem Check-in liegen {{count}} blutungsfreie Tage. Soll diese Periode bis {{checkInDate}} verlängert werden?',
+        confirm: 'Periode erweitern und speichern',
+        cancel: 'Abbrechen',
+      },
+      historicalPeriodEnd: {
+        title: 'Letzten Periodentag auswählen',
+        description:
+          'Wenn die Periode am {{startDate}} beginnt, würden sonst alle Tage bis heute als Teil einer aktiven Periode markiert. Das ist länger als die derzeit erwartete Dauer. Wähle den tatsächlichen letzten Tag aus.',
+        label: 'Enddatum der Periode',
+        confirm: 'Abgeschlossene Periode speichern',
+        cancel: 'Abbrechen',
+      },
       flowLegend: 'Blutungsstärke',
       flowOptions: {
         none: 'Keine',
@@ -454,7 +530,7 @@ export const de = {
         startFlow:
           'Wähle eine leichte, mittlere oder starke Blutung, bevor du eine Periode beginnst.',
         historicalStart:
-          'Eine neue offene Periode kann nicht vor einer später aufgezeichneten Periode beginnen. Historische Grenzen können noch nicht bearbeitet werden.',
+          'Dieser Tag liegt zu weit vor der später aufgezeichneten Periode, um sie zu erweitern. Korrigiere die Daten im Periodenverlauf.',
         laterPeriodDays:
           'Für diese Periode sind Tage nach diesem Datum eingetragen. Entferne diese Einträge, bevor du sie hier beendest.',
         noneRequiresPeriodCorrection:

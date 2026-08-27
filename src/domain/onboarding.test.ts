@@ -20,9 +20,10 @@ function context(ids = ['historical-1', 'historical-2', 'historical-3']): Journa
 
 function payload(): VaultPayload {
   return {
-    schemaVersion: 1,
+    schemaVersion: 5,
     episodes: [],
     logs: [],
+    estimateDecisions: [],
     settings: {
       onboardingCompleted: false,
       weekStart: 'system',

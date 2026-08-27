@@ -408,6 +408,7 @@
 }
 
 .confirmationDialog h3,
+.confirmationDialog p,
 .error,
 .status {
   margin: 0;
@@ -417,6 +418,23 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.65rem;
+}
+
+.dateField {
+  display: grid;
+  gap: 0.45rem;
+  font-weight: 700;
+}
+
+.dateField input {
+  min-block-size: 2.75rem;
+  inline-size: 100%;
+  padding-inline: 0.75rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
 }
 
 .error {

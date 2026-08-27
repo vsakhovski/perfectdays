@@ -41,6 +41,7 @@ function createPayload(): VaultPayload {
         updatedAt: timestamp,
       },
     ],
+    estimateDecisions: [],
     settings: {
       onboardingCompleted: true,
       weekStart: 'system',
@@ -62,12 +63,19 @@ function withoutWeekStart(settings: VaultPayload['settings']): Record<string, un
   return legacySettings;
 }
 
+function withoutEstimateDecisions(payload: VaultPayload): Record<string, unknown> {
+  const legacyPayload: Record<string, unknown> = { ...payload };
+  delete legacyPayload['estimateDecisions'];
+  return legacyPayload;
+}
+
 describe('vault payload codec', () => {
   it('creates an empty vault using the documented privacy and forecast defaults', () => {
     expect(createEmptyVaultPayload(timestamp)).toEqual({
       schemaVersion: CURRENT_VAULT_SCHEMA_VERSION,
       episodes: [],
       logs: [],
+      estimateDecisions: [],
       settings: {
         onboardingCompleted: false,
         weekStart: 'system',
@@ -121,7 +129,7 @@ describe('vault payload codec', () => {
       autoLockDelay: current.settings.autoLockDelay,
     };
     const legacyPayload = {
-      ...current,
+      ...withoutEstimateDecisions(current),
       schemaVersion: 1,
       settings: legacySettings,
     };
@@ -136,7 +144,7 @@ describe('vault payload codec', () => {
   it('migrates a version-zero payload through every migration step', () => {
     const current = createPayload();
     const legacyPayload = {
-      ...current,
+      ...withoutEstimateDecisions(current),
       schemaVersion: 0,
       settings: {
         orangeEnabled: current.settings.orangeEnabled,
@@ -162,7 +170,7 @@ describe('vault payload codec', () => {
     const current = createPayload();
     const legacySettings = withoutWeekStart(current.settings);
     const legacyPayload = {
-      ...current,
+      ...withoutEstimateDecisions(current),
       schemaVersion: 2,
       settings: {
         ...legacySettings,
@@ -184,7 +192,7 @@ describe('vault payload codec', () => {
     const current = createPayload();
     const legacySettings = withoutWeekStart(current.settings);
     const legacyPayload = {
-      ...current,
+      ...withoutEstimateDecisions(current),
       schemaVersion: 3,
       settings: legacySettings,
     };
@@ -239,7 +247,7 @@ describe('vault payload codec', () => {
     ).toThrow(InvalidVaultPayloadError);
 
     const legacyWithUnknownSetting = {
-      ...current,
+      ...withoutEstimateDecisions(current),
       schemaVersion: 1,
       settings: {
         ...settingsWithoutOnboarding,

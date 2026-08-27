@@ -9,7 +9,7 @@ import {
   MAX_TYPICAL_CYCLE_LENGTH,
 } from '../../domain/tracking-settings';
 
-export const CURRENT_VAULT_SCHEMA_VERSION = 4 as const;
+export const CURRENT_VAULT_SCHEMA_VERSION = 5 as const;
 
 const localDateSchema = z.custom<LocalDate>(
   (value) => typeof value === 'string' && isLocalDate(value),
@@ -25,6 +25,14 @@ const ratingSchema = z.union([
 ]);
 const flowSchema = z.enum(['none', 'spotting', 'light', 'medium', 'heavy']);
 const autoLockDelaySchema = z.enum(['immediate', '1-minute', '5-minutes', '15-minutes']);
+const estimateDecisionSchema = z.strictObject({
+  sampleId: z.string().min(1),
+  sampleKind: z.enum(['cycle', 'duration']),
+  fingerprint: z.string().min(1),
+  use: z.enum(['include', 'exclude']),
+  reason: z.enum(['confirmed-correct', 'recording-artifact', 'missing-entry', 'other']),
+  reviewedAt: timestampSchema,
+});
 
 const periodEpisodeSchema = z.strictObject({
   id: z.string().min(1),
@@ -72,6 +80,7 @@ function validateDomainInvariants(
   payload: {
     episodes: z.output<typeof periodEpisodeSchema>[];
     logs: z.output<typeof dailyLogSchema>[];
+    estimateDecisions?: z.output<typeof estimateDecisionSchema>[];
   },
   context: z.RefinementCtx,
 ): void {
@@ -195,6 +204,20 @@ function validateDomainInvariants(
       });
     }
   }
+
+  const decisionKeys = new Set<string>();
+  for (const [index, decision] of (payload.estimateDecisions ?? []).entries()) {
+    const key = `${decision.sampleKind}:${decision.sampleId}`;
+    if (decisionKeys.has(key)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Estimate decisions must be unique by sample kind and ID.',
+        path: ['estimateDecisions', index, 'sampleId'],
+      });
+    } else {
+      decisionKeys.add(key);
+    }
+  }
 }
 
 export const vaultPayloadV1Schema = z.strictObject({
@@ -230,9 +253,21 @@ export const vaultPayloadV3Schema = z
 
 export const vaultPayloadV4Schema = z
   .strictObject({
+    schemaVersion: z.literal(4),
+    episodes: z.array(periodEpisodeSchema),
+    logs: z.array(dailyLogSchema),
+    settings: vaultSettingsV4Schema,
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .superRefine(validateDomainInvariants);
+
+export const vaultPayloadV5Schema = z
+  .strictObject({
     schemaVersion: z.literal(CURRENT_VAULT_SCHEMA_VERSION),
     episodes: z.array(periodEpisodeSchema),
     logs: z.array(dailyLogSchema),
+    estimateDecisions: z.array(estimateDecisionSchema),
     settings: vaultSettingsV4Schema,
     createdAt: timestampSchema,
     updatedAt: timestampSchema,
@@ -276,6 +311,7 @@ export function createEmptyVaultPayload(nowIso: string): VaultPayload {
     schemaVersion: CURRENT_VAULT_SCHEMA_VERSION,
     episodes: [],
     logs: [],
+    estimateDecisions: [],
     settings: {
       onboardingCompleted: false,
       weekStart: 'system',
@@ -348,6 +384,16 @@ function migrateVersionThree(input: unknown): unknown {
   };
 }
 
+function migrateVersionFour(input: unknown): unknown {
+  const payload = vaultPayloadV4Schema.parse(input);
+
+  return {
+    ...payload,
+    schemaVersion: 5,
+    estimateDecisions: [],
+  };
+}
+
 export function migrateVaultPayload(input: unknown): VaultPayload {
   const { schemaVersion } = versionHeaderSchema.parse(input);
   let candidate = input;
@@ -371,6 +417,10 @@ export function migrateVaultPayload(input: unknown): VaultPayload {
         candidate = migrateVersionThree(candidate);
         candidateVersion = 4;
         break;
+      case 4:
+        candidate = migrateVersionFour(candidate);
+        candidateVersion = 5;
+        break;
       default:
         throw new UnsupportedVaultSchemaVersionError(candidateVersion);
     }
@@ -380,7 +430,7 @@ export function migrateVaultPayload(input: unknown): VaultPayload {
     throw new UnsupportedVaultSchemaVersionError(candidateVersion);
   }
 
-  return vaultPayloadV4Schema.parse(candidate) as VaultPayload;
+  return vaultPayloadV5Schema.parse(candidate) as VaultPayload;
 }
 
 const encoder = new TextEncoder();
@@ -388,7 +438,7 @@ const decoder = new TextDecoder('utf-8', { fatal: true });
 
 export function encodeVaultPayload(payload: VaultPayload): Uint8Array {
   try {
-    const validatedPayload = vaultPayloadV4Schema.parse(payload);
+    const validatedPayload = vaultPayloadV5Schema.parse(payload);
     return encoder.encode(JSON.stringify(validatedPayload));
   } catch (error) {
     if (error instanceof InvalidVaultPayloadError) {

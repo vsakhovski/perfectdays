@@ -3,6 +3,15 @@
   gap: 1rem;
 }
 
+.introduction {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-inline-start: 0.25rem solid var(--color-accent);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
 .calendarTarget {
   scroll-margin-block-start: 0.75rem;
 }

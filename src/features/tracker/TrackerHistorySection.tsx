@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 
 import { useLanguage } from '../../app/i18n/use-language';
 import { useVault } from '../../app/vault/use-vault';
+import { buildReviewedEstimateDataset } from '../../domain/cycle-checks';
+import { setEstimateDecision } from '../../domain/estimate-review';
 import { deriveTrackerInsights } from '../../domain/insights';
 import {
   correctPeriod,
@@ -30,6 +32,7 @@ import {
   type CalendarMonth,
   type CalendarWeekday,
 } from '../calendar/MonthlyCalendar';
+import { CycleChecksPanel, type CycleChecksPanelCopy } from '../history/CycleChecksPanel';
 import {
   PeriodHistory,
   type PeriodHistoryCopy,
@@ -125,20 +128,28 @@ export function TrackerHistorySection({
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
   const [statusMessage, setStatusMessage] = useState<string>();
+  const [reviewBusySampleId, setReviewBusySampleId] = useState<string>();
+  const [reviewErrorMessage, setReviewErrorMessage] = useState<string>();
+  const [reviewStatusMessage, setReviewStatusMessage] = useState<string>();
   const calendarContainerRef = useRef<HTMLDivElement>(null);
   const editorStatusRef = useRef<HTMLDivElement>(null);
   const selectionTriggerRef = useRef<HTMLButtonElement | null>(null);
   const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const estimateDataset = useMemo(
+    () => buildReviewedEstimateDataset(payload.episodes, payload.estimateDecisions),
+    [payload.episodes, payload.estimateDecisions],
+  );
 
   const insights = useMemo(
     () =>
       deriveTrackerInsights({
         episodes: payload.episodes,
+        estimateDecisions: payload.estimateDecisions,
         forecast: null,
         limit: Math.max(1, payload.episodes.length),
         logs: payload.logs,
       }),
-    [payload.episodes, payload.logs],
+    [payload.episodes, payload.estimateDecisions, payload.logs],
   );
   const bleedingDurationByEpisode = useMemo(
     () =>
@@ -201,6 +212,22 @@ export function TrackerHistorySection({
     showMore: t(($) => $.tracker.history.showMore),
     delete: t(($) => $.tracker.history.delete.action),
     deleteLabel: (dateLabel) => t(($) => $.tracker.history.delete.label, { date: dateLabel }),
+  };
+  const cycleChecksCopy: CycleChecksPanelCopy = {
+    title: t(($) => $.tracker.history.cycleChecks.title),
+    description: t(($) => $.tracker.history.cycleChecks.description),
+    possibleSplitTitle: t(($) => $.tracker.history.cycleChecks.possibleSplit.title),
+    possibleSplitDescription: (clearDayCount) =>
+      t(($) => $.tracker.history.cycleChecks.possibleSplit.description, {
+        count: clearDayCount,
+      }),
+    interval: (from, to) => t(($) => $.tracker.history.cycleChecks.interval, { from, to }),
+    reviewDates: t(($) => $.tracker.history.cycleChecks.actions.reviewDates),
+    keepAndUse: t(($) => $.tracker.history.cycleChecks.actions.keepAndUse),
+    keepAndExclude: t(($) => $.tracker.history.cycleChecks.actions.keepAndExclude),
+    notUsedTitle: t(($) => $.tracker.history.cycleChecks.excluded.title),
+    notUsedDescription: t(($) => $.tracker.history.cycleChecks.excluded.description),
+    useAgain: t(($) => $.tracker.history.cycleChecks.actions.useAgain),
   };
   const calendarCopy: CalendarCopy = {
     navigationLabel: t(($) => $.mobile.calendar.navigation.label),
@@ -455,6 +482,42 @@ export function TrackerHistorySection({
     setStatusMessage(undefined);
   };
 
+  const persistCycleDecision = (
+    sampleId: string,
+    fingerprint: string,
+    use: 'include' | 'exclude',
+  ): void => {
+    setReviewBusySampleId(sampleId);
+    setReviewErrorMessage(undefined);
+    setReviewStatusMessage(undefined);
+    const reviewedAt = journalEnvironment.now();
+    void savePayload({
+      ...payload,
+      estimateDecisions: setEstimateDecision(payload.estimateDecisions, {
+        sampleId,
+        sampleKind: 'cycle',
+        fingerprint,
+        use,
+        reason: use === 'include' ? 'confirmed-correct' : 'recording-artifact',
+        reviewedAt,
+      }),
+      updatedAt: reviewedAt,
+    })
+      .then(() => {
+        setReviewStatusMessage(
+          use === 'include'
+            ? t(($) => $.tracker.history.cycleChecks.savedIncluded)
+            : t(($) => $.tracker.history.cycleChecks.savedExcluded),
+        );
+      })
+      .catch(() => {
+        setReviewErrorMessage(t(($) => $.tracker.history.cycleChecks.saveFailed));
+      })
+      .finally(() => {
+        setReviewBusySampleId(undefined);
+      });
+  };
+
   const beginNewPeriod = (): void => {
     if (selectedEmptyDate === undefined) return;
     setDraft({ firstDate: selectedEmptyDate, stage: 'selecting' });
@@ -544,6 +607,7 @@ export function TrackerHistorySection({
 
   return (
     <div className={styles['screen']}>
+      <p className={styles['introduction']}>{historyCopy.description}</p>
       <div className={styles['calendarTarget']} ref={calendarContainerRef}>
         <MonthlyCalendar
           copy={calendarCopy}
@@ -705,6 +769,29 @@ export function TrackerHistorySection({
           )}
         </div>
       ) : null}
+
+      <CycleChecksPanel
+        copy={cycleChecksCopy}
+        excludedSamples={estimateDataset.excludedCycleSamples}
+        findings={estimateDataset.pendingFindings}
+        formatDate={(date) => formatLocalDate(date, resolvedLanguage)}
+        onExclude={(finding) => {
+          persistCycleDecision(finding.sampleId, finding.sampleFingerprint, 'exclude');
+        }}
+        onInclude={(finding) => {
+          persistCycleDecision(finding.sampleId, finding.sampleFingerprint, 'include');
+        }}
+        onReviewDates={(finding, trigger) => {
+          const entry = entries.find((candidate) => candidate.id === finding.nextEpisodeId);
+          if (entry !== undefined) selectPeriod(entry, trigger);
+        }}
+        onUseAgain={(sample) => {
+          persistCycleDecision(sample.id, sample.fingerprint, 'include');
+        }}
+        {...(reviewBusySampleId === undefined ? {} : { busySampleId: reviewBusySampleId })}
+        {...(reviewErrorMessage === undefined ? {} : { errorMessage: reviewErrorMessage })}
+        {...(reviewStatusMessage === undefined ? {} : { statusMessage: reviewStatusMessage })}
+      />
 
       <PeriodHistory
         busy={busy}

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import rawUserEvent, { PointerEventsCheckLevel, type Options } from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -10,6 +10,15 @@ import {
   type OnboardingDraft,
   type TrackerOnboardingProps,
 } from './TrackerOnboarding';
+
+const userEvent = {
+  setup(options?: Options) {
+    return rawUserEvent.setup({
+      pointerEventsCheck: PointerEventsCheckLevel.Never,
+      ...options,
+    });
+  },
+};
 
 const copy: OnboardingCopy = {
   splash: {

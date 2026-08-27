@@ -254,8 +254,7 @@ export const en = {
     history: {
       sectionLabel: 'Periods history',
       title: 'Recorded periods',
-      description:
-        'Select a recorded period to review its details and actions, or select an empty calendar date to add a new period.',
+      description: 'You can review, edit, delete, or add recorded periods here.',
       empty: 'No periods have been recorded yet.',
       active: 'Active period',
       completed: 'Completed; duration known',
@@ -276,6 +275,37 @@ export const en = {
       cycleLength: 'Cycle length: {{count}} days',
       cycleLength_one: 'Cycle length: {{count}} day',
       cycleLength_other: 'Cycle length: {{count}} days',
+      cycleChecks: {
+        title: 'Needs review',
+        description:
+          'Cycle checks can point out records that may affect estimates. Your journal is never changed automatically.',
+        interval: '{{from}} to {{to}}',
+        possibleSplit: {
+          title: 'Two periods are very close together',
+          description:
+            'There are only {{count}} clear days between these periods. Check whether both records are correct.',
+          description_zero:
+            'There is no clear day between these periods. Check whether both records are correct.',
+          description_one:
+            'There is only {{count}} clear day between these periods. Check whether both records are correct.',
+          description_other:
+            'There are only {{count}} clear days between these periods. Check whether both records are correct.',
+        },
+        actions: {
+          reviewDates: 'Review recorded dates',
+          keepAndUse: 'Keep and use in estimates',
+          keepAndExclude: 'Keep but exclude from estimates',
+          useAgain: 'Use again',
+        },
+        excluded: {
+          title: 'Not used in estimates',
+          description:
+            'The recorded periods remain in your journal. This cycle length is excluded only from estimate calculations.',
+        },
+        savedIncluded: 'This cycle length will be used in estimates.',
+        savedExcluded: 'This cycle length will not be used in estimates.',
+        saveFailed: 'The estimate decision could not be saved. Your journal was not changed.',
+      },
       estimate: {
         title: 'Next period',
         rangeLabel: 'Estimated start range',
@@ -288,7 +318,22 @@ export const en = {
         basedOnRecorded: '{{count}} completed cycles',
         basedOnRecorded_one: '{{count}} completed cycle',
         basedOnRecorded_other: '{{count}} completed cycles',
+        basedOnReviewed: '{{used}} of {{available}} recent cycles',
         basedOnTypical: 'Your optional starting estimate',
+        pendingReview:
+          '{{count}} recent cycle needs review and is not currently used in this estimate.',
+        pendingReview_one:
+          '{{count}} recent cycle needs review and is not currently used in this estimate.',
+        pendingReview_other:
+          '{{count}} recent cycles need review and are not currently used in this estimate.',
+        excluded:
+          '{{count}} reviewed cycle is excluded from this estimate. You can change this in Periods history.',
+        excluded_one:
+          '{{count}} reviewed cycle is excluded from this estimate. You can change this in Periods history.',
+        excluded_other:
+          '{{count}} reviewed cycles are excluded from this estimate. You can change this in Periods history.',
+        reviewRequired:
+          'Two recent periods need review before they can anchor a new estimate. Open Periods history to review them.',
         recentCycleLengths: 'Recent cycle lengths',
         recentCycleLengthsValue: '{{lengths}} days',
         estimatedCycleLength: 'Estimated cycle length',
@@ -406,6 +451,35 @@ export const en = {
         },
       },
       periodEndsBeforeDay: 'Saving None marks the previous day as the last period day.',
+      extendPeriod: {
+        title: 'Extend the recorded period?',
+        startDescription:
+          'This check-in leaves {{count}} clear days before the period recorded from {{periodStart}}. Extend that period to start on {{checkInDate}}?',
+        startDescription_zero:
+          'This check-in is immediately before the period recorded from {{periodStart}}. Extend that period to start on {{checkInDate}}?',
+        startDescription_one:
+          'This check-in leaves {{count}} clear day before the period recorded from {{periodStart}}. Extend that period to start on {{checkInDate}}?',
+        startDescription_other:
+          'This check-in leaves {{count}} clear days before the period recorded from {{periodStart}}. Extend that period to start on {{checkInDate}}?',
+        endDescription:
+          'This check-in leaves {{count}} clear days after the period recorded through {{periodEnd}}. Extend that period through {{checkInDate}}?',
+        endDescription_zero:
+          'This check-in is immediately after the period recorded through {{periodEnd}}. Extend that period through {{checkInDate}}?',
+        endDescription_one:
+          'This check-in leaves {{count}} clear day after the period recorded through {{periodEnd}}. Extend that period through {{checkInDate}}?',
+        endDescription_other:
+          'This check-in leaves {{count}} clear days after the period recorded through {{periodEnd}}. Extend that period through {{checkInDate}}?',
+        confirm: 'Extend period and save',
+        cancel: 'Cancel',
+      },
+      historicalPeriodEnd: {
+        title: 'Select the last period day',
+        description:
+          'Starting the period on {{startDate}} would otherwise mark every day through today as part of an active period, which is longer than your current expected length. Select the actual last day.',
+        label: 'Period end date',
+        confirm: 'Save completed period',
+        cancel: 'Cancel',
+      },
       flowLegend: 'Flow',
       flowOptions: {
         none: 'None',
@@ -438,7 +512,7 @@ export const en = {
         future: 'Future dates cannot contain recorded check-ins.',
         startFlow: 'Choose light, medium, or heavy flow before starting a period.',
         historicalStart:
-          'A new open period cannot begin before a later recorded period. Historical boundary editing is not available yet.',
+          'This day is too far from the later recorded period to extend it. Correct the dates in Periods history.',
         laterPeriodDays:
           'This period has recorded days after this date. Remove those entries before ending it here.',
         noneRequiresPeriodCorrection:

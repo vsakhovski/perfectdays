@@ -5,8 +5,12 @@ import { useLanguage } from '../../app/i18n/use-language';
 import { useVault } from '../../app/vault/use-vault';
 import {
   buildDailyCheckInPayload,
+  buildExtendedPeriodEndCheckInPayload,
+  buildExtendedPeriodStartCheckInPayload,
+  buildHistoricalPeriodCheckInPayload,
   type PeriodTransition,
 } from '../../application/tracker/daily-check-in';
+import { buildReviewedEstimateDataset } from '../../domain/cycle-checks';
 import { calculateForecast, completedBleedDurations, integerMedian } from '../../domain/forecast';
 import {
   deleteDailyCheckIn,
@@ -165,6 +169,64 @@ function checkInTransitionForDate(
   }
 
   return payload.episodes.some((episode) => episode.startDate > date) ? 'none' : 'start';
+}
+
+interface PeriodExtensionCandidate {
+  readonly boundary: 'end' | 'start';
+  readonly episodeId: string;
+  readonly boundaryDate: LocalDate;
+  readonly clearDayCount: number;
+}
+
+function periodExtensionCandidateForDate(
+  payload: VaultPayload,
+  date: LocalDate,
+  flow: DayDetailValue['flow'],
+): PeriodExtensionCandidate | undefined {
+  if (!isBleedingFlow(flow) || periodContainingDate(payload, date) !== undefined) return undefined;
+  const startCandidates = payload.episodes
+    .filter((episode) => episode.startDate > date && episode.durationKnown !== false)
+    .map((episode): PeriodExtensionCandidate => ({
+      boundary: 'start',
+      episodeId: episode.id,
+      boundaryDate: episode.startDate,
+      clearDayCount: daysBetween(date, episode.startDate) - 1,
+    }));
+  const endCandidates = payload.episodes.flatMap((episode): PeriodExtensionCandidate[] => {
+    if (
+      episode.endDate === undefined ||
+      episode.durationKnown === false ||
+      episode.endDate >= date
+    ) {
+      return [];
+    }
+    return [
+      {
+        boundary: 'end',
+        episodeId: episode.id,
+        boundaryDate: episode.endDate,
+        clearDayCount: daysBetween(episode.endDate, date) - 1,
+      },
+    ];
+  });
+  return [...startCandidates, ...endCandidates]
+    .filter((candidate) => candidate.clearDayCount >= 0 && candidate.clearDayCount <= 2)
+    .sort(
+      (left, right) =>
+        left.clearDayCount - right.clearDayCount ||
+        (left.boundary === right.boundary ? 0 : left.boundary === 'end' ? -1 : 1),
+    )[0];
+}
+
+interface PendingPeriodExtension extends PeriodExtensionCandidate {
+  readonly date: LocalDate;
+  readonly value: DayDetailValue;
+}
+
+interface PendingHistoricalPeriodEnd {
+  readonly startDate: LocalDate;
+  readonly endDate: LocalDate;
+  readonly value: DayDetailValue;
 }
 
 export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayload }) {
@@ -589,29 +651,39 @@ export function TrackerCalendar({
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
   const [statusMessage, setStatusMessage] = useState<string>();
+  const [pendingPeriodExtension, setPendingPeriodExtension] = useState<PendingPeriodExtension>();
+  const [pendingHistoricalPeriodEnd, setPendingHistoricalPeriodEnd] =
+    useState<PendingHistoricalPeriodEnd>();
   const handledCheckInRequestRef = useRef(0);
   const handledGoTodayRequestRef = useRef(0);
   const acknowledgedGoTodayRequestRef = useRef(0);
   const calendarContainerRef = useRef<HTMLDivElement>(null);
   const activeEpisode = payload.episodes.find((episode) => episode.endDate === undefined);
-  const activePredictedDuration =
-    activeEpisode === undefined
-      ? undefined
-      : (integerMedian(completedBleedDurations(payload.episodes)) ??
-        payload.settings.typicalBleedDuration);
-  const activePredictedEnd =
-    activeEpisode === undefined || activePredictedDuration === undefined
-      ? undefined
-      : addDays(activeEpisode.startDate, activePredictedDuration - 1);
+  const expectedBleedDuration =
+    integerMedian(completedBleedDurations(payload.episodes, 6, payload.estimateDecisions)) ??
+    payload.settings.typicalBleedDuration ??
+    8;
   const forecast = useMemo(
     () =>
       calculateForecast({
         episodes: payload.episodes,
+        estimateDecisions: payload.estimateDecisions,
         settings: payload.settings,
         today,
       }),
-    [payload.episodes, payload.settings, today],
+    [payload.episodes, payload.estimateDecisions, payload.settings, today],
   );
+  const estimateDataset = useMemo(
+    () => buildReviewedEstimateDataset(payload.episodes, payload.estimateDecisions),
+    [payload.episodes, payload.estimateDecisions],
+  );
+  const recentCycleSampleIds = useMemo(
+    () => new Set(estimateDataset.cycleSamples.slice(-6).map((sample) => sample.id)),
+    [estimateDataset.cycleSamples],
+  );
+  const recentPendingReviewCount = estimateDataset.pendingCycleSamples.filter((sample) =>
+    recentCycleSampleIds.has(sample.id),
+  ).length;
   const latestCompletedEpisode = [...payload.episodes]
     .filter((episode) => episode.endDate !== undefined)
     .sort((left, right) => left.startDate.localeCompare(right.startDate))
@@ -641,6 +713,8 @@ export function TrackerCalendar({
     setEditorValue(valueFromLog(payload.logs.find((log) => log.date === requestedDate)));
     setErrorMessage(undefined);
     setStatusMessage(undefined);
+    setPendingPeriodExtension(undefined);
+    setPendingHistoricalPeriodEnd(undefined);
     setEditorOpen(true);
     onEditorOpenChange?.(true);
     onSelectedDateChange?.(requestedDate);
@@ -689,124 +763,166 @@ export function TrackerCalendar({
     onGoTodayRequestHandled?.(goTodayRequest);
   }, [goTodayRequest, onGoTodayRequestHandled, today, visibleMonth]);
 
-  const calendarCopy: CalendarCopy = {
-    navigationLabel: t(($) => $.mobile.calendar.navigation.label),
-    calendarLabel: t(($) => $.tracker.calendar.calendarLabel),
-    previousMonth: t(($) => $.mobile.calendar.navigation.previousMonth),
-    nextMonth: t(($) => $.mobile.calendar.navigation.nextMonth),
-    today: t(($) => $.mobile.calendar.navigation.today),
-    outsideMonth: t(($) => $.tracker.calendar.outsideMonth),
-    legendTitle: t(($) => $.mobile.calendar.legend.title),
-    essentialLegend: {
-      recorded: t(($) => $.mobile.calendar.legend.recorded),
-      predicted: t(($) => $.mobile.calendar.legend.predicted),
-      today: t(($) => $.mobile.calendar.legend.today),
-    },
-    markers: {
-      recordedRed: t(($) => $.tracker.calendar.markers.recordedRed),
-      predictedRed: t(($) => $.tracker.calendar.markers.predictedRed),
-      predictedStart: t(($) => $.tracker.calendar.markers.predictedStart),
-      possibleStart: t(($) => $.tracker.calendar.markers.possibleStart),
-      orange: t(($) => $.tracker.calendar.markers.orange),
-      green: t(($) => $.tracker.calendar.markers.green),
-      spotting: t(($) => $.tracker.calendar.markers.spotting),
-      neutral: t(($) => $.tracker.calendar.markers.neutral),
-    },
-  };
+  const calendarCopy = useMemo<CalendarCopy>(
+    () => ({
+      navigationLabel: t(($) => $.mobile.calendar.navigation.label),
+      calendarLabel: t(($) => $.tracker.calendar.calendarLabel),
+      previousMonth: t(($) => $.mobile.calendar.navigation.previousMonth),
+      nextMonth: t(($) => $.mobile.calendar.navigation.nextMonth),
+      today: t(($) => $.mobile.calendar.navigation.today),
+      outsideMonth: t(($) => $.tracker.calendar.outsideMonth),
+      legendTitle: t(($) => $.mobile.calendar.legend.title),
+      essentialLegend: {
+        recorded: t(($) => $.mobile.calendar.legend.recorded),
+        predicted: t(($) => $.mobile.calendar.legend.predicted),
+        today: t(($) => $.mobile.calendar.legend.today),
+      },
+      markers: {
+        recordedRed: t(($) => $.tracker.calendar.markers.recordedRed),
+        predictedRed: t(($) => $.tracker.calendar.markers.predictedRed),
+        predictedStart: t(($) => $.tracker.calendar.markers.predictedStart),
+        possibleStart: t(($) => $.tracker.calendar.markers.possibleStart),
+        orange: t(($) => $.tracker.calendar.markers.orange),
+        green: t(($) => $.tracker.calendar.markers.green),
+        spotting: t(($) => $.tracker.calendar.markers.spotting),
+        neutral: t(($) => $.tracker.calendar.markers.neutral),
+      },
+    }),
+    [t],
+  );
   const firstDay = resolveWeekStartsOn(
     payload.settings.weekStart,
     systemLanguages,
     resolvedLanguage,
   );
-  const shortWeekdays = weekdayLabels(resolvedLanguage, 'short', firstDay);
-  const longWeekdays = weekdayLabels(resolvedLanguage, 'long', firstDay);
-  const weekdays: readonly CalendarWeekday[] = shortWeekdays.map((shortLabel, index) => ({
-    key: String(index),
-    shortLabel,
-    fullLabel: longWeekdays[index] ?? shortLabel,
-  }));
+  const weekdays = useMemo<readonly CalendarWeekday[]>(() => {
+    const shortWeekdays = weekdayLabels(resolvedLanguage, 'short', firstDay);
+    const longWeekdays = weekdayLabels(resolvedLanguage, 'long', firstDay);
+    return shortWeekdays.map((shortLabel, index) => ({
+      key: String(index),
+      shortLabel,
+      fullLabel: longWeekdays[index] ?? shortLabel,
+    }));
+  }, [firstDay, resolvedLanguage]);
   const forecastConfidence =
     forecast === null ? null : t(($) => $.tracker.forecast.confidence[forecast.confidence]);
-  const forecastMarkerDescriptions =
-    forecastConfidence === null
-      ? null
-      : {
-          predictedRed: t(($) => $.tracker.calendar.markerConfidence.predictedRed, {
-            confidence: forecastConfidence,
-          }),
-          orange: t(($) => $.tracker.calendar.markerConfidence.orange, {
-            confidence: forecastConfidence,
-          }),
-        };
-  const activeRemainingMarkerDescriptions = {
-    predictedRed: t(($) => $.tracker.calendar.markerConfidence.activePredictedRed),
-  } as const;
-  const calendarMonths: CalendarMonth[] = [];
-  for (let month = calendarRangeStart; month <= calendarRangeEnd; month = addMonths(month, 1)) {
-    const renderedMonth = month;
-    const days: readonly CalendarDay[] = calendarMonthGrid(renderedMonth, firstDay).map((date) => {
-      const log = payload.logs.find((candidate) => candidate.date === date);
-      const episode = date <= today ? periodContainingDate(payload, date) : undefined;
-      const flow = isBleedingFlow(log?.flow)
-        ? log.flow
-        : log?.flow === undefined && episode !== undefined
-          ? 'medium'
-          : undefined;
-      const markerDescriptions =
-        activeEpisode !== undefined &&
-        activePredictedEnd !== undefined &&
-        date > today &&
-        date >= activeEpisode.startDate &&
-        date <= activePredictedEnd
-          ? activeRemainingMarkerDescriptions
-          : forecastMarkerDescriptions;
-
-      return {
-        date,
-        accessibleName: formatLocalDate(date, resolvedLanguage, {
-          weekday: 'long',
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        }),
-        dayNumberLabel: numberFormatter.format(Number(date.slice(8, 10))),
-        isCurrentMonth: isSameMonth(date, renderedMonth),
-        markers: deriveDayMarkers({
-          ...(activePredictedDuration === undefined ? {} : { activePredictedDuration }),
-          date,
-          episodes: payload.episodes,
-          logs: payload.logs,
-          forecast,
-          settings: payload.settings,
-          today,
-        }),
-        ...(flow === undefined
-          ? {}
-          : {
-              flow,
-              flowDescription: t(($) => $.tracker.dayDetail.flowOptions[flow]),
+  const calendarMonths = useMemo<readonly CalendarMonth[]>(() => {
+    const calendarActiveEpisode = payload.episodes.find((episode) => episode.endDate === undefined);
+    const calendarActivePredictedDuration =
+      calendarActiveEpisode === undefined ? undefined : expectedBleedDuration;
+    const calendarActivePredictedEnd =
+      calendarActiveEpisode === undefined
+        ? undefined
+        : addDays(calendarActiveEpisode.startDate, expectedBleedDuration - 1);
+    const markerDescriptions =
+      forecastConfidence === null
+        ? null
+        : {
+            predictedRed: t(($) => $.tracker.calendar.markerConfidence.predictedRed, {
+              confidence: forecastConfidence,
             }),
-        ...(markerDescriptions === null ? {} : { markerDescriptions }),
-        ...(date === selectedDate
-          ? {
-              selection: 'single' as const,
-              selectionDescription: t(($) => $.mobile.calendar.selectedDay.selected),
-            }
-          : {}),
-        ...(date > today ? { disabledDescription: t(($) => $.tracker.calendar.future) } : {}),
-      };
-    });
-    calendarMonths.push({
-      days,
-      label: formatMonthTitle(renderedMonth, resolvedLanguage),
-      month: renderedMonth,
-    });
-  }
+            orange: t(($) => $.tracker.calendar.markerConfidence.orange, {
+              confidence: forecastConfidence,
+            }),
+          };
+    const activeMarkerDescriptions = {
+      predictedRed: t(($) => $.tracker.calendar.markerConfidence.activePredictedRed),
+    } as const;
+    const months: CalendarMonth[] = [];
+    for (let month = calendarRangeStart; month <= calendarRangeEnd; month = addMonths(month, 1)) {
+      const renderedMonth = month;
+      const days: readonly CalendarDay[] = calendarMonthGrid(renderedMonth, firstDay).map(
+        (date) => {
+          const log = payload.logs.find((candidate) => candidate.date === date);
+          const episode = date <= today ? periodContainingDate(payload, date) : undefined;
+          const flow = isBleedingFlow(log?.flow)
+            ? log.flow
+            : log?.flow === undefined && episode !== undefined
+              ? 'medium'
+              : undefined;
+          const descriptions =
+            calendarActiveEpisode !== undefined &&
+            calendarActivePredictedEnd !== undefined &&
+            date > today &&
+            date >= calendarActiveEpisode.startDate &&
+            date <= calendarActivePredictedEnd
+              ? activeMarkerDescriptions
+              : markerDescriptions;
+
+          return {
+            date,
+            accessibleName: formatLocalDate(date, resolvedLanguage, {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            }),
+            dayNumberLabel: numberFormatter.format(Number(date.slice(8, 10))),
+            isCurrentMonth: isSameMonth(date, renderedMonth),
+            markers: deriveDayMarkers({
+              ...(calendarActivePredictedDuration === undefined
+                ? {}
+                : { activePredictedDuration: calendarActivePredictedDuration }),
+              date,
+              episodes: payload.episodes,
+              logs: payload.logs,
+              forecast,
+              settings: payload.settings,
+              today,
+            }),
+            ...(flow === undefined
+              ? {}
+              : {
+                  flow,
+                  flowDescription: t(($) => $.tracker.dayDetail.flowOptions[flow]),
+                }),
+            ...(descriptions === null ? {} : { markerDescriptions: descriptions }),
+            ...(date === selectedDate
+              ? {
+                  selection: 'single' as const,
+                  selectionDescription: t(($) => $.mobile.calendar.selectedDay.selected),
+                }
+              : {}),
+            ...(date > today ? { disabledDescription: t(($) => $.tracker.calendar.future) } : {}),
+          };
+        },
+      );
+      months.push({
+        days,
+        label: formatMonthTitle(renderedMonth, resolvedLanguage),
+        month: renderedMonth,
+      });
+    }
+    return months;
+  }, [
+    calendarRangeEnd,
+    calendarRangeStart,
+    expectedBleedDuration,
+    firstDay,
+    forecast,
+    forecastConfidence,
+    numberFormatter,
+    payload,
+    resolvedLanguage,
+    selectedDate,
+    t,
+    today,
+  ]);
 
   const requestCalendarMonth = useCallback((month: LocalDate): void => {
     setCalendarRangeStart((current) => (month < current ? month : current));
     setCalendarRangeEnd((current) => (month > current ? month : current));
   }, []);
+  const selectCalendarDate = useCallback(
+    (date: LocalDate): void => {
+      if (date > today) return;
+      setSelectedDate(date);
+      onSelectedDateChange?.(date);
+      setErrorMessage(undefined);
+      setStatusMessage(undefined);
+    },
+    [onSelectedDateChange, today],
+  );
 
   const selectedEpisodeForDescription = periodContainingDate(payload, selectedDate);
   const selectedTransition = checkInTransitionForDate(payload, selectedDate, editorValue.flow);
@@ -1009,7 +1125,25 @@ export function TrackerCalendar({
 
   const saveCheckIn = (value: DayDetailValue, date: LocalDate): void => {
     try {
+      const extensionCandidate = periodExtensionCandidateForDate(payload, date, value.flow);
+      if (extensionCandidate !== undefined) {
+        setPendingPeriodExtension({ ...extensionCandidate, date, value: { ...value } });
+        setErrorMessage(undefined);
+        setStatusMessage(undefined);
+        return;
+      }
       const transition = checkInTransitionForDate(payload, date, value.flow);
+      const spanDays = daysBetween(date, today) + 1;
+      if (transition === 'start' && spanDays > expectedBleedDuration) {
+        setPendingHistoricalPeriodEnd({
+          startDate: date,
+          endDate: addDays(date, expectedBleedDuration - 1),
+          value: { ...value },
+        });
+        setErrorMessage(undefined);
+        setStatusMessage(undefined);
+        return;
+      }
       const nextPayload = buildDailyCheckInPayload(
         payload,
         date,
@@ -1044,6 +1178,100 @@ export function TrackerCalendar({
     }
   };
 
+  const confirmPeriodExtension = (): void => {
+    if (pendingPeriodExtension === undefined) return;
+    try {
+      const values = {
+        flow: pendingPeriodExtension.value.flow ?? null,
+        confidence: pendingPeriodExtension.value.confidence ?? null,
+        tension: pendingPeriodExtension.value.tension ?? null,
+        energy: pendingPeriodExtension.value.energy ?? null,
+        pain: pendingPeriodExtension.value.pain ?? null,
+        note: pendingPeriodExtension.value.note?.trim()
+          ? pendingPeriodExtension.value.note.trim()
+          : null,
+      };
+      const nextPayload =
+        pendingPeriodExtension.boundary === 'start'
+          ? buildExtendedPeriodStartCheckInPayload(
+              payload,
+              pendingPeriodExtension.date,
+              pendingPeriodExtension.episodeId,
+              values,
+              journalEnvironment,
+            )
+          : buildExtendedPeriodEndCheckInPayload(
+              payload,
+              pendingPeriodExtension.date,
+              pendingPeriodExtension.episodeId,
+              values,
+              journalEnvironment,
+            );
+      setBusy(true);
+      setErrorMessage(undefined);
+      setStatusMessage(undefined);
+      void savePayload(nextPayload)
+        .then(() => {
+          setPendingPeriodExtension(undefined);
+          setEditorOpen(false);
+          onEditorOpenChange?.(false);
+        })
+        .catch((error: unknown) => {
+          setPendingPeriodExtension(undefined);
+          setErrorMessage(messageForError(error));
+        })
+        .finally(() => {
+          setBusy(false);
+        });
+    } catch (error) {
+      setPendingPeriodExtension(undefined);
+      setErrorMessage(messageForError(error));
+      setStatusMessage(undefined);
+    }
+  };
+
+  const confirmHistoricalPeriodEnd = (): void => {
+    if (pendingHistoricalPeriodEnd === undefined) return;
+    try {
+      const nextPayload = buildHistoricalPeriodCheckInPayload(
+        payload,
+        pendingHistoricalPeriodEnd.startDate,
+        pendingHistoricalPeriodEnd.endDate,
+        {
+          flow: pendingHistoricalPeriodEnd.value.flow ?? null,
+          confidence: pendingHistoricalPeriodEnd.value.confidence ?? null,
+          tension: pendingHistoricalPeriodEnd.value.tension ?? null,
+          energy: pendingHistoricalPeriodEnd.value.energy ?? null,
+          pain: pendingHistoricalPeriodEnd.value.pain ?? null,
+          note: pendingHistoricalPeriodEnd.value.note?.trim()
+            ? pendingHistoricalPeriodEnd.value.note.trim()
+            : null,
+        },
+        journalEnvironment,
+      );
+      setBusy(true);
+      setErrorMessage(undefined);
+      setStatusMessage(undefined);
+      void savePayload(nextPayload)
+        .then(() => {
+          setPendingHistoricalPeriodEnd(undefined);
+          setEditorOpen(false);
+          onEditorOpenChange?.(false);
+        })
+        .catch((error: unknown) => {
+          setPendingHistoricalPeriodEnd(undefined);
+          setErrorMessage(messageForError(error));
+        })
+        .finally(() => {
+          setBusy(false);
+        });
+    } catch (error) {
+      setPendingHistoricalPeriodEnd(undefined);
+      setErrorMessage(messageForError(error));
+      setStatusMessage(undefined);
+    }
+  };
+
   const deleteCheckIn = (date: LocalDate): void => {
     try {
       const result = deleteDailyCheckIn(payload, date, journalEnvironment);
@@ -1068,10 +1296,16 @@ export function TrackerCalendar({
     (selectedEpisode.endDate !== undefined ||
       selectedEpisode.startDate === selectedDate ||
       selectedDateHasLaterActiveDays);
+  const selectedPeriodExtensionCandidate = periodExtensionCandidateForDate(
+    payload,
+    selectedDate,
+    editorValue.flow,
+  );
   const selectedFlowCannotStartPeriod =
     isBleedingFlow(editorValue.flow) &&
     selectedEpisode === undefined &&
-    payload.episodes.some((episode) => episode.startDate > selectedDate);
+    payload.episodes.some((episode) => episode.startDate > selectedDate) &&
+    selectedPeriodExtensionCandidate === undefined;
   const selectedFlowInvalidatesEpisodeStart =
     selectedEpisode?.startDate === selectedDate && editorValue.flow === 'none';
   const editorHasObservation =
@@ -1129,13 +1363,7 @@ export function TrackerCalendar({
             focusTodayRequest={goTodayRequest}
             months={calendarMonths}
             onRequestMonth={requestCalendarMonth}
-            onSelectDate={(date) => {
-              if (date > today) return;
-              setSelectedDate(date);
-              onSelectedDateChange?.(date);
-              setErrorMessage(undefined);
-              setStatusMessage(undefined);
-            }}
+            onSelectDate={selectCalendarDate}
             onVisibleMonthChange={setVisibleMonth}
             today={today}
             visibleMonth={visibleMonth}
@@ -1154,7 +1382,9 @@ export function TrackerCalendar({
             <p className={styles['estimateMessage']}>
               {payload.settings.forecastingPaused
                 ? t(($) => $.mobile.calendar.forecast.states.paused.description)
-                : t(($) => $.tracker.insights.forecast.unavailable)}
+                : recentPendingReviewCount > 0
+                  ? t(($) => $.tracker.history.estimate.reviewRequired)
+                  : t(($) => $.tracker.insights.forecast.unavailable)}
             </p>
           ) : (
             <dl className={styles['estimateDetails']}>
@@ -1205,7 +1435,9 @@ export function TrackerCalendar({
           </header>
           {forecast === null ? (
             <p className={styles['estimateMessage']}>
-              {t(($) => $.tracker.insights.forecast.unavailable)}
+              {recentPendingReviewCount > 0
+                ? t(($) => $.tracker.history.estimate.reviewRequired)
+                : t(($) => $.tracker.insights.forecast.unavailable)}
             </p>
           ) : (
             <dl className={styles['estimateDetails']}>
@@ -1213,9 +1445,14 @@ export function TrackerCalendar({
                 <dt>{t(($) => $.tracker.history.estimate.basedOnLabel)}</dt>
                 <dd>
                   {forecast.source === 'recorded'
-                    ? t(($) => $.tracker.history.estimate.basedOnRecorded, {
-                        count: forecast.completedCyclesUsed,
-                      })
+                    ? forecast.cycleSamplesAvailable === forecast.completedCyclesUsed
+                      ? t(($) => $.tracker.history.estimate.basedOnRecorded, {
+                          count: forecast.completedCyclesUsed,
+                        })
+                      : t(($) => $.tracker.history.estimate.basedOnReviewed, {
+                          available: forecast.cycleSamplesAvailable,
+                          used: forecast.completedCyclesUsed,
+                        })
                     : t(($) => $.tracker.history.estimate.basedOnTypical)}
                 </dd>
               </div>
@@ -1251,6 +1488,20 @@ export function TrackerCalendar({
               )}
             </dl>
           )}
+          {forecast !== null && forecast.cycleSamplesPendingReview > 0 ? (
+            <p className={styles['estimateMessage']}>
+              {t(($) => $.tracker.history.estimate.pendingReview, {
+                count: forecast.cycleSamplesPendingReview,
+              })}
+            </p>
+          ) : null}
+          {forecast !== null && forecast.cycleSamplesExcluded > 0 ? (
+            <p className={styles['estimateMessage']}>
+              {t(($) => $.tracker.history.estimate.excluded, {
+                count: forecast.cycleSamplesExcluded,
+              })}
+            </p>
+          ) : null}
           {forecast === null ? null : (
             <p className={styles['consistencyNote']}>
               {t(($) => $.tracker.history.estimate.consistency[cycleConsistency])}
@@ -1292,6 +1543,8 @@ export function TrackerCalendar({
           {...(errorMessage === undefined ? {} : { errorMessage })}
           onChange={setEditorValue}
           onClose={() => {
+            setPendingPeriodExtension(undefined);
+            setPendingHistoricalPeriodEnd(undefined);
             setEditorOpen(false);
             onEditorOpenChange?.(false);
           }}
@@ -1299,6 +1552,71 @@ export function TrackerCalendar({
           {...(onDetailsOpenChange === undefined ? {} : { onDetailsOpenChange })}
           onPeriodAction={handlePeriodAction}
           onSave={saveCheckIn}
+          {...(pendingPeriodExtension === undefined
+            ? {}
+            : {
+                onCancelPeriodExtension: () => {
+                  setPendingPeriodExtension(undefined);
+                },
+                onConfirmPeriodExtension: confirmPeriodExtension,
+                periodExtensionConfirmation: {
+                  title: t(($) => $.tracker.dayDetail.extendPeriod.title),
+                  description:
+                    pendingPeriodExtension.boundary === 'start'
+                      ? t(($) => $.tracker.dayDetail.extendPeriod.startDescription, {
+                          checkInDate: formatLocalDate(
+                            pendingPeriodExtension.date,
+                            resolvedLanguage,
+                          ),
+                          count: pendingPeriodExtension.clearDayCount,
+                          periodStart: formatLocalDate(
+                            pendingPeriodExtension.boundaryDate,
+                            resolvedLanguage,
+                          ),
+                        })
+                      : t(($) => $.tracker.dayDetail.extendPeriod.endDescription, {
+                          checkInDate: formatLocalDate(
+                            pendingPeriodExtension.date,
+                            resolvedLanguage,
+                          ),
+                          count: pendingPeriodExtension.clearDayCount,
+                          periodEnd: formatLocalDate(
+                            pendingPeriodExtension.boundaryDate,
+                            resolvedLanguage,
+                          ),
+                        }),
+                  confirm: t(($) => $.tracker.dayDetail.extendPeriod.confirm),
+                  cancel: t(($) => $.tracker.dayDetail.extendPeriod.cancel),
+                },
+              })}
+          {...(pendingHistoricalPeriodEnd === undefined
+            ? {}
+            : {
+                onCancelPeriodEndSelection: () => {
+                  setPendingHistoricalPeriodEnd(undefined);
+                },
+                onConfirmPeriodEndSelection: confirmHistoricalPeriodEnd,
+                onPeriodEndSelectionChange: (endDate: LocalDate) => {
+                  setPendingHistoricalPeriodEnd((current) =>
+                    current === undefined ? undefined : { ...current, endDate },
+                  );
+                },
+                periodEndSelection: {
+                  title: t(($) => $.tracker.dayDetail.historicalPeriodEnd.title),
+                  description: t(($) => $.tracker.dayDetail.historicalPeriodEnd.description, {
+                    startDate: formatLocalDate(
+                      pendingHistoricalPeriodEnd.startDate,
+                      resolvedLanguage,
+                    ),
+                  }),
+                  label: t(($) => $.tracker.dayDetail.historicalPeriodEnd.label),
+                  value: pendingHistoricalPeriodEnd.endDate,
+                  min: pendingHistoricalPeriodEnd.startDate,
+                  max: today,
+                  confirm: t(($) => $.tracker.dayDetail.historicalPeriodEnd.confirm),
+                  cancel: t(($) => $.tracker.dayDetail.historicalPeriodEnd.cancel),
+                },
+              })}
           periodActions={periodActionsForDate(payload, selectedDate, today, editorValue, {
             startFlow: t(($) => $.tracker.dayDetail.errors.startFlow),
             historicalStart: t(($) => $.tracker.dayDetail.errors.historicalStart),

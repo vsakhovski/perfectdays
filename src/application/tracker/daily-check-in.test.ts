@@ -18,9 +18,10 @@ function vaultPayload(
   logs: readonly DailyLog[] = [],
 ): VaultPayload {
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     episodes: episodes.map((episode) => ({ ...episode })),
     logs: logs.map((log) => ({ ...log })),
+    estimateDecisions: [],
     settings: {
       onboardingCompleted: true,
       weekStart: 'system',
@@ -96,7 +97,7 @@ describe('buildDailyCheckInPayload', () => {
     );
 
     expect(result).toMatchObject({
-      schemaVersion: 4,
+      schemaVersion: 5,
       createdAt: originalTimestamp,
       updatedAt: mutationTimestamp,
       settings: source.settings,

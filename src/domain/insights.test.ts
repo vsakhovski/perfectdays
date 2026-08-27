@@ -78,7 +78,7 @@ describe('insight summaries', () => {
 });
 
 describe('insight records', () => {
-  it('derives chronological records from sorted successive starts and honors a compact limit', () => {
+  it('derives records only from successive completed periods without mutating input', () => {
     const episodes = [
       episode('third', '2026-03-02'),
       episode('first', '2026-01-01', '2026-01-05'),
@@ -89,18 +89,11 @@ describe('insight records', () => {
 
     expect(deriveCycleLengthInsightRecords(episodes, 2)).toEqual([
       {
-        previousEpisodeId: 'second',
-        nextEpisodeId: 'third',
-        previousStartDate: '2026-01-29',
-        nextStartDate: '2026-03-02',
-        lengthDays: 32,
-      },
-      {
-        previousEpisodeId: 'third',
-        nextEpisodeId: 'fourth',
-        previousStartDate: '2026-03-02',
-        nextStartDate: '2026-04-05',
-        lengthDays: 34,
+        previousEpisodeId: 'first',
+        nextEpisodeId: 'second',
+        previousStartDate: '2026-01-01',
+        nextStartDate: '2026-01-29',
+        lengthDays: 28,
       },
     ]);
     expect(episodes.map((item) => item.id)).toEqual(originalOrder);
@@ -118,7 +111,10 @@ describe('insight records', () => {
     expect(() => deriveCycleLengthInsightRecords([], 0)).toThrow(RangeError);
     expect(() => deriveCycleLengthInsightRecords([], 1.5)).toThrow(RangeError);
     expect(() =>
-      deriveCycleLengthInsightRecords([episode('one', '2026-01-01'), episode('two', '2026-01-01')]),
+      deriveCycleLengthInsightRecords([
+        episode('one', '2026-01-01', '2026-01-01'),
+        episode('two', '2026-01-01', '2026-01-01'),
+      ]),
     ).toThrow(RangeError);
   });
 

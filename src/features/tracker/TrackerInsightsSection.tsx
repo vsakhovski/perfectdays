@@ -37,10 +37,11 @@ export function TrackerInsightsSection({
     () =>
       deriveTrackerInsights({
         episodes: payload.episodes,
+        estimateDecisions: payload.estimateDecisions,
         logs: payload.logs,
         forecast,
       }),
-    [forecast, payload.episodes, payload.logs],
+    [forecast, payload.episodes, payload.estimateDecisions, payload.logs],
   );
   const copy: InsightsCopy = {
     sectionLabel: t(($) => $.tracker.insights.sectionLabel),

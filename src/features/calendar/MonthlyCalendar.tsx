@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useId,
@@ -254,7 +255,7 @@ export function CalendarLegend({
   );
 }
 
-export function MonthlyCalendar({
+export const MonthlyCalendar = memo(function MonthlyCalendar({
   copy,
   focusTodayRequest = 0,
   legendMode = 'full',
@@ -762,4 +763,4 @@ export function MonthlyCalendar({
       <CalendarLegend copy={copy} mode={legendMode} />
     </section>
   );
-}
+});

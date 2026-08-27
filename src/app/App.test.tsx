@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import rawUserEvent, { PointerEventsCheckLevel, type Options } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { LanguageStore } from '../application/ports/language-store';
@@ -23,6 +23,15 @@ import { createEmptyVaultPayload } from '../infrastructure/persistence/vault-pay
 import { FakeVaultController } from '../test/fake-vault-controller';
 import { App } from './App';
 import { AppProviders } from './AppProviders';
+
+const userEvent = {
+  setup(options?: Options) {
+    return rawUserEvent.setup({
+      pointerEventsCheck: PointerEventsCheckLevel.Never,
+      ...options,
+    });
+  },
+};
 
 function addStartOnlyOnboardingPeriod(accessibleDate: RegExp): void {
   fireEvent.click(screen.getByRole('button', { name: accessibleDate }));
@@ -517,6 +526,8 @@ describe('App', () => {
       'aria-disabled',
       'true',
     );
+    expect(screen.queryByText('Choose at least one observation before saving.')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Save and done' }));
     expect(screen.getByText('Choose at least one observation before saving.')).toBeVisible();
     await user.click(screen.getByRole('radio', { name: 'None' }));
     expect(screen.getByRole('button', { name: 'Save and done' })).toBeEnabled();
@@ -658,7 +669,9 @@ describe('App', () => {
       'true',
     );
     expect(
-      screen.getByText(/A new open period cannot begin before a later recorded period/i),
+      screen.getByText(
+        /This day is too far from the later recorded period to extend it\. Correct the dates in Periods history\./i,
+      ),
     ).toBeVisible();
   }, 10_000);
 

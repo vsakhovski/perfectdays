@@ -27,6 +27,21 @@ export interface DailyLog {
   updatedAt: string;
 }
 
+export type EstimateSampleKind = 'cycle' | 'duration';
+export type EstimateUse = 'include' | 'exclude';
+export type EstimateDecisionReason =
+  'confirmed-correct' | 'recording-artifact' | 'missing-entry' | 'other';
+
+/** A review decision for one exact, fingerprinted derived estimate sample. */
+export interface EstimateDecision {
+  sampleId: string;
+  sampleKind: EstimateSampleKind;
+  fingerprint: string;
+  use: EstimateUse;
+  reason: EstimateDecisionReason;
+  reviewedAt: string;
+}
+
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type SupportedLanguage = 'en' | 'de';
 export type LanguagePreference = 'system' | SupportedLanguage;
@@ -53,6 +68,7 @@ export interface VaultPayload {
   schemaVersion: number;
   episodes: PeriodEpisode[];
   logs: DailyLog[];
+  estimateDecisions: EstimateDecision[];
   settings: VaultSettings;
   createdAt: string;
   updatedAt: string;

@@ -1,7 +1,8 @@
 import type { ForecastDetails } from './forecast';
 import { integerMedian } from './forecast';
+import { buildReviewedEstimateDataset } from './cycle-checks';
 import { daysBetween } from './local-date';
-import type { DailyLog, LocalDate, PeriodEpisode } from './models';
+import type { DailyLog, EstimateDecision, LocalDate, PeriodEpisode } from './models';
 
 /**
  * Insights intentionally use the same six-record horizon as the baseline forecast.
@@ -73,6 +74,7 @@ export interface ForecastExplanationData {
 
 export interface TrackerInsightsInput {
   episodes: readonly PeriodEpisode[];
+  estimateDecisions?: readonly EstimateDecision[];
   logs: readonly DailyLog[];
   forecast: ForecastDetails | null;
   limit?: number;
@@ -142,37 +144,26 @@ export function summarizeInsightIntegers(values: readonly number[]): IntegerInsi
 }
 
 /**
- * Returns chronological records for the most recent successive episode starts.
- * A newer active episode still completes the preceding cycle, matching forecasting.
+ * Returns chronological records for the most recent successive completed periods.
+ * Active periods are excluded from both insights and forecasting evidence.
  */
 export function deriveCycleLengthInsightRecords(
   episodes: readonly PeriodEpisode[],
   limit = DEFAULT_INSIGHT_RECORD_LIMIT,
+  estimateDecisions: readonly EstimateDecision[] = [],
 ): CycleLengthInsightRecord[] {
   assertRecordLimit(limit);
-  const sorted = [...episodes].sort(compareEpisodes);
-  const records: CycleLengthInsightRecord[] = [];
-
-  for (let index = 1; index < sorted.length; index += 1) {
-    const previous = sorted[index - 1];
-    const next = sorted[index];
-
-    if (previous === undefined || next === undefined) {
-      continue;
-    }
-
-    const lengthDays = daysBetween(previous.startDate, next.startDate);
-    assertPositiveInteger(lengthDays, 'Cycle length');
-    records.push({
-      previousEpisodeId: previous.id,
-      nextEpisodeId: next.id,
-      previousStartDate: previous.startDate,
-      nextStartDate: next.startDate,
-      lengthDays,
-    });
-  }
-
-  return recentRecords(records, limit);
+  const dataset = buildReviewedEstimateDataset(episodes, estimateDecisions);
+  const includedIds = new Set(dataset.includedCycleSamples.map((sample) => sample.id));
+  return recentRecords(dataset.cycleSamples, limit)
+    .filter((sample) => includedIds.has(sample.id))
+    .map((sample) => ({
+      previousEpisodeId: sample.previousEpisodeId,
+      nextEpisodeId: sample.nextEpisodeId,
+      previousStartDate: sample.previousStartDate,
+      nextStartDate: sample.nextStartDate,
+      lengthDays: sample.lengthDays,
+    }));
 }
 
 /**
@@ -182,26 +173,19 @@ export function deriveCycleLengthInsightRecords(
 export function deriveBleedingDurationInsightRecords(
   episodes: readonly PeriodEpisode[],
   limit = DEFAULT_INSIGHT_RECORD_LIMIT,
+  estimateDecisions: readonly EstimateDecision[] = [],
 ): BleedingDurationInsightRecord[] {
   assertRecordLimit(limit);
-  const records = [...episodes]
-    .sort(compareEpisodes)
-    .filter(
-      (episode): episode is PeriodEpisode & { endDate: LocalDate } =>
-        episode.endDate !== undefined && episode.durationKnown !== false,
-    )
-    .map((episode): BleedingDurationInsightRecord => {
-      const durationDays = daysBetween(episode.startDate, episode.endDate) + 1;
-      assertPositiveInteger(durationDays, 'Bleeding duration');
-      return {
-        episodeId: episode.id,
-        startDate: episode.startDate,
-        endDate: episode.endDate,
-        durationDays,
-      };
-    });
-
-  return recentRecords(records, limit);
+  const dataset = buildReviewedEstimateDataset(episodes, estimateDecisions);
+  const includedIds = new Set(dataset.includedDurationSamples.map((sample) => sample.id));
+  return recentRecords(dataset.durationSamples, limit)
+    .filter((sample) => includedIds.has(sample.id))
+    .map((sample) => ({
+      episodeId: sample.episodeId,
+      startDate: sample.startDate,
+      endDate: sample.endDate,
+      durationDays: sample.durationDays,
+    }));
 }
 
 /** Green-day insights are observations only: explicit confidence ratings of four or five. */
@@ -223,9 +207,12 @@ export function deriveGreenDayInsightRecords(
   return recentRecords(records, limit);
 }
 
-function hasKnownBleedingDuration(episodes: readonly PeriodEpisode[]): boolean {
-  return episodes.some(
-    (episode) => episode.endDate !== undefined && episode.durationKnown !== false,
+function hasKnownBleedingDuration(
+  episodes: readonly PeriodEpisode[],
+  estimateDecisions: readonly EstimateDecision[],
+): boolean {
+  return (
+    buildReviewedEstimateDataset(episodes, estimateDecisions).includedDurationSamples.length > 0
   );
 }
 
@@ -236,6 +223,7 @@ function hasKnownBleedingDuration(episodes: readonly PeriodEpisode[]): boolean {
 export function deriveForecastExplanationData(
   forecast: ForecastDetails,
   episodes: readonly PeriodEpisode[],
+  estimateDecisions: readonly EstimateDecision[] = [],
 ): ForecastExplanationData {
   const anchor = episodes
     .filter((episode) => episode.endDate !== undefined)
@@ -261,7 +249,9 @@ export function deriveForecastExplanationData(
       ? null
       : {
           days: forecast.predictedDuration,
-          source: hasKnownBleedingDuration(episodes) ? ('recorded' as const) : ('typical' as const),
+          source: hasKnownBleedingDuration(episodes, estimateDecisions)
+            ? ('recorded' as const)
+            : ('typical' as const),
         };
 
   return {
@@ -287,8 +277,16 @@ export function deriveForecastExplanationData(
 export function deriveTrackerInsights(input: TrackerInsightsInput): TrackerInsights {
   const limit = input.limit ?? DEFAULT_INSIGHT_RECORD_LIMIT;
   assertRecordLimit(limit);
-  const cycleLengthRecords = deriveCycleLengthInsightRecords(input.episodes, limit);
-  const bleedingDurationRecords = deriveBleedingDurationInsightRecords(input.episodes, limit);
+  const cycleLengthRecords = deriveCycleLengthInsightRecords(
+    input.episodes,
+    limit,
+    input.estimateDecisions ?? [],
+  );
+  const bleedingDurationRecords = deriveBleedingDurationInsightRecords(
+    input.episodes,
+    limit,
+    input.estimateDecisions ?? [],
+  );
   const greenDayRecords = deriveGreenDayInsightRecords(input.logs, limit);
 
   return {
@@ -311,6 +309,10 @@ export function deriveTrackerInsights(input: TrackerInsightsInput): TrackerInsig
     forecast:
       input.forecast === null
         ? null
-        : deriveForecastExplanationData(input.forecast, input.episodes),
+        : deriveForecastExplanationData(
+            input.forecast,
+            input.episodes,
+            input.estimateDecisions ?? [],
+          ),
   };
 }

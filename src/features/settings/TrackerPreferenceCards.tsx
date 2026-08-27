@@ -36,8 +36,10 @@ export function TrackerPreferenceCards({ payload }: { readonly payload: VaultPay
   const [orangeError, setOrangeError] = useState(false);
   const [cycleError, setCycleError] = useState(false);
   const [bleedError, setBleedError] = useState(false);
-  const recordedCycleOverrides = completedCycleLengths(payload.episodes).length > 0;
-  const recordedBleedOverrides = completedBleedDurations(payload.episodes).length > 0;
+  const recordedCycleOverrides =
+    completedCycleLengths(payload.episodes, 6, payload.estimateDecisions).length > 0;
+  const recordedBleedOverrides =
+    completedBleedDurations(payload.episodes, 6, payload.estimateDecisions).length > 0;
 
   const persist = (settings: VaultPayload['settings'], area: SaveArea): void => {
     setBusyArea(area);

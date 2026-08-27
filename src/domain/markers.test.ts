@@ -25,6 +25,9 @@ const forecast: ForecastDetails = {
   source: 'recorded',
   isLate: false,
   calendarMarkersSuppressed: false,
+  cycleSamplesAvailable: 4,
+  cycleSamplesExcluded: 0,
+  cycleSamplesPendingReview: 0,
 };
 
 function log(date: string, values: Omit<DailyLog, 'date' | 'updatedAt'> = {}): DailyLog {

@@ -9,6 +9,7 @@ import {
 } from 'react';
 
 import type { Flow, LocalDate, Rating } from '../../domain/models';
+import { isLocalDate } from '../../domain/local-date';
 import styles from './day-detail.module.css';
 
 export type PeriodQuickAction = 'start' | 'continue' | 'end' | 'remove';
@@ -79,6 +80,27 @@ export interface DayDetailEditorProps {
   readonly onDetailsOpenChange?: (open: boolean) => void;
   readonly onPeriodAction: (action: PeriodQuickAction, date: LocalDate) => void;
   readonly onSave: (value: DayDetailValue, date: LocalDate) => void;
+  readonly onCancelPeriodExtension?: () => void;
+  readonly onConfirmPeriodExtension?: () => void;
+  readonly onCancelPeriodEndSelection?: () => void;
+  readonly onConfirmPeriodEndSelection?: () => void;
+  readonly onPeriodEndSelectionChange?: (date: LocalDate) => void;
+  readonly periodExtensionConfirmation?: {
+    readonly title: string;
+    readonly description: string;
+    readonly confirm: string;
+    readonly cancel: string;
+  };
+  readonly periodEndSelection?: {
+    readonly title: string;
+    readonly description: string;
+    readonly label: string;
+    readonly value: LocalDate;
+    readonly min: LocalDate;
+    readonly max: LocalDate;
+    readonly confirm: string;
+    readonly cancel: string;
+  };
   readonly saveDisabled?: boolean;
   readonly saveDisabledReason?: string;
   readonly periodActions: readonly PeriodActionState[];
@@ -156,7 +178,9 @@ interface ConfirmationModalProps {
   readonly cancelLabel: string;
   readonly confirmLabel: string;
   readonly confirmRef: RefObject<HTMLButtonElement | null>;
-  readonly message: string;
+  readonly description?: string;
+  readonly title: string;
+  readonly tone?: 'danger' | 'primary';
   readonly onCancel: () => void;
   readonly onConfirm: () => void;
 }
@@ -166,16 +190,20 @@ function ConfirmationModal({
   cancelLabel,
   confirmLabel,
   confirmRef,
-  message,
+  description,
+  title,
+  tone = 'danger',
   onCancel,
   onConfirm,
 }: ConfirmationModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const messageId = useId();
+  const descriptionId = useId();
 
   return (
     <div className={styles['confirmationBackdrop']}>
       <div
+        aria-describedby={description === undefined ? undefined : descriptionId}
         aria-labelledby={messageId}
         aria-modal="true"
         className={styles['confirmationDialog']}
@@ -204,10 +232,11 @@ function ConfirmationModal({
         ref={modalRef}
         role="alertdialog"
       >
-        <h3 id={messageId}>{message}</h3>
+        <h3 id={messageId}>{title}</h3>
+        {description === undefined ? null : <p id={descriptionId}>{description}</p>}
         <div className={styles['confirmationActions']}>
           <button
-            className={styles['deleteButton']}
+            className={tone === 'danger' ? styles['deleteButton'] : styles['saveButton']}
             disabled={busy}
             onClick={onConfirm}
             ref={confirmRef}
@@ -229,6 +258,96 @@ function ConfirmationModal({
   );
 }
 
+interface PeriodEndSelectionModalProps {
+  readonly busy: boolean;
+  readonly copy: NonNullable<DayDetailEditorProps['periodEndSelection']>;
+  readonly onCancel: () => void;
+  readonly onChange: (date: LocalDate) => void;
+  readonly onConfirm: () => void;
+}
+
+function PeriodEndSelectionModal({
+  busy,
+  copy,
+  onCancel,
+  onChange,
+  onConfirm,
+}: PeriodEndSelectionModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+
+  return (
+    <div className={styles['confirmationBackdrop']}>
+      <div
+        aria-describedby={descriptionId}
+        aria-labelledby={titleId}
+        aria-modal="true"
+        className={styles['confirmationDialog']}
+        onKeyDown={(event) => {
+          event.stopPropagation();
+          if (event.key === 'Escape' && !busy) {
+            event.preventDefault();
+            onCancel();
+            return;
+          }
+          if (event.key !== 'Tab') return;
+          const focusable = getFocusableElements(dialogRef.current ?? document.body);
+          const first = focusable[0];
+          const last = focusable.at(-1);
+          if (!first || !last) return;
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }}
+        ref={dialogRef}
+        role="dialog"
+      >
+        <h3 id={titleId}>{copy.title}</h3>
+        <p id={descriptionId}>{copy.description}</p>
+        <label className={styles['dateField']}>
+          <span>{copy.label}</span>
+          <input
+            autoFocus
+            disabled={busy}
+            max={copy.max}
+            min={copy.min}
+            onChange={(event) => {
+              if (isLocalDate(event.currentTarget.value)) {
+                onChange(event.currentTarget.value);
+              }
+            }}
+            type="date"
+            value={copy.value}
+          />
+        </label>
+        <div className={styles['confirmationActions']}>
+          <button
+            className={styles['saveButton']}
+            disabled={busy}
+            onClick={onConfirm}
+            type="button"
+          >
+            {copy.confirm}
+          </button>
+          <button
+            className={styles['secondaryButton']}
+            disabled={busy}
+            onClick={onCancel}
+            type="button"
+          >
+            {copy.cancel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DayDetailEditor({
   busy = false,
   copy,
@@ -242,6 +361,13 @@ export function DayDetailEditor({
   onDetailsOpenChange,
   onPeriodAction,
   onSave,
+  onCancelPeriodExtension,
+  onConfirmPeriodExtension,
+  onCancelPeriodEndSelection,
+  onConfirmPeriodEndSelection,
+  onPeriodEndSelectionChange,
+  periodEndSelection,
+  periodExtensionConfirmation,
   saveDisabled = false,
   saveDisabledReason,
   periodActions,
@@ -259,11 +385,23 @@ export function DayDetailEditor({
   const confirmRemovePeriodButtonRef = useRef<HTMLButtonElement>(null);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
   const confirmDeleteButtonRef = useRef<HTMLButtonElement>(null);
+  const confirmPeriodExtensionButtonRef = useRef<HTMLButtonElement>(null);
+  const saveButtonRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const initialReturnFocusElementRef = useRef(returnFocusElement);
   const [confirmingPeriodRemoval, setConfirmingPeriodRemoval] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(() => rememberedDetailsOpen ?? true);
+  const [emptySaveAttempted, setEmptySaveAttempted] = useState(false);
+  const hasObservation =
+    value.flow !== undefined ||
+    value.confidence !== undefined ||
+    value.tension !== undefined ||
+    value.energy !== undefined ||
+    value.pain !== undefined ||
+    (value.note?.trim().length ?? 0) > 0;
+  const showSaveDisabledReason =
+    saveDisabled && saveDisabledReason !== undefined && (hasObservation || emptySaveAttempted);
 
   useLayoutEffect(() => {
     returnFocusRef.current =
@@ -296,6 +434,19 @@ export function DayDetailEditor({
       confirmDeleteButtonRef.current?.focus();
     }
   }, [confirmingDelete]);
+
+  useLayoutEffect(() => {
+    if (periodExtensionConfirmation !== undefined) {
+      confirmPeriodExtensionButtonRef.current?.focus();
+    }
+  }, [periodExtensionConfirmation]);
+
+  useLayoutEffect(() => {
+    if (emptySaveAttempted && showSaveDisabledReason) {
+      saveDisabledReasonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      saveDisabledReasonRef.current?.focus({ preventScroll: true });
+    }
+  }, [emptySaveAttempted, showSaveDisabledReason]);
 
   const handleDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     if (event.key === 'Escape' && !busy) {
@@ -338,8 +489,12 @@ export function DayDetailEditor({
   const submit = (event: SyntheticEvent<HTMLFormElement>): void => {
     event.preventDefault();
     if (saveDisabled) {
-      saveDisabledReasonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      saveDisabledReasonRef.current?.focus({ preventScroll: true });
+      if (showSaveDisabledReason) {
+        saveDisabledReasonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        saveDisabledReasonRef.current?.focus({ preventScroll: true });
+      } else {
+        setEmptySaveAttempted(true);
+      }
       return;
     }
     onSave(value, date);
@@ -403,6 +558,22 @@ export function DayDetailEditor({
               ))}
             </div>
           </fieldset>
+
+          {errorMessage ? (
+            <p className={styles['error']} role="alert">
+              {errorMessage}
+            </p>
+          ) : null}
+          {showSaveDisabledReason ? (
+            <p
+              className={styles['saveGuidance']}
+              id={saveDisabledReasonId}
+              ref={saveDisabledReasonRef}
+              tabIndex={-1}
+            >
+              {saveDisabledReason}
+            </p>
+          ) : null}
 
           {onDelete ? (
             <button
@@ -534,35 +705,18 @@ export function DayDetailEditor({
             ) : null}
           </section>
 
-          {errorMessage ? (
-            <p className={styles['error']} role="alert">
-              {errorMessage}
-            </p>
-          ) : null}
           {statusMessage ? (
             <p className={styles['status']} aria-live="polite">
               {statusMessage}
             </p>
           ) : null}
-          {saveDisabled && saveDisabledReason ? (
-            <p
-              className={styles['saveGuidance']}
-              id={saveDisabledReasonId}
-              ref={saveDisabledReasonRef}
-              tabIndex={-1}
-            >
-              {saveDisabledReason}
-            </p>
-          ) : null}
-
           <div className={styles['formActions']}>
             <button
-              aria-describedby={
-                saveDisabled && saveDisabledReason ? saveDisabledReasonId : undefined
-              }
+              aria-describedby={showSaveDisabledReason ? saveDisabledReasonId : undefined}
               aria-disabled={saveDisabled}
               className={styles['saveButton']}
               disabled={busy}
+              ref={saveButtonRef}
               type="submit"
             >
               {busy ? copy.saving : copy.save}
@@ -584,7 +738,7 @@ export function DayDetailEditor({
             cancelLabel={copy.cancelRemovePeriod}
             confirmLabel={copy.confirmRemovePeriod}
             confirmRef={confirmRemovePeriodButtonRef}
-            message={copy.removePeriodConfirmation}
+            title={copy.removePeriodConfirmation}
             onCancel={() => {
               setConfirmingPeriodRemoval(false);
               removePeriodButtonRef.current?.focus();
@@ -602,7 +756,7 @@ export function DayDetailEditor({
             cancelLabel={copy.cancelDelete}
             confirmLabel={busy ? copy.deleting : copy.confirmDelete}
             confirmRef={confirmDeleteButtonRef}
-            message={copy.deleteConfirmation}
+            title={copy.deleteConfirmation}
             onCancel={() => {
               setConfirmingDelete(false);
               deleteButtonRef.current?.focus();
@@ -610,6 +764,41 @@ export function DayDetailEditor({
             onConfirm={() => {
               onDelete(date);
             }}
+          />
+        ) : null}
+
+        {periodExtensionConfirmation !== undefined &&
+        onCancelPeriodExtension !== undefined &&
+        onConfirmPeriodExtension !== undefined ? (
+          <ConfirmationModal
+            busy={busy}
+            cancelLabel={periodExtensionConfirmation.cancel}
+            confirmLabel={periodExtensionConfirmation.confirm}
+            confirmRef={confirmPeriodExtensionButtonRef}
+            description={periodExtensionConfirmation.description}
+            onCancel={() => {
+              onCancelPeriodExtension();
+              window.requestAnimationFrame(() => saveButtonRef.current?.focus());
+            }}
+            onConfirm={onConfirmPeriodExtension}
+            title={periodExtensionConfirmation.title}
+            tone="primary"
+          />
+        ) : null}
+
+        {periodEndSelection !== undefined &&
+        onCancelPeriodEndSelection !== undefined &&
+        onConfirmPeriodEndSelection !== undefined &&
+        onPeriodEndSelectionChange !== undefined ? (
+          <PeriodEndSelectionModal
+            busy={busy}
+            copy={periodEndSelection}
+            onCancel={() => {
+              onCancelPeriodEndSelection();
+              window.requestAnimationFrame(() => saveButtonRef.current?.focus());
+            }}
+            onChange={onPeriodEndSelectionChange}
+            onConfirm={onConfirmPeriodEndSelection}
           />
         ) : null}
       </div>

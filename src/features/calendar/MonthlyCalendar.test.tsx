@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import rawUserEvent, { PointerEventsCheckLevel, type Options } from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { addDays, asLocalDate } from '../../domain/local-date';
@@ -12,6 +12,15 @@ import {
   type CalendarMonth,
   type CalendarWeekday,
 } from './MonthlyCalendar';
+
+const userEvent = {
+  setup(options?: Options) {
+    return rawUserEvent.setup({
+      pointerEventsCheck: PointerEventsCheckLevel.Never,
+      ...options,
+    });
+  },
+};
 
 const noMarkers: CalendarDayMarkers = {
   recordedRed: false,

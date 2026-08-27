@@ -1,0 +1,88 @@
+.panel {
+  display: grid;
+  gap: 0.9rem;
+  margin-block: 1rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--color-marker-orange) 45%, var(--color-border));
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--color-marker-orange) 7%, var(--color-surface));
+}
+
+.header,
+.finding,
+.excluded {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.header h2,
+.finding h3,
+.excluded h3,
+.header p,
+.finding p,
+.excluded p,
+.error,
+.status {
+  margin: 0;
+}
+
+.items {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.finding,
+.excluded {
+  padding: 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.actions button,
+.excluded button {
+  min-block-size: 2.75rem;
+}
+
+.actions button:first-child {
+  grid-column: 1 / -1;
+}
+
+.secondaryAction {
+  color: var(--color-text);
+  background: transparent;
+}
+
+.excluded {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.error {
+  color: var(--color-danger);
+}
+
+.status {
+  color: var(--color-accent);
+}
+
+@media (max-width: 22rem) {
+  .actions,
+  .excluded {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (forced-colors: active) {
+  .panel,
+  .finding,
+  .excluded {
+    border-color: CanvasText;
+  }
+}

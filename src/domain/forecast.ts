@@ -1,5 +1,6 @@
-import { addDays, daysBetween } from './local-date';
-import type { Forecast, LocalDate, PeriodEpisode } from './models';
+import { addDays } from './local-date';
+import { buildReviewedEstimateDataset } from './cycle-checks';
+import type { EstimateDecision, Forecast, LocalDate, PeriodEpisode } from './models';
 import { assertTypicalBleedDuration, assertTypicalCycleLength } from './tracking-settings';
 
 const MAX_RECENT_SAMPLES = 6;
@@ -12,6 +13,7 @@ export interface ForecastSettings {
 
 export interface ForecastInput {
   episodes: readonly PeriodEpisode[];
+  estimateDecisions?: readonly EstimateDecision[];
   settings: ForecastSettings;
   /** Optional date-only reference used only to label a fixed estimate as late. */
   today?: LocalDate;
@@ -24,19 +26,16 @@ export interface ForecastDetails extends Forecast {
   isLate: boolean;
   /** Calendar forecast coloring is withheld for a recent span greater than ten days. */
   calendarMarkersSuppressed: boolean;
+  cycleSamplesAvailable: number;
+  cycleSamplesExcluded: number;
+  cycleSamplesPendingReview: number;
 }
 
 function compareEpisodes(left: PeriodEpisode, right: PeriodEpisode): number {
   return left.startDate.localeCompare(right.startDate);
 }
 
-function assertPositiveInteger(value: number, label: string): void {
-  if (!Number.isSafeInteger(value) || value <= 0) {
-    throw new RangeError(`${label} must be a positive integer.`);
-  }
-}
-
-function recentValues(values: readonly number[], limit: number): number[] {
+function recentValues<Value>(values: readonly Value[], limit: number): Value[] {
   if (!Number.isSafeInteger(limit) || limit <= 0) {
     throw new RangeError('Sample limit must be a positive integer.');
   }
@@ -77,48 +76,26 @@ export function integerMedian(values: readonly number[]): number | undefined {
 export function completedCycleLengths(
   episodes: readonly PeriodEpisode[],
   limit = MAX_RECENT_SAMPLES,
+  estimateDecisions: readonly EstimateDecision[] = [],
 ): number[] {
-  const sorted = episodes
-    .filter((episode): episode is PeriodEpisode & { endDate: LocalDate } =>
-      Boolean(episode.endDate),
-    )
-    .sort(compareEpisodes);
-  const lengths: number[] = [];
-
-  for (let index = 1; index < sorted.length; index += 1) {
-    const previous = sorted[index - 1];
-    const current = sorted[index];
-
-    if (!previous || !current) {
-      continue;
-    }
-
-    const length = daysBetween(previous.startDate, current.startDate);
-    assertPositiveInteger(length, 'Cycle length');
-    lengths.push(length);
-  }
-
-  return recentValues(lengths, limit);
+  const dataset = buildReviewedEstimateDataset(episodes, estimateDecisions);
+  const includedIds = new Set(dataset.includedCycleSamples.map((sample) => sample.id));
+  return recentValues(dataset.cycleSamples, limit)
+    .filter((sample) => includedIds.has(sample.id))
+    .map((sample) => sample.lengthDays);
 }
 
 /** Completed duration is the inclusive distance between an episode's boundaries. */
 export function completedBleedDurations(
   episodes: readonly PeriodEpisode[],
   limit = MAX_RECENT_SAMPLES,
+  estimateDecisions: readonly EstimateDecision[] = [],
 ): number[] {
-  const durations = [...episodes]
-    .sort(compareEpisodes)
-    .filter(
-      (episode): episode is PeriodEpisode & { endDate: LocalDate } =>
-        Boolean(episode.endDate) && episode.durationKnown !== false,
-    )
-    .map((episode) => {
-      const duration = daysBetween(episode.startDate, episode.endDate) + 1;
-      assertPositiveInteger(duration, 'Bleeding duration');
-      return duration;
-    });
-
-  return recentValues(durations, limit);
+  const dataset = buildReviewedEstimateDataset(episodes, estimateDecisions);
+  const includedIds = new Set(dataset.includedDurationSamples.map((sample) => sample.id));
+  return recentValues(dataset.durationSamples, limit)
+    .filter((sample) => includedIds.has(sample.id))
+    .map((sample) => sample.durationDays);
 }
 
 function minimumDate(left: LocalDate, right: LocalDate): LocalDate {
@@ -145,7 +122,20 @@ export function calculateForecast(input: ForecastInput): ForecastDetails | null 
     return null;
   }
 
-  const cycleLengths = completedCycleLengths(episodes);
+  const dataset = buildReviewedEstimateDataset(episodes, input.estimateDecisions ?? []);
+  const recentCycleSamples = recentValues(dataset.cycleSamples, MAX_RECENT_SAMPLES);
+  const recentCycleIds = new Set(recentCycleSamples.map((sample) => sample.id));
+  const includedCycleIds = new Set(dataset.includedCycleSamples.map((sample) => sample.id));
+  const latestCycleSample = dataset.cycleSamples.at(-1);
+  const latestAnchorNeedsReview =
+    latestCycleSample?.nextEpisodeId === latestEpisode.id &&
+    dataset.pendingCycleSamples.some((sample) => sample.id === latestCycleSample.id);
+  if (latestAnchorNeedsReview) {
+    return null;
+  }
+  const cycleLengths = recentCycleSamples
+    .filter((sample) => includedCycleIds.has(sample.id))
+    .map((sample) => sample.lengthDays);
   const recordedMedian = integerMedian(cycleLengths);
   const typicalCycleLength = input.settings.typicalCycleLength;
 
@@ -194,7 +184,11 @@ export function calculateForecast(input: ForecastInput): ForecastDetails | null 
       : completedCyclesUsed >= 4 && recentCycleLengthSpan !== null && recentCycleLengthSpan <= 4
         ? 'medium'
         : 'low';
-  const durations = completedBleedDurations(episodes);
+  const durations = completedBleedDurations(
+    episodes,
+    MAX_RECENT_SAMPLES,
+    input.estimateDecisions ?? [],
+  );
   const recordedDuration = integerMedian(durations);
   const typicalDuration = input.settings.typicalBleedDuration;
 
@@ -215,6 +209,13 @@ export function calculateForecast(input: ForecastInput): ForecastDetails | null 
     source,
     isLate: input.today !== undefined && input.today > latestStart,
     calendarMarkersSuppressed,
+    cycleSamplesAvailable: recentCycleSamples.length,
+    cycleSamplesExcluded: dataset.excludedCycleSamples.filter((sample) =>
+      recentCycleIds.has(sample.id),
+    ).length,
+    cycleSamplesPendingReview: dataset.pendingCycleSamples.filter((sample) =>
+      recentCycleIds.has(sample.id),
+    ).length,
   };
 
   return predictedDuration === undefined ? base : { ...base, predictedDuration };

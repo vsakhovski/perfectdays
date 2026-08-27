@@ -46,7 +46,7 @@ const codec: VaultPayloadCodec = {
       typeof candidate !== 'object' ||
       candidate === null ||
       !('schemaVersion' in candidate) ||
-      candidate.schemaVersion !== 4
+      candidate.schemaVersion !== 5
     ) {
       throw new Error('invalid-payload');
     }
@@ -56,9 +56,10 @@ const codec: VaultPayloadCodec = {
 
 function payload(updatedAt = '2026-08-08T10:00:00.000Z'): VaultPayload {
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     episodes: [],
     logs: [],
+    estimateDecisions: [],
     settings: {
       onboardingCompleted: false,
       weekStart: 'system',
@@ -1109,7 +1110,8 @@ describe('VaultManager', () => {
         if (candidate['schemaVersion'] === 2) {
           return {
             ...candidate,
-            schemaVersion: 4,
+            schemaVersion: 5,
+            estimateDecisions: [],
             settings: {
               ...(candidate['settings'] as VaultPayload['settings']),
               onboardingCompleted: false,
@@ -1123,8 +1125,11 @@ describe('VaultManager', () => {
     const target = harness(migratingCodec);
     const current = payload('2026-08-08T19:00:00.000Z');
     const oldPayload = {
-      ...current,
       schemaVersion: 2,
+      episodes: current.episodes,
+      logs: current.logs,
+      createdAt: current.createdAt,
+      updatedAt: current.updatedAt,
       settings: {
         orangeEnabled: current.settings.orangeEnabled,
         orangeDays: current.settings.orangeDays,
@@ -1143,7 +1148,8 @@ describe('VaultManager', () => {
     await target.manager.restoreEncryptedBackup(backup, '654321');
 
     expect(target.manager.getSnapshot().payload).toMatchObject({
-      schemaVersion: 4,
+      schemaVersion: 5,
+      estimateDecisions: [],
       settings: { onboardingCompleted: false, weekStart: 'system' },
     });
     const active = target.store.activeRecord();
@@ -1153,7 +1159,8 @@ describe('VaultManager', () => {
     const unlocked = await target.cryptography.unlock(active.envelope, '654321');
     try {
       expect(JSON.parse(textDecoder.decode(unlocked.plaintext))).toMatchObject({
-        schemaVersion: 4,
+        schemaVersion: 5,
+        estimateDecisions: [],
         settings: { onboardingCompleted: false, weekStart: 'system' },
       });
     } finally {

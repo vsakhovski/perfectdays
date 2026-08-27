@@ -33,9 +33,10 @@ function envelope(): EncryptedVaultEnvelope {
 
 function payload(): VaultPayload {
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     episodes: [],
     logs: [],
+    estimateDecisions: [],
     settings: {
       onboardingCompleted: true,
       weekStart: 'system',
