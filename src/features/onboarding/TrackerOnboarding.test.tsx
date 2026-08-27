@@ -13,7 +13,7 @@ import {
 
 const copy: OnboardingCopy = {
   splash: {
-    appName: 'Pattern Journal',
+    appName: 'My Perfect Days',
     tagline: 'Private cycle patterns',
     version: (version) => `Version ${version}`,
   },
@@ -237,24 +237,8 @@ async function goToHistory(user: ReturnType<typeof userEvent.setup>): Promise<vo
   await user.click(screen.getByRole('button', { name: copy.actions.next }));
 }
 
-function availableDateInOpenPicker(): HTMLElement {
-  const dialog = screen.getByRole('dialog');
-  const date = within(dialog)
-    .getAllByRole('gridcell')
-    .find(
-      (candidate) =>
-        candidate.dataset['inCurrentMonth'] === 'true' && !candidate.hasAttribute('disabled'),
-    );
-  if (!date) throw new Error('The open date picker has no available date.');
-  return date;
-}
-
-async function chooseAvailableDate(
-  user: ReturnType<typeof userEvent.setup>,
-  fieldLabel: string,
-): Promise<void> {
-  await user.click(screen.getByLabelText(fieldLabel));
-  await user.click(availableDateInOpenPicker());
+function calendarDate(date: string): HTMLElement {
+  return screen.getByRole('button', { name: new RegExp(date, 'i') });
 }
 
 async function enterPinWithKeypad(
@@ -313,59 +297,53 @@ describe('TrackerOnboarding', () => {
     expect(onSkip).toHaveBeenCalledOnce();
   });
 
-  it('validates only the current history step and focuses its first invalid field', async () => {
+  it('validates only the current history step and focuses the calendar editor', async () => {
     const user = userEvent.setup();
     const onComplete = vi.fn<TrackerOnboardingProps['onComplete']>();
-    render(<Harness onComplete={onComplete} />);
+    render(
+      <Harness
+        draft={{
+          ...initialDraft,
+          history: [{ id: 'one', startDate: '', endDate: asLocalDate('2025-06-05') }],
+        }}
+        onComplete={onComplete}
+      />,
+    );
     await goToHistory(user);
-
-    await chooseAvailableDate(user, copy.history.endDate);
-
-    expect(screen.queryByRole('button', { name: copy.history.add })).toBeNull();
 
     await user.click(screen.getByRole('button', { name: copy.actions.next }));
 
     expect(screen.getByText(copy.validation.startRequired)).toBeVisible();
-    expect(screen.getByLabelText(copy.history.startDate)).toHaveFocus();
+    expect(
+      screen.getByText(copy.validation.startRequired).closest('[tabindex="-1"]'),
+    ).toHaveFocus();
     expect(onComplete).not.toHaveBeenCalled();
   });
 
-  it('shows a compact first period card and clears the last populated card in place', async () => {
+  it('configures a previous period with the calendar and removes it through confirmation', async () => {
     const user = userEvent.setup();
     const onAddHistory = vi.fn<TrackerOnboardingProps['onAddHistory']>();
     const onRemoveHistory = vi.fn<TrackerOnboardingProps['onRemoveHistory']>();
     render(<Harness onAddHistory={onAddHistory} onRemoveHistory={onRemoveHistory} />);
     await goToHistory(user);
 
-    const startDate = screen.getByLabelText(copy.history.startDate);
-    const endDate = screen.getByLabelText(copy.history.endDate);
-    const remove = screen.getByRole('button', { name: copy.history.removeEntry(1) });
+    await user.click(calendarDate('Sunday, June 1, 2025'));
+    await user.click(screen.getByRole('button', { name: copy.history.editor.startNewPeriod }));
+    await user.click(calendarDate('Thursday, June 5, 2025'));
+    await user.click(screen.getByRole('button', { name: copy.history.editor.savePeriod }));
 
-    expect(startDate).toBeVisible();
-    expect(endDate).toBeVisible();
-    expect(remove).toBeDisabled();
-    expect(remove.querySelector('svg')).not.toBeNull();
-    expect(screen.queryByRole('button', { name: copy.history.add })).toBeNull();
-    expect(screen.queryByText(copy.history.removeEntry(1))).toBeNull();
-
-    await chooseAvailableDate(user, copy.history.startDate);
-    await chooseAvailableDate(user, copy.history.endDate);
-    const add = screen.getByRole('button', { name: copy.history.add });
-    expect(remove).toBeEnabled();
-    expect(add).toBeEnabled();
-
-    await user.click(add);
-    expect(onAddHistory).toHaveBeenCalledOnce();
-
+    expect(onAddHistory).not.toHaveBeenCalled();
+    const remove = screen.getByRole('button', { name: /^Delete period / });
     await user.click(remove);
-    expect(startDate).toHaveTextContent(copy.history.datePicker.chooseDate);
-    expect(endDate).toHaveTextContent(copy.history.datePicker.chooseDate);
-    expect(screen.getByText(copy.history.entryLabel(1))).toBeVisible();
-    expect(remove).toBeDisabled();
-    expect(onRemoveHistory).not.toHaveBeenCalled();
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: copy.history.editor.confirmDelete,
+      }),
+    );
+    expect(onRemoveHistory).toHaveBeenCalledWith('one');
   });
 
-  it('allows an additional empty period card to be closed', async () => {
+  it('selects a listed period before entering date-edit mode', async () => {
     const user = userEvent.setup();
     const onRemoveHistory = vi.fn<TrackerOnboardingProps['onRemoveHistory']>();
     render(
@@ -373,8 +351,11 @@ describe('TrackerOnboarding', () => {
         draft={{
           ...initialDraft,
           history: [
-            { id: 'one', startDate: asLocalDate('2026-01-03'), endDate: '' },
-            { id: 'two', startDate: '', endDate: '' },
+            {
+              id: 'one',
+              startDate: asLocalDate('2025-05-01'),
+              endDate: asLocalDate('2025-05-05'),
+            },
           ],
         }}
         onRemoveHistory={onRemoveHistory}
@@ -382,14 +363,15 @@ describe('TrackerOnboarding', () => {
     );
     await goToHistory(user);
 
-    const removeSecond = screen.getByRole('button', { name: copy.history.removeEntry(2) });
-    expect(removeSecond).toBeEnabled();
-    expect(screen.queryByRole('button', { name: copy.history.add })).toBeNull();
-    await user.click(removeSecond);
-    expect(onRemoveHistory).toHaveBeenCalledWith('two');
+    await user.click(screen.getByRole('button', { name: /Edit period May 1/ }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('heading', { name: /Period May 1/ })).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: copy.history.editor.edit }));
+    expect(screen.getByText(copy.history.editor.selectBoundary)).toBeVisible();
+    expect(onRemoveHistory).not.toHaveBeenCalled();
   });
 
-  it('offers touch-friendly estimate choices, compact spinners, and an unset initial state', async () => {
+  it('offers compact estimate spinners with a useful unset-state default', async () => {
     const user = userEvent.setup();
     render(<Harness />);
     await goToHistory(user);
@@ -397,39 +379,20 @@ describe('TrackerOnboarding', () => {
 
     const cycleInput = screen.getByLabelText(copy.fallbacks.cycleLength);
     const bleedInput = screen.getByLabelText(copy.fallbacks.bleedDuration);
-    const cycleChoices = screen.getByRole('group', {
-      name: copy.fallbacks.quickChoices(copy.fallbacks.cycleLength),
-    });
-    const bleedChoices = screen.getByRole('group', {
-      name: copy.fallbacks.quickChoices(copy.fallbacks.bleedDuration),
-    });
-
     expect(cycleInput).toHaveValue(null);
     expect(cycleInput).toHaveAttribute('placeholder', copy.fallbacks.notSure);
     expect(bleedInput).toHaveValue(null);
     expect(
       screen.getByRole('button', { name: copy.fallbacks.decrease(copy.fallbacks.cycleLength) }),
     ).toBeEnabled();
-    expect(within(cycleChoices).getAllByRole('button')).toHaveLength(5);
-    expect(within(bleedChoices).getAllByRole('button')).toHaveLength(5);
-
-    await user.click(within(cycleChoices).getByRole('button', { name: '30' }));
-    await user.click(within(bleedChoices).getByRole('button', { name: '7' }));
-    expect(cycleInput).toHaveValue(30);
-    expect(bleedInput).toHaveValue(7);
-    expect(within(cycleChoices).getByRole('button', { name: '30' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-
     await user.click(
-      screen.getByRole('button', { name: copy.fallbacks.decrease(copy.fallbacks.cycleLength) }),
+      screen.getByRole('button', { name: copy.fallbacks.increase(copy.fallbacks.cycleLength) }),
     );
     await user.click(
-      screen.getByRole('button', { name: copy.fallbacks.increase(copy.fallbacks.bleedDuration) }),
+      screen.getByRole('button', { name: copy.fallbacks.decrease(copy.fallbacks.bleedDuration) }),
     );
-    expect(cycleInput).toHaveValue(29);
-    expect(bleedInput).toHaveValue(8);
+    expect(cycleInput).toHaveValue(28);
+    expect(bleedInput).toHaveValue(5);
 
     await user.clear(cycleInput);
     expect(cycleInput).toHaveValue(null);
@@ -448,7 +411,7 @@ describe('TrackerOnboarding', () => {
     expect(bleedInput).toHaveValue(12);
   });
 
-  it('uses the same compact spinner and five quick choices for the pre-period window', async () => {
+  it('shows the pre-period spinner only while the window is enabled', async () => {
     const user = userEvent.setup();
     render(<Harness />);
     await goToHistory(user);
@@ -456,25 +419,24 @@ describe('TrackerOnboarding', () => {
     await user.click(screen.getByRole('button', { name: copy.actions.next }));
 
     const daysInput = screen.getByLabelText(copy.orange.days);
-    const quickChoices = screen.getByRole('group', { name: copy.orange.quickChoices });
-    const selectedFive = within(quickChoices).getByRole('button', { name: '5' });
-
     expect(daysInput).toHaveValue(5);
-    expect(within(quickChoices).getAllByRole('button')).toHaveLength(5);
-    expect(selectedFive).toHaveAttribute('aria-pressed', 'true');
-
-    await user.click(within(quickChoices).getByRole('button', { name: '7' }));
-    await user.click(screen.getByRole('button', { name: copy.orange.decrease }));
+    await user.click(screen.getByRole('button', { name: copy.orange.increase }));
     expect(daysInput).toHaveValue(6);
 
     await user.click(screen.getByLabelText(copy.orange.enabled));
-    expect(daysInput).toBeDisabled();
-    expect(screen.getByRole('button', { name: copy.orange.increase })).toBeDisabled();
-    expect(within(quickChoices).getByRole('button', { name: '6' })).toBeDisabled();
+    expect(screen.queryByLabelText(copy.orange.days)).toBeNull();
+    expect(screen.queryByRole('button', { name: copy.orange.increase })).toBeNull();
   });
 
   it('navigates with deliberate horizontal swipes and preserves step validation', () => {
-    render(<Harness />);
+    render(
+      <Harness
+        draft={{
+          ...initialDraft,
+          history: [{ id: 'one', startDate: '', endDate: asLocalDate('2025-06-05') }],
+        }}
+      />,
+    );
 
     const region = screen.getByTestId('onboarding-swipe-region');
     fireEvent.pointerDown(region, {
@@ -525,9 +487,6 @@ describe('TrackerOnboarding', () => {
     swipe(280, 70);
     swipe(280, 70);
     expect(screen.getByRole('heading', { name: copy.history.title })).toBeVisible();
-
-    fireEvent.click(screen.getByLabelText(copy.history.endDate));
-    fireEvent.click(availableDateInOpenPicker());
 
     swipe(280, 70);
     expect(screen.getByText(copy.validation.startRequired)).toBeVisible();

@@ -44,39 +44,9 @@ async function swipeOnboarding(page: Page, direction: 'left' | 'right'): Promise
   await expect(page.getByTestId('onboarding-departing-screen')).toBeHidden();
 }
 
-async function selectOnboardingDate(
-  page: Page,
-  fieldLabel: string,
-  targetDate: string,
-): Promise<void> {
-  await page.getByRole('button', { exact: true, name: fieldLabel }).click();
-  const picker = page.getByRole('dialog');
-
-  for (let attempt = 0; attempt < 24; attempt += 1) {
-    const target = picker.locator(`[data-date="${targetDate}"]`);
-    if ((await target.count()) > 0) {
-      await target.click();
-      return;
-    }
-
-    const visibleDate = await picker
-      .locator('[data-in-current-month="true"]')
-      .first()
-      .getAttribute('data-date');
-    if (!visibleDate) throw new Error('The onboarding date picker has no visible month.');
-    await picker
-      .getByRole('button', {
-        name: targetDate < visibleDate ? 'Previous month' : 'Next month',
-      })
-      .click();
-  }
-
-  throw new Error(`The onboarding date picker did not reach ${targetDate}.`);
-}
-
 async function openRootDestination(
   page: Page,
-  destination: 'Calendar' | 'Privacy' | 'Settings',
+  destination: 'Calendar' | 'History' | 'Privacy' | 'Settings',
 ): Promise<void> {
   const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
   await navigation.getByRole('button', { exact: true, name: destination }).click();
@@ -98,7 +68,7 @@ test.describe('English application shell', () => {
   test('loads and passes an automated accessibility scan', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
     await expect(page.getByText(/Version 0\.1\.0/)).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 
@@ -174,7 +144,7 @@ test.describe('English application shell', () => {
     await expect(introductionHeading).toBeFocused();
     await expect(introductionHeading).toHaveCSS('outline-style', 'none');
     await swipeOnboarding(page, 'right');
-    const splashHeading = page.getByRole('heading', { name: 'Pattern Journal' });
+    const splashHeading = page.getByRole('heading', { name: 'My Perfect Days' });
     await expect(splashHeading).toBeFocused();
     await expect(splashHeading).toHaveCSS('outline-style', 'none');
     const splashBeforeTransition = page.getByTestId('onboarding-splash');
@@ -237,181 +207,24 @@ test.describe('English application shell', () => {
       page.getByRole('heading', { name: 'Understand your cycle, privately' }),
     ).toBeFocused();
     await page.getByRole('button', { name: 'Continue' }).click();
-    const previousPeriod = page.getByRole('group', { name: 'Previous period 1' });
-    const startDate = page.getByRole('button', { exact: true, name: 'Start date' });
-    const endDate = page.getByRole('button', { exact: true, name: 'End date (optional)' });
-    const removePeriod = page.getByRole('button', { name: 'Remove previous period 1' });
-    const addPeriod = page.getByRole('button', { name: 'Add period' });
-    await expect(previousPeriod).toBeVisible();
-    await expect(startDate).toBeVisible();
-    await expect(endDate).toBeVisible();
-    await expect(removePeriod).toBeDisabled();
-    await expect(removePeriod.locator('svg')).toBeVisible();
-    await expect(removePeriod).toHaveCSS('border-top-style', 'none');
-    await expect(removePeriod).toHaveCSS('background-color', 'rgb(255, 240, 242)');
-    await expect(addPeriod).toHaveCount(0);
-
-    const periodTitle = previousPeriod.locator('legend');
-    const headerBounds = await Promise.all([periodTitle.boundingBox(), removePeriod.boundingBox()]);
-    const periodTitleBounds = headerBounds[0];
-    const removeBounds = headerBounds[1];
-    expect(periodTitleBounds).not.toBeNull();
-    expect(removeBounds).not.toBeNull();
-    if (periodTitleBounds && removeBounds) {
-      // Firefox can report a nominal 44 CSS-pixel control a tiny fraction below 44.
-      expect(Math.round(removeBounds.width)).toBeGreaterThanOrEqual(44);
-      expect(Math.round(removeBounds.height)).toBeGreaterThanOrEqual(44);
-      expect(removeBounds.y + removeBounds.height / 2).toBeCloseTo(
-        periodTitleBounds.y + periodTitleBounds.height / 2,
-        0,
-      );
-    }
-
-    const dateBounds = await Promise.all([startDate.boundingBox(), endDate.boundingBox()]);
-    const startBounds = dateBounds[0];
-    const endBounds = dateBounds[1];
-    expect(startBounds).not.toBeNull();
-    expect(endBounds).not.toBeNull();
-    if (startBounds && endBounds) {
-      expect(Math.abs(startBounds.y - endBounds.y)).toBeLessThanOrEqual(1);
-      expect(startBounds.x).toBeLessThan(endBounds.x);
-    }
-
-    await page.setViewportSize({ height: 568, width: 320 });
-    await startDate.click();
-    const datePicker = page.getByRole('dialog');
-    const pickerBounds = await datePicker.boundingBox();
-    expect(pickerBounds).not.toBeNull();
-    if (pickerBounds) {
-      expect(pickerBounds.x).toBeGreaterThanOrEqual(0);
-      expect(pickerBounds.y).toBeGreaterThanOrEqual(0);
-      expect(pickerBounds.x + pickerBounds.width).toBeLessThanOrEqual(320);
-      expect(pickerBounds.y + pickerBounds.height).toBeLessThanOrEqual(568);
-    }
-    const startTriggerBounds = await startDate.boundingBox();
-    expect(startTriggerBounds).not.toBeNull();
-    if (startTriggerBounds && pickerBounds) {
-      const overlapsVertically =
-        pickerBounds.y < startTriggerBounds.y + startTriggerBounds.height &&
-        pickerBounds.y + pickerBounds.height > startTriggerBounds.y;
-      const overlapsHorizontally =
-        pickerBounds.x < startTriggerBounds.x + startTriggerBounds.width &&
-        pickerBounds.x + pickerBounds.width > startTriggerBounds.x;
-      expect(
-        overlapsVertically && overlapsHorizontally,
-        JSON.stringify({ pickerBounds, startTriggerBounds }),
-      ).toBe(false);
-      await page.mouse.click(
-        startTriggerBounds.x + startTriggerBounds.width / 2,
-        startTriggerBounds.y + startTriggerBounds.height / 2,
-      );
-    }
-    await expect(datePicker).toBeHidden();
-
-    await startDate.click();
-    await page.mouse.click(2, 2);
-    await expect(datePicker).toBeHidden();
-
-    await selectOnboardingDate(page, 'Start date', '2026-06-28');
-    await expect(startDate).toContainText('Jun 28, 2026');
-
-    await endDate.click();
-    await expect(page.getByRole('dialog')).toContainText('July 2026');
-    await page.getByRole('gridcell', { name: 'Thursday, July 2, 2026' }).click();
-    await expect(removePeriod).toBeEnabled();
-    await expect(removePeriod).toHaveCSS('background-color', 'rgb(155, 36, 59)');
-    await expect(removePeriod).toHaveCSS('color', 'rgb(255, 255, 255)');
-    await expect(addPeriod).toBeEnabled();
-    const placementBounds = await Promise.all([
-      previousPeriod.boundingBox(),
-      addPeriod.boundingBox(),
-    ]);
-    const periodBounds = placementBounds[0];
-    const addBounds = placementBounds[1];
-    expect(periodBounds).not.toBeNull();
-    expect(addBounds).not.toBeNull();
-    if (periodBounds && addBounds) {
-      expect(addBounds.y).toBeGreaterThanOrEqual(periodBounds.y + periodBounds.height);
-    }
-
-    await removePeriod.click();
-    await expect(previousPeriod).toBeVisible();
-    await expect(startDate).toContainText('Choose date');
-    await expect(endDate).toContainText('Choose date');
-    await expect(removePeriod).toBeDisabled();
-    await expect(addPeriod).toHaveCount(0);
-
-    await selectOnboardingDate(page, 'Start date', '2026-07-01');
-    await addPeriod.click();
-    const secondPeriod = page.getByRole('group', { name: 'Previous period 2' });
-    const removeSecondPeriod = page.getByRole('button', { name: 'Remove previous period 2' });
-    await expect(secondPeriod).toBeVisible();
-    await expect(removeSecondPeriod).toBeEnabled();
-    await removeSecondPeriod.click();
-    await expect(secondPeriod).toBeHidden();
+    const historyCalendar = page.getByRole('grid', { name: 'Recorded periods calendar' });
+    await expect(historyCalendar).toBeVisible();
     await page.getByRole('button', { name: 'Continue' }).click();
 
     await expect(page.getByRole('heading', { name: 'Optional period estimates' })).toBeFocused();
-    const cycleChoice = page
-      .getByRole('group', { name: 'Quick choices for Usual cycle length in days' })
-      .getByRole('button', { name: '28', exact: true });
-    await cycleChoice.click();
-    await page
-      .getByRole('group', { name: 'Quick choices for Usual bleeding duration in days' })
-      .getByRole('button', { name: '5', exact: true })
-      .click();
+    await page.getByRole('button', { name: 'Increase Usual cycle length in days' }).click();
+    await page.getByRole('button', { name: 'Increase Usual bleeding duration in days' }).click();
     await expect(
       page.getByRole('spinbutton', { name: 'Usual cycle length in days', exact: true }),
     ).toHaveValue('28');
     await expect(
       page.getByRole('spinbutton', { name: 'Usual bleeding duration in days', exact: true }),
     ).toHaveValue('5');
-    const cycleInputBounds = await page
-      .getByRole('spinbutton', { name: 'Usual cycle length in days', exact: true })
-      .boundingBox();
-    const cycleChoiceBounds = await cycleChoice.boundingBox();
-    const firstCycleChoiceBounds = await page
-      .getByRole('group', { name: 'Quick choices for Usual cycle length in days' })
-      .getByRole('button', { name: '26', exact: true })
-      .boundingBox();
-    const lastCycleChoiceBounds = await page
-      .getByRole('group', { name: 'Quick choices for Usual cycle length in days' })
-      .getByRole('button', { name: '30', exact: true })
-      .boundingBox();
-    expect(cycleInputBounds).not.toBeNull();
-    expect(cycleChoiceBounds).not.toBeNull();
-    expect(firstCycleChoiceBounds).not.toBeNull();
-    expect(lastCycleChoiceBounds).not.toBeNull();
-    if (cycleInputBounds && cycleChoiceBounds && firstCycleChoiceBounds && lastCycleChoiceBounds) {
-      expect(cycleInputBounds.width).toBeLessThanOrEqual(110);
-      expect(cycleChoiceBounds.width).toBeGreaterThanOrEqual(44);
-      expect(cycleChoiceBounds.height).toBeGreaterThanOrEqual(44);
-      expect(lastCycleChoiceBounds.y).toBeCloseTo(firstCycleChoiceBounds.y, 0);
-      expect(lastCycleChoiceBounds.x + lastCycleChoiceBounds.width).toBeLessThanOrEqual(320);
-    }
     await page.getByRole('button', { name: 'Continue' }).click();
-    await expect(page.getByRole('heading', { name: 'Possible pre-period window' })).toBeFocused();
-    const windowChoices = page.getByRole('group', {
-      name: 'Quick choices for days before the estimate',
-    });
-    await expect(windowChoices.getByRole('button')).toHaveCount(5);
-    const firstWindowChoiceBounds = await windowChoices
-      .getByRole('button', { name: '3', exact: true })
-      .boundingBox();
-    const lastWindowChoice = windowChoices.getByRole('button', { name: '7', exact: true });
-    const lastWindowChoiceBounds = await lastWindowChoice.boundingBox();
-    expect(firstWindowChoiceBounds).not.toBeNull();
-    expect(lastWindowChoiceBounds).not.toBeNull();
-    if (firstWindowChoiceBounds && lastWindowChoiceBounds) {
-      expect(firstWindowChoiceBounds.width).toBeGreaterThanOrEqual(44);
-      expect(lastWindowChoiceBounds.height).toBeGreaterThanOrEqual(44);
-      expect(lastWindowChoiceBounds.y).toBeCloseTo(firstWindowChoiceBounds.y, 0);
-      expect(lastWindowChoiceBounds.x + lastWindowChoiceBounds.width).toBeLessThanOrEqual(320);
-    }
-    await lastWindowChoice.click();
-    await expect(
-      page.getByRole('spinbutton', { name: 'Days before the central estimate', exact: true }),
-    ).toHaveValue('7');
+    await expect(page.getByRole('heading', { name: 'Pre-period window' })).toBeFocused();
+    await expect(page.getByRole('spinbutton', { name: 'Number of pre-period days' })).toHaveValue(
+      '5',
+    );
     await page.getByRole('button', { name: 'Continue' }).click();
 
     await expect(page.getByRole('heading', { name: 'Protect your private journal' })).toBeFocused();
@@ -563,8 +376,12 @@ test.describe('English application shell', () => {
       return { endLabel: formatter.format(end), startLabel: formatter.format(start) };
     });
 
-    await page.getByRole('button', { name: 'Periods history' }).click();
-    await page.getByRole('button', { name: /Edit period starting/ }).click();
+    await openRootDestination(page, 'History');
+    await page
+      .getByRole('button', { name: /Select period starting/ })
+      .first()
+      .click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Edit dates' }).click();
     await page.getByRole('button', { name: new RegExp(`^${periodDates.startLabel}`) }).click();
     await page.getByRole('button', { name: new RegExp(`^${periodDates.endLabel}`) }).click();
     const correctionDialog = page.getByRole('dialog', { name: /Configure period/ });
@@ -575,15 +392,16 @@ test.describe('English application shell', () => {
 
     await page.reload();
     await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
-    await page.getByRole('button', { name: 'Periods history' }).click();
-    await expect(page.getByRole('button', { name: /Edit period starting/ })).toHaveAccessibleName(
-      /Edit period starting .*–.*/u,
-    );
-    await page.getByRole('button', { name: 'Close Periods history' }).click();
+    await openRootDestination(page, 'History');
+    await expect(
+      page.getByRole('button', { name: /Select period starting/ }).first(),
+    ).toHaveAccessibleName(/Select period starting .*–.*/u);
+    await openRootDestination(page, 'Calendar');
 
     const persistedToday = page.locator('button[aria-current="date"]');
     await expect(persistedToday).toHaveAccessibleName(/Recorded period day/);
     await persistedToday.click();
+    await page.getByRole('button', { name: "Edit today's check-in" }).click();
     const persistedDayDialog = page.getByRole('dialog', { name: "Edit today's check-in" });
     await expect(persistedDayDialog.getByRole('radio', { name: 'Medium' })).toBeChecked();
     await expect(
@@ -602,7 +420,7 @@ test.describe('English application shell', () => {
     page,
   }) => {
     const secondPage = await context.newPage();
-    const privateHeading = 'Pattern Journal';
+    const privateHeading = 'My Perfect Days';
 
     await Promise.all([page.goto('/'), secondPage.goto('/')]);
 
@@ -751,7 +569,7 @@ test.describe('English application shell', () => {
 test.describe('Phase 5 compact mobile shell', () => {
   test.use({ locale: 'en-US', viewport: { height: 800, width: 320 } });
 
-  test('defaults to Calendar with three root destinations and a persistent check-in action', async ({
+  test('defaults to Calendar with four root destinations and a contextual check-in action', async ({
     page,
   }) => {
     await page.goto('/');
@@ -762,17 +580,22 @@ test.describe('Phase 5 compact mobile shell', () => {
     const destinationButtons = navigation.getByRole('button');
     const checkInAction = page.getByRole('button', { name: 'Check in today' });
 
-    await expect(destinationButtons).toHaveCount(3);
+    await expect(destinationButtons).toHaveCount(4);
     await expect(navigation.getByRole('button', { exact: true, name: 'Calendar' })).toHaveAttribute(
       'aria-current',
       'page',
     );
     await expect(navigation.getByRole('button', { exact: true, name: 'Privacy' })).toBeVisible();
     await expect(navigation.getByRole('button', { exact: true, name: 'Settings' })).toBeVisible();
+    await expect(navigation.getByRole('button', { exact: true, name: 'History' })).toBeVisible();
     await expect(checkInAction).toBeVisible();
     await expect(checkInAction).toBeInViewport();
     await expect(page.getByRole('heading', { name: 'Next period' })).toBeInViewport();
-    const unavailableEstimate = page.getByText('Estimate unavailable', { exact: true });
+    const unavailableEstimate = page
+      .getByText('There is no current estimate to explain.', {
+        exact: true,
+      })
+      .first();
     await expect(unavailableEstimate).toBeVisible();
     await unavailableEstimate.scrollIntoViewIfNeeded();
     await expect(unavailableEstimate).toBeInViewport();
@@ -788,38 +611,22 @@ test.describe('Phase 5 compact mobile shell', () => {
     const toolbarCenterSpread = Math.max(...toolbarCenters) - Math.min(...toolbarCenters);
     expect(toolbarCenterSpread).toBeLessThanOrEqual(1);
 
-    for (const destination of ['Calendar', 'Privacy', 'Settings']) {
+    for (const destination of ['Calendar', 'History', 'Privacy', 'Settings']) {
       await expect(
         navigation.getByRole('button', { exact: true, name: destination }),
       ).toBeInViewport();
     }
 
     await openRootDestination(page, 'Privacy');
-    await expect(checkInAction).toBeVisible();
+    await expect(checkInAction).toBeHidden();
     await openRootDestination(page, 'Settings');
-    await expect(checkInAction).toBeVisible();
+    await expect(checkInAction).toBeHidden();
     await openRootDestination(page, 'Calendar');
 
-    const insightsTrigger = page.getByRole('button', { name: 'Insights' });
-    await insightsTrigger.click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Insights' })).toBeFocused();
-    await expect(page.getByText('Insights', { exact: true })).toHaveCount(1);
-    await expect(navigation).toBeHidden();
+    await openRootDestination(page, 'History');
+    await expect(page.getByRole('region', { name: 'Periods history' })).toBeVisible();
     await expect(checkInAction).toBeHidden();
-    const closeInsights = page.getByRole('button', { name: 'Close Insights' });
-    await expect(closeInsights.locator('svg')).toBeVisible();
-    await expect(closeInsights.locator('xpath=ancestor::header')).toBeVisible();
-    await closeInsights.click();
-    await expect(insightsTrigger).toBeFocused();
-
-    const historyTrigger = page.getByRole('button', { name: 'Periods history' });
-    await historyTrigger.click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Periods history' })).toBeFocused();
-    await expect(page.getByText('Periods history', { exact: true })).toHaveCount(1);
-    await expect(navigation).toBeHidden();
-    await expect(checkInAction).toBeHidden();
-    await page.getByRole('button', { name: 'Close Periods history' }).click();
-    await expect(historyTrigger).toBeFocused();
+    await openRootDestination(page, 'Calendar');
 
     const calendarUsesOnlyVerticalInnerScrolling = await page.evaluate<boolean>(
       `(() => {
@@ -973,11 +780,12 @@ test.describe('Phase 5 compact mobile shell', () => {
     // Start the reverse-direction assertion from a settled calendar. WebKit can coalesce
     // immediately reversed smooth-scroll requests, which is not representative of a fresh tap.
     await page.reload();
-    await expect(monthHeading).toHaveText(monthBeforeButtonNavigation ?? '');
+    const monthAfterReload = await monthHeading.textContent();
+    expect(monthAfterReload).not.toBeNull();
     await page.getByRole('button', { name: 'Previous month' }).click();
-    await expect(monthHeading).not.toHaveText(monthBeforeButtonNavigation ?? '');
+    await expect(monthHeading).not.toHaveText(monthAfterReload ?? '');
     await goToToday.click();
-    await expect(monthHeading).toHaveText(monthBeforeButtonNavigation ?? '');
+    await expect(monthHeading).toHaveText(monthAfterReload ?? '');
 
     const todayCell = page.locator('button[aria-current="date"]');
     await expect(todayCell).not.toHaveAttribute('aria-pressed');
@@ -1126,7 +934,7 @@ test.describe('narrow dark German shell', () => {
 
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await expect(
-      page.getByRole('heading', { name: 'Tagebuch sichern oder wiederherstellen' }),
+      page.getByRole('heading', { name: 'Sichern oder wiederherstellen' }),
     ).toBeVisible();
 
     const warningTrigger = page.getByRole('button', {

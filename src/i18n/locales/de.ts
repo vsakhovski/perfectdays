@@ -505,6 +505,8 @@ export const de = {
       actions: {
         checkInToday: 'Heute eintragen',
         editTodayCheckIn: 'Heutigen Check-in bearbeiten',
+        checkInFor: 'Am {{date}} eintragen',
+        editCheckInFor: 'Eintrag für {{date}} bearbeiten',
         lock: 'Sperren',
       },
     },

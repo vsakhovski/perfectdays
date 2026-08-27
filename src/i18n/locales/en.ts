@@ -487,6 +487,8 @@ export const en = {
       actions: {
         checkInToday: 'Check in today',
         editTodayCheckIn: "Edit today's check-in",
+        checkInFor: 'Check in for {{date}}',
+        editCheckInFor: 'Edit check-in for {{date}}',
         lock: 'Lock',
       },
     },

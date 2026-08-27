@@ -18,6 +18,7 @@ export interface MobileAppShellProps {
   readonly activeDestination: RootDestination;
   readonly children: ReactNode;
   readonly copy: MobileAppShellCopy;
+  readonly checkInActionLabel?: string;
   readonly hasTodayCheckIn: boolean;
   readonly hideBottomChrome?: boolean;
   readonly headerAction?: {
@@ -106,6 +107,7 @@ function BackIcon() {
 export function MobileAppShell({
   activeDestination,
   children,
+  checkInActionLabel,
   copy,
   focusScreenTitle = false,
   hasTodayCheckIn,
@@ -212,7 +214,7 @@ export function MobileAppShell({
               }}
               type="button"
             >
-              {hasTodayCheckIn ? copy.editTodayCheckIn : copy.checkInToday}
+              {checkInActionLabel ?? (hasTodayCheckIn ? copy.editTodayCheckIn : copy.checkInToday)}
             </button>
           </div>
         ) : null}

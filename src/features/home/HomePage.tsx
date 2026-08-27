@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useLanguage } from '../../app/i18n/use-language';
 import { useVault } from '../../app/vault/use-vault';
-import type { VaultPayload } from '../../domain/models';
+import type { LocalDate, VaultPayload } from '../../domain/models';
+import { formatLocalDate } from '../../i18n/date-format';
 import { BackupAndRestoreSettings } from '../backup/BackupAndRestoreSettings';
 import { LanguageControl } from '../settings/LanguageControl';
 import { EraseDataControl, PinSecurityPanel } from '../settings/PinSecurityPanel';
@@ -25,21 +27,25 @@ function OnboardingHome({ payload }: { readonly payload: VaultPayload }) {
 function CalendarDestination({
   checkInReturnFocusElement,
   checkInRequest,
+  checkInRequestDate,
   goTodayRequest,
   onDetailsOpenChange,
   onEditorOpenChange,
   onCheckInRequestHandled,
   onGoTodayRequestHandled,
+  onSelectedDateChange,
   onViewingCurrentMonthChange,
   rememberedDetailsOpen,
 }: {
   readonly checkInReturnFocusElement: HTMLButtonElement | null;
   readonly checkInRequest: number;
+  readonly checkInRequestDate: LocalDate;
   readonly goTodayRequest: number;
   readonly onDetailsOpenChange: (open: boolean) => void;
   readonly onEditorOpenChange: (open: boolean) => void;
   readonly onCheckInRequestHandled: (request: number) => void;
   readonly onGoTodayRequestHandled: (request: number) => void;
+  readonly onSelectedDateChange: (date: LocalDate) => void;
   readonly onViewingCurrentMonthChange: (isCurrentMonth: boolean) => void;
   readonly rememberedDetailsOpen: boolean | undefined;
 }) {
@@ -47,10 +53,12 @@ function CalendarDestination({
     <TrackerDashboard
       checkInReturnFocusElement={checkInReturnFocusElement}
       checkInRequest={checkInRequest}
+      checkInRequestDate={checkInRequestDate}
       goTodayRequest={goTodayRequest}
       onCheckInRequestHandled={onCheckInRequestHandled}
       onDetailsOpenChange={onDetailsOpenChange}
       onGoTodayRequestHandled={onGoTodayRequestHandled}
+      onSelectedDateChange={onSelectedDateChange}
       onEditorOpenChange={onEditorOpenChange}
       onViewingCurrentMonthChange={onViewingCurrentMonthChange}
       {...(rememberedDetailsOpen === undefined ? {} : { rememberedDetailsOpen })}
@@ -132,6 +140,7 @@ function SettingsDestination({ payload }: { readonly payload: VaultPayload }) {
 
 function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   const { t } = useTranslation();
+  const { resolvedLanguage } = useLanguage();
   const { journalEnvironment, lock, snapshot } = useVault();
   const [destination, setDestination] = useState<RootDestination>('calendar');
   const [checkInRequest, setCheckInRequest] = useState<number>();
@@ -146,7 +155,21 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   const [pinSetupRequest, setPinSetupRequest] = useState<number>();
   const pinSetupRequestCounterRef = useRef(0);
   const today = journalEnvironment.today();
+  const [calendarCheckInDate, setCalendarCheckInDate] = useState<LocalDate>(today);
   const hasTodayCheckIn = payload.logs.some((log) => log.date === today);
+  const selectedDateHasCheckIn = payload.logs.some((log) => log.date === calendarCheckInDate);
+  const selectedDateLabel = formatLocalDate(calendarCheckInDate, resolvedLanguage, {
+    day: 'numeric',
+    month: 'short',
+  });
+  const checkInActionLabel =
+    calendarCheckInDate === today
+      ? hasTodayCheckIn
+        ? t(($) => $.mobile.shell.actions.editTodayCheckIn)
+        : t(($) => $.mobile.shell.actions.checkInToday)
+      : selectedDateHasCheckIn
+        ? t(($) => $.mobile.shell.actions.editCheckInFor, { date: selectedDateLabel })
+        : t(($) => $.mobile.shell.actions.checkInFor, { date: selectedDateLabel });
   const copy: MobileAppShellCopy = {
     navigationLabel: t(($) => $.mobile.shell.navigation.label),
     checkInToday: t(($) => $.mobile.shell.actions.checkInToday),
@@ -164,6 +187,7 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   const navigate = (nextDestination: RootDestination): void => {
     if (nextDestination === 'calendar' && destination !== 'calendar') {
       setCalendarShowsCurrentMonth(true);
+      setCalendarCheckInDate(today);
     }
     setDestination(nextDestination);
   };
@@ -173,12 +197,14 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
       <CalendarDestination
         checkInReturnFocusElement={checkInReturnFocusElement}
         checkInRequest={checkInRequest ?? 0}
+        checkInRequestDate={calendarCheckInDate}
         goTodayRequest={goTodayRequest ?? 0}
         onDetailsOpenChange={setCheckInDetailsOpen}
         onEditorOpenChange={setEditorOpen}
         onGoTodayRequestHandled={(request) => {
           setGoTodayRequest((current) => (current === request ? undefined : current));
         }}
+        onSelectedDateChange={setCalendarCheckInDate}
         onCheckInRequestHandled={(request) => {
           setCheckInRequest((current) => (current === request ? undefined : current));
         }}
@@ -206,13 +232,14 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   return (
     <MobileAppShell
       activeDestination={destination}
+      checkInActionLabel={checkInActionLabel}
       copy={copy}
       hasTodayCheckIn={hasTodayCheckIn}
       hideBottomChrome={editorOpen}
       {...(destination === 'calendar'
         ? {
             headerAction: {
-              disabled: calendarShowsCurrentMonth,
+              disabled: calendarShowsCurrentMonth && calendarCheckInDate === today,
               label: t(($) => $.mobile.calendar.navigation.goToToday),
               onActivate: () => {
                 goTodayRequestCounterRef.current += 1;

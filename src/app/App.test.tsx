@@ -24,31 +24,18 @@ import { FakeVaultController } from '../test/fake-vault-controller';
 import { App } from './App';
 import { AppProviders } from './AppProviders';
 
-function selectOnboardingDate(trigger: HTMLElement, targetDate: string): void {
-  fireEvent.click(trigger);
-  const dialog = screen.getByRole('dialog');
-
-  for (let attempt = 0; attempt < 24; attempt += 1) {
-    const target = within(dialog)
-      .getAllByRole('gridcell')
-      .find((candidate) => candidate.dataset['date'] === targetDate);
-    if (target) {
-      fireEvent.click(target);
-      return;
-    }
-
-    const visibleDate = within(dialog)
-      .getAllByRole('gridcell')
-      .find((candidate) => candidate.dataset['inCurrentMonth'] === 'true')?.dataset['date'];
-    if (!visibleDate) throw new Error('The onboarding date picker has no visible month.');
-    fireEvent.click(
-      within(dialog).getByRole('button', {
-        name: targetDate < visibleDate ? 'Previous month' : 'Next month',
-      }),
-    );
-  }
-
-  throw new Error(`The onboarding date picker did not reach ${targetDate}.`);
+async function addStartOnlyOnboardingPeriod(
+  user: ReturnType<typeof userEvent.setup>,
+  accessibleDate: RegExp,
+): Promise<void> {
+  await user.click(screen.getByRole('button', { name: accessibleDate }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', {
+      name: 'Start a new period here',
+    }),
+  );
+  await user.click(screen.getByRole('button', { name: 'Save start date only' }));
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save period' }));
 }
 
 async function enterPinWithKeypad(user: ReturnType<typeof userEvent.setup>, pin: string) {
@@ -379,7 +366,7 @@ describe('App', () => {
   it('renders the private local-first foundation in English', async () => {
     await renderApp();
 
-    expect(screen.getByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
     expect(screen.getByText('Version 0.1.0')).toBeVisible();
     const languageSelect = screen.getByRole('combobox', { name: 'Select language' });
     expect(languageSelect).toHaveValue('English');
@@ -523,7 +510,7 @@ describe('App', () => {
     const user = userEvent.setup();
     const { vaultController } = await renderApp();
 
-    expect(screen.getByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Skip setup' }));
 
     expect(await screen.findByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
@@ -623,16 +610,8 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
-    const firstStart = screen.getByLabelText('Start date');
-    selectOnboardingDate(firstStart, '2026-07-01');
-    const addPeriod = screen.getByRole('button', { name: 'Add period' });
-    await user.click(addPeriod);
-    const startDates = screen.getAllByLabelText('Start date');
-    const secondStart = startDates[1];
-    if (!secondStart) {
-      throw new Error('The two historical start-date inputs were not rendered.');
-    }
-    selectOnboardingDate(secondStart, '2026-07-29');
+    await addStartOnlyOnboardingPeriod(user, /Wednesday, July 1, 2026/);
+    await addStartOnlyOnboardingPeriod(user, /Wednesday, July 29, 2026/);
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
@@ -671,12 +650,11 @@ describe('App', () => {
     });
     expect(predictedStart).toBeVisible();
     fireEvent.click(predictedStart);
-    expect(screen.getByRole('heading', { name: 'August 8, 2026 (today)' })).toBeVisible();
     expect(screen.queryByRole('dialog', { name: 'Daily check-in' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
     fireEvent.click(screen.getByRole('button', { name: /Wednesday, July 15, 2026/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Check in for this day' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Check in for Jul 15/ }));
     fireEvent.click(screen.getByRole('radio', { name: 'Medium' }));
     expect(screen.getByRole('button', { name: 'Save and done' })).toHaveAttribute(
       'aria-disabled',
@@ -722,7 +700,10 @@ describe('App', () => {
     });
 
     await openRootDestination(user, 'History');
-    await user.click(screen.getByRole('button', { name: /Edit period starting Jun 29, 2026/ }));
+    await user.click(screen.getByRole('button', { name: /Select period starting Jun 29, 2026/ }));
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Edit dates' }),
+    );
     expect(screen.getByText('Select the start and end date for this period.')).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
@@ -747,10 +728,12 @@ describe('App', () => {
     });
 
     await user.click(screen.getByRole('button', { name: 'Verlauf' }));
+    const selectPeriodButtons = screen.getAllByRole('button', { name: /Periode ab .* auswählen/ });
+    const latestPeriodButton = selectPeriodButtons[0];
+    if (latestPeriodButton === undefined) throw new Error('No recorded period could be selected.');
+    await user.click(latestPeriodButton);
     await user.click(
-      screen.getByRole('button', {
-        name: /Periode ab 27\. Juli 2026.*31\. Juli 2026 bearbeiten/,
-      }),
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Daten bearbeiten' }),
     );
     await user.click(screen.getByRole('button', { name: /Dienstag, 28\. Juli 2026/ }));
     await user.click(screen.getByRole('button', { name: /Donnerstag, 30\. Juli 2026/ }));
@@ -759,10 +742,8 @@ describe('App', () => {
 
     expect(await screen.findByText('Periodendaten aktualisiert.')).toBeVisible();
     expect(
-      screen.getByRole('button', {
-        name: /Periode ab 28\. Juli 2026.*30\. Juli 2026 bearbeiten/,
-      }),
-    ).toBeVisible();
+      screen.getAllByRole('button', { name: /Periode ab .* auswählen/ })[0],
+    ).toHaveAccessibleName(/28\. Juli 2026/);
 
     const snapshot = vaultController.getSnapshot();
     expect(snapshot.phase).toBe('unlocked');
@@ -1200,7 +1181,7 @@ describe('App', () => {
     await enterPinWithKeypad(user, '123456');
 
     expect(vaultController.calls.unlock).toEqual(['123456']);
-    expect(await screen.findByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
     await waitFor(() => {
       expect(document.title).toBe('Menstrual Pattern Tracker');
     });
@@ -1227,7 +1208,7 @@ describe('App', () => {
     await enterPinWithKeypad(user, '123456');
 
     expect(vaultController.calls.unlock).toEqual(['000000', '123456']);
-    expect(await screen.findByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
   });
 
   it('distinguishes unavailable secure cryptography from a wrong PIN', async () => {
@@ -1355,7 +1336,7 @@ describe('App', () => {
     );
     await user.click(eraseButton);
 
-    expect(await screen.findByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
     expect(languageStore.read()).toBe('system');
     expect(themeStore.read()).toBe('light');
     expect(vaultController.getSnapshot()).toMatchObject({
@@ -1379,7 +1360,7 @@ describe('App', () => {
     );
     await user.click(eraseButton);
 
-    expect(await screen.findByRole('heading', { name: 'Pattern Journal' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
   });
 
   it('reports when journal erasure succeeds but outside-vault preferences remain', async () => {

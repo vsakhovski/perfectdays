@@ -535,6 +535,7 @@ export function TrackerPreferences({ payload }: { readonly payload: VaultPayload
 export interface TrackerCalendarProps {
   readonly checkInReturnFocusElement?: HTMLElement | null;
   readonly checkInRequest?: number;
+  readonly checkInRequestDate?: LocalDate;
   readonly historyTriggerRef?: Ref<HTMLButtonElement>;
   readonly insightsTriggerRef?: Ref<HTMLButtonElement>;
   readonly goTodayRequest?: number;
@@ -544,6 +545,7 @@ export interface TrackerCalendarProps {
   readonly onGoTodayRequestHandled?: (request: number) => void;
   readonly onOpenHistory?: () => void;
   readonly onOpenInsights?: () => void;
+  readonly onSelectedDateChange?: (date: LocalDate) => void;
   readonly onViewingCurrentMonthChange?: (isCurrentMonth: boolean) => void;
   readonly payload: VaultPayload;
   readonly rememberedDetailsOpen?: boolean;
@@ -552,6 +554,7 @@ export interface TrackerCalendarProps {
 export function TrackerCalendar({
   checkInReturnFocusElement,
   checkInRequest = 0,
+  checkInRequestDate,
   goTodayRequest = 0,
   historyTriggerRef,
   insightsTriggerRef,
@@ -561,6 +564,7 @@ export function TrackerCalendar({
   onGoTodayRequestHandled,
   onOpenHistory,
   onOpenInsights,
+  onSelectedDateChange,
   onViewingCurrentMonthChange,
   payload,
   rememberedDetailsOpen,
@@ -630,20 +634,24 @@ export function TrackerCalendar({
     }
 
     handledCheckInRequestRef.current = checkInRequest;
-    setVisibleMonth(startOfMonth(today));
-    setSelectedDate(today);
+    const requestedDate = checkInRequestDate ?? today;
+    setVisibleMonth(startOfMonth(requestedDate));
+    setSelectedDate(requestedDate);
     setEditorReturnFocusElement(checkInReturnFocusElement ?? null);
-    setEditorValue(valueFromLog(payload.logs.find((log) => log.date === today)));
+    setEditorValue(valueFromLog(payload.logs.find((log) => log.date === requestedDate)));
     setErrorMessage(undefined);
     setStatusMessage(undefined);
     setEditorOpen(true);
     onEditorOpenChange?.(true);
+    onSelectedDateChange?.(requestedDate);
     onCheckInRequestHandled?.(checkInRequest);
   }, [
     checkInRequest,
+    checkInRequestDate,
     checkInReturnFocusElement,
     onCheckInRequestHandled,
     onEditorOpenChange,
+    onSelectedDateChange,
     payload.logs,
     today,
   ]);
@@ -660,12 +668,13 @@ export function TrackerCalendar({
     handledGoTodayRequestRef.current = goTodayRequest;
     setVisibleMonth(startOfMonth(today));
     setSelectedDate(today);
+    onSelectedDateChange?.(today);
     setErrorMessage(undefined);
     setStatusMessage(undefined);
     window.requestAnimationFrame(() => {
       calendarContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
-  }, [goTodayRequest, today]);
+  }, [goTodayRequest, onSelectedDateChange, today]);
 
   useEffect(() => {
     if (
@@ -1107,52 +1116,6 @@ export function TrackerCalendar({
     forecast === null || latestCompletedEpisode === undefined
       ? undefined
       : daysBetween(latestCompletedEpisode.startDate, forecast.centralStart);
-  const selectedLog = payload.logs.find((log) => log.date === selectedDate);
-  const selectedFlow = selectedLog?.flow;
-  const selectedHasCheckIn = hasUserEnteredObservation(selectedLog);
-  const selectedIsToday = selectedDate === today;
-  const selectedPeriod = periodContainingDate(payload, selectedDate);
-  const selectedPeriodDescription =
-    selectedPeriod === undefined
-      ? undefined
-      : selectedPeriod.endDate === undefined
-        ? t(($) => $.mobile.calendar.selectedDay.periodActive, {
-            date: formatLocalDate(selectedPeriod.startDate, resolvedLanguage),
-          })
-        : selectedPeriod.durationKnown === false
-          ? t(($) => $.mobile.calendar.selectedDay.periodUnknown, {
-              date: formatLocalDate(selectedPeriod.startDate, resolvedLanguage),
-            })
-          : t(($) => $.mobile.calendar.selectedDay.periodKnown, {
-              range: formatLocalDateRange(
-                selectedPeriod.startDate,
-                selectedPeriod.endDate,
-                resolvedLanguage,
-              ),
-            });
-  const selectedRatings = (['energy', 'confidence', 'tension', 'pain'] as const).flatMap(
-    (field) => {
-      const value = selectedLog?.[field];
-      return value === undefined
-        ? []
-        : [
-            t(($) => $.mobile.calendar.selectedDay.rating, {
-              label: t(($) => $.tracker.dayDetail.ratings[field]),
-              value,
-            }),
-          ];
-    },
-  );
-
-  const openSelectedDateEditor = (trigger: HTMLElement): void => {
-    setEditorReturnFocusElement(trigger);
-    setEditorValue(valueFromLog(selectedLog));
-    setErrorMessage(undefined);
-    setStatusMessage(undefined);
-    setEditorOpen(true);
-    onEditorOpenChange?.(true);
-  };
-
   return (
     <>
       <section className={styles['tracker']} aria-labelledby="tracker-calendar-title">
@@ -1169,6 +1132,7 @@ export function TrackerCalendar({
             onSelectDate={(date) => {
               if (date > today) return;
               setSelectedDate(date);
+              onSelectedDateChange?.(date);
               setErrorMessage(undefined);
               setStatusMessage(undefined);
             }}
@@ -1178,59 +1142,6 @@ export function TrackerCalendar({
             weekdays={weekdays}
           />
         </div>
-
-        <section className={styles['selectedDayCard']} aria-labelledby="selected-day-title">
-          <h3 id="selected-day-title">
-            {t(
-              ($) =>
-                selectedIsToday
-                  ? $.mobile.calendar.selectedDay.titleToday
-                  : $.mobile.calendar.selectedDay.title,
-              {
-                date: formatLocalDate(selectedDate, resolvedLanguage, {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                }),
-              },
-            )}
-          </h3>
-          {selectedPeriodDescription === undefined ? null : (
-            <p className={styles['selectedDayPeriod']}>{selectedPeriodDescription}</p>
-          )}
-          {!selectedHasCheckIn ? (
-            <p>{t(($) => $.mobile.calendar.selectedDay.noCheckIn)}</p>
-          ) : (
-            <div className={styles['selectedDaySummary']}>
-              {selectedFlow == null ? null : (
-                <span>
-                  {t(($) => $.mobile.calendar.selectedDay.flow, {
-                    flow: t(($) => $.tracker.dayDetail.flowOptions[selectedFlow]),
-                  })}
-                </span>
-              )}
-              {selectedRatings.map((rating) => (
-                <span key={rating}>{rating}</span>
-              ))}
-              {selectedLog?.note === undefined ? null : (
-                <span className={styles['selectedDayNote']}>{selectedLog.note}</span>
-              )}
-            </div>
-          )}
-          <button
-            className={styles['secondaryAction']}
-            onClick={(event) => {
-              openSelectedDateEditor(event.currentTarget);
-            }}
-            type="button"
-          >
-            {selectedIsToday
-              ? t(($) => $.mobile.calendar.selectedDay.startToday)
-              : selectedHasCheckIn
-                ? t(($) => $.mobile.calendar.selectedDay.edit)
-                : t(($) => $.mobile.calendar.selectedDay.start)}
-          </button>
-        </section>
 
         <section className={styles['estimateCard']} aria-labelledby="next-estimate-title">
           <header className={styles['estimateHeader']}>
@@ -1406,6 +1317,7 @@ export function TrackerCalendar({
 export interface TrackerDashboardProps {
   readonly checkInReturnFocusElement?: HTMLElement | null;
   readonly checkInRequest?: number;
+  readonly checkInRequestDate?: LocalDate;
   readonly goTodayRequest?: number;
   readonly historyTriggerRef?: Ref<HTMLButtonElement>;
   readonly insightsTriggerRef?: Ref<HTMLButtonElement>;
@@ -1415,6 +1327,7 @@ export interface TrackerDashboardProps {
   readonly onGoTodayRequestHandled?: (request: number) => void;
   readonly onOpenHistory?: () => void;
   readonly onOpenInsights?: () => void;
+  readonly onSelectedDateChange?: (date: LocalDate) => void;
   readonly onViewingCurrentMonthChange?: (isCurrentMonth: boolean) => void;
   readonly rememberedDetailsOpen?: boolean;
 }

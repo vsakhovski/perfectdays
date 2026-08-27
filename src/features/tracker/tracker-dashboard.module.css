@@ -7,56 +7,6 @@
   scroll-margin-block-start: 0.75rem;
 }
 
-.selectedDayCard {
-  display: grid;
-  gap: 0.65rem;
-  padding: 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-large);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-soft);
-}
-
-.selectedDayCard h3,
-.selectedDayCard p {
-  margin: 0;
-}
-
-.selectedDayCard > p {
-  color: var(--color-text-muted);
-}
-
-.selectedDayCard > .selectedDayPeriod {
-  color: var(--color-text);
-  font-weight: 700;
-}
-
-.selectedDaySummary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.selectedDaySummary span {
-  padding: 0.3rem 0.5rem;
-  border-radius: 999px;
-  background: var(--color-surface-subtle);
-  color: var(--color-text-muted);
-  font-size: 0.82rem;
-}
-
-.selectedDaySummary .selectedDayNote {
-  inline-size: 100%;
-  overflow: hidden;
-  border-radius: var(--radius-small);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.selectedDayCard .secondaryAction {
-  justify-self: start;
-}
-
 .header,
 .estimateCard {
   padding: clamp(1.25rem, 4vw, 2rem);
