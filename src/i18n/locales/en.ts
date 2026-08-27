@@ -36,7 +36,7 @@ export const en = {
   tracker: {
     onboarding: {
       splash: {
-        appName: 'Pattern Journal',
+        appName: 'My Perfect Days',
         tagline: 'A private place for your cycle patterns.',
         version: 'Version {{version}}',
       },
@@ -64,15 +64,23 @@ export const en = {
           nextMonth: 'Next month',
           calendarLabel: 'Choose {{field}}. {{month}}',
         },
+        editor: {
+          saveStartOnly: 'Save start date only',
+          configureStartOnlyDescription:
+            'Save this start date without inventing an unknown end date?',
+          deleteTitle: 'Remove previous period {{range}}?',
+          deleteDescription: 'This removes the previous period from your setup information.',
+        },
       },
       fallbacks: {
         title: 'Optional period estimates',
         description:
           'These are used only while there is not enough recorded history. Recorded dates always take priority.',
         cycleLength: 'Usual cycle length in days',
-        cycleLengthDescription: 'Optional. Choose a common value below or enter another value.',
+        cycleLengthDescription: 'Optional. Use the minus and plus controls or enter another value.',
         bleedDuration: 'Usual bleeding duration in days',
-        bleedDurationDescription: 'Optional. Choose a common value below or enter another value.',
+        bleedDurationDescription:
+          'Optional. Use the minus and plus controls or enter another value.',
         notSure: 'Not sure',
         decrease: 'Decrease {{field}}',
         increase: 'Increase {{field}}',
@@ -84,7 +92,7 @@ export const en = {
           'This optional marker highlights days leading up to the estimated period. It does not predict conflict or tell you what decisions to make.',
         enabled: 'Show the possible pre-period window',
         days: 'Days before the central estimate',
-        daysDescription: 'Choose a common value below or enter from 1 to 14 days.',
+        daysDescription: 'Use the minus and plus controls or enter from 1 to 14 days.',
         decrease: 'Decrease days before the estimate',
         increase: 'Increase days before the estimate',
         quickChoices: 'Quick choices for days before the estimate',
@@ -260,7 +268,7 @@ export const en = {
         heavy: 'Heavy',
       },
       edit: 'Edit dates',
-      editLabel: 'Edit period starting {{date}}',
+      editLabel: 'Select period starting {{date}}',
       showMore: 'Show more',
       bleedingDuration: 'Bleeding duration: {{count}} days',
       bleedingDuration_one: 'Bleeding duration: {{count}} day',

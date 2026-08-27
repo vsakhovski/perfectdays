@@ -9,6 +9,8 @@ import {
 } from 'react';
 
 import type { LocalDate } from '../../domain/models';
+import { integerMedian } from '../../domain/forecast';
+import { daysBetween } from '../../domain/local-date';
 import { AppLogo } from '../../shared/ui/AppLogo';
 import {
   isValidTypicalBleedDuration,
@@ -18,7 +20,11 @@ import {
 } from '../../domain/tracking-settings';
 import { isSixDigitPin } from '../vault/pin';
 import { PinKeypad } from '../vault/PinKeypad';
-import { OnboardingDatePicker, type OnboardingDatePickerCopy } from './OnboardingDatePicker';
+import {
+  OnboardingPeriodHistoryEditor,
+  type OnboardingPeriodHistoryEditorCopy,
+} from './OnboardingPeriodHistoryEditor';
+import type { OnboardingDatePickerCopy } from './OnboardingDatePicker';
 import styles from './onboarding.module.css';
 
 export interface HistoricalPeriodDraft {
@@ -57,6 +63,7 @@ export interface OnboardingCopy {
     readonly entryLabel: (position: number) => string;
     readonly removeEntry: (position: number) => string;
     readonly datePicker: OnboardingDatePickerCopy;
+    readonly editor: OnboardingPeriodHistoryEditorCopy;
   };
   readonly fallbacks: {
     readonly title: string;
@@ -137,6 +144,8 @@ export interface TrackerOnboardingProps {
   readonly onSkip: () => void;
   readonly pinEnabled: boolean;
   readonly pinProtectionAvailable: boolean;
+  readonly today: LocalDate;
+  readonly weekStartsOn: 0 | 1;
 }
 
 type OnboardingStep = 'splash' | 'introduction' | 'history' | 'fallbacks' | 'orange' | 'pin';
@@ -158,10 +167,6 @@ const MINIMUM_SWIPE_DISTANCE = 56;
 const SWIPE_AXIS_DOMINANCE = 1.25;
 const SWIPE_FEEDBACK_FACTOR = 0.24;
 const MAXIMUM_SWIPE_FEEDBACK = 42;
-const TYPICAL_CYCLE_LENGTHS = [26, 27, 28, 29, 30] as const;
-const TYPICAL_BLEED_DURATIONS = [3, 4, 5, 6, 7] as const;
-const TYPICAL_ORANGE_DAYS = [3, 4, 5, 6, 7] as const;
-
 type OptionalEstimateField = 'typicalCycleLength' | 'typicalBleedDuration';
 
 interface OptionalEstimateDefinition {
@@ -171,7 +176,6 @@ interface OptionalEstimateDefinition {
   readonly value: number | undefined;
   readonly initialValue: number;
   readonly max: number;
-  readonly quickChoices: readonly number[];
 }
 
 interface SwipeStart {
@@ -189,7 +193,9 @@ interface ScreenTransition {
 function isInteractiveSwipeTarget(target: EventTarget): boolean {
   return (
     target instanceof Element &&
-    target.closest('a, button, input, select, textarea, [contenteditable="true"]') !== null
+    target.closest(
+      'a, button, input, select, textarea, [contenteditable="true"], [data-onboarding-swipe-ignore]',
+    ) !== null
   );
 }
 
@@ -290,6 +296,34 @@ function describedBy(errorId: string, descriptionId: string, hasError: boolean):
   return hasError ? `${descriptionId} ${errorId}` : descriptionId;
 }
 
+function withHistoryEstimates(draft: OnboardingDraft): OnboardingDraft {
+  const datedHistory = draft.history
+    .filter(
+      (entry): entry is HistoricalPeriodDraft & { readonly startDate: LocalDate } =>
+        entry.startDate !== '',
+    )
+    .toSorted((left, right) => left.startDate.localeCompare(right.startDate));
+  const cycleLengths = datedHistory.slice(1).map((entry, index) => {
+    const previous = datedHistory[index];
+    return previous === undefined ? 0 : daysBetween(previous.startDate, entry.startDate);
+  });
+  const bleedingDurations = datedHistory.flatMap((entry) =>
+    entry.endDate === '' ? [] : [daysBetween(entry.startDate, entry.endDate) + 1],
+  );
+  const cycleLength = integerMedian(cycleLengths);
+  const bleedingDuration = integerMedian(bleedingDurations);
+
+  return {
+    ...draft,
+    ...(cycleLength !== undefined && isValidTypicalCycleLength(cycleLength)
+      ? { typicalCycleLength: cycleLength }
+      : {}),
+    ...(bleedingDuration !== undefined && isValidTypicalBleedDuration(bleedingDuration)
+      ? { typicalBleedDuration: bleedingDuration }
+      : {}),
+  };
+}
+
 export function TrackerOnboarding({
   appVersion,
   busy = false,
@@ -306,6 +340,8 @@ export function TrackerOnboarding({
   onSkip,
   pinEnabled,
   pinProtectionAvailable,
+  today,
+  weekStartsOn,
 }: TrackerOnboardingProps) {
   const [step, setStep] = useState<OnboardingStep>('splash');
   const [errors, setErrors] = useState<FieldErrors>(new Map());
@@ -321,6 +357,7 @@ export function TrackerOnboarding({
   const [swipeFeedbackActive, setSwipeFeedbackActive] = useState(false);
   const idPrefix = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const historyEditorRef = useRef<HTMLDivElement>(null);
   const fieldRefs = useRef(new Map<string, HTMLElement>());
   const previousStepRef = useRef(step);
   const swipeStartRef = useRef<SwipeStart | null>(null);
@@ -358,8 +395,21 @@ export function TrackerOnboarding({
       if (nextErrors.size > 0) {
         setErrors(nextErrors);
         const firstError = nextErrors.keys().next().value;
-        if (typeof firstError === 'string') fieldRefs.current.get(firstError)?.focus();
+        if (typeof firstError === 'string') {
+          if (firstError.startsWith('history:')) historyEditorRef.current?.focus();
+          else fieldRefs.current.get(firstError)?.focus();
+        }
         return;
+      }
+    }
+
+    if (step === 'history') {
+      const estimatedDraft = withHistoryEstimates(draft);
+      if (
+        estimatedDraft.typicalCycleLength !== draft.typicalCycleLength ||
+        estimatedDraft.typicalBleedDuration !== draft.typicalBleedDuration
+      ) {
+        updateDraft(estimatedDraft);
       }
     }
 
@@ -480,8 +530,9 @@ export function TrackerOnboarding({
     setPinConfirmation(nextValue);
   };
 
-  const canAddHistory =
-    draft.history.length > 0 && draft.history.every((entry) => entry.startDate !== '');
+  const historyErrorMessage = [...errors.entries()].find(([key]) =>
+    key.startsWith('history:'),
+  )?.[1];
 
   const historyContent = (
     <div className={styles['stepBody']}>
@@ -491,136 +542,21 @@ export function TrackerOnboarding({
         </h1>
         <p>{copy.history.description}</p>
       </div>
-      {draft.history.length === 0 ? (
-        <p className={styles['empty']}>{copy.history.empty}</p>
-      ) : (
-        <div className={styles['historyList']}>
-          {draft.history.map((entry, index) => {
-            const position = index + 1;
-            const startKey = historyFieldKey(entry.id, 'start');
-            const endKey = historyFieldKey(entry.id, 'end');
-            const startError = errors.get(startKey);
-            const endError = errors.get(endKey);
-            const startErrorId = `${idPrefix}-history-${String(index)}-start-error`;
-            const endErrorId = `${idPrefix}-history-${String(index)}-end-error`;
-
-            return (
-              <fieldset
-                className={styles['historyEntry']}
-                disabled={controlsDisabled}
-                key={entry.id}
-              >
-                <legend>{copy.history.entryLabel(position)}</legend>
-                <button
-                  aria-label={copy.history.removeEntry(position)}
-                  className={styles['removePeriodButton']}
-                  disabled={
-                    controlsDisabled ||
-                    (draft.history.length === 1 && entry.startDate === '' && entry.endDate === '')
-                  }
-                  onClick={() => {
-                    setErrors(new Map());
-                    if (draft.history.length === 1) {
-                      updateDraft({
-                        ...draft,
-                        history: [{ ...entry, startDate: '', endDate: '' }],
-                      });
-                    } else {
-                      onRemoveHistory(entry.id);
-                    }
-                  }}
-                  type="button"
-                >
-                  <svg aria-hidden="true" viewBox="0 0 24 24">
-                    <path d="m6 6 12 12M18 6 6 18" />
-                  </svg>
-                </button>
-                <div className={styles['dateFields']}>
-                  <div className={styles['dateField']}>
-                    <OnboardingDatePicker
-                      {...(startError ? { ariaDescribedBy: startErrorId } : {})}
-                      buttonRef={(node) => {
-                        if (node) fieldRefs.current.set(startKey, node);
-                        else fieldRefs.current.delete(startKey);
-                      }}
-                      copy={copy.history.datePicker}
-                      disabled={controlsDisabled}
-                      fieldKind="start"
-                      invalid={startError !== undefined}
-                      label={copy.history.startDate}
-                      language={language}
-                      {...(entry.endDate === '' ? {} : { max: entry.endDate })}
-                      onChange={(value) => {
-                        updateDraft({
-                          ...draft,
-                          history: draft.history.map((candidate) =>
-                            candidate.id === entry.id
-                              ? { ...candidate, startDate: value }
-                              : candidate,
-                          ),
-                        });
-                      }}
-                      {...(entry.endDate === '' ? {} : { relatedDate: entry.endDate })}
-                      value={entry.startDate}
-                    />
-                    {startError ? (
-                      <span className={styles['fieldError']} id={startErrorId}>
-                        {startError}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className={styles['dateField']}>
-                    <OnboardingDatePicker
-                      {...(endError ? { ariaDescribedBy: endErrorId } : {})}
-                      buttonRef={(node) => {
-                        if (node) fieldRefs.current.set(endKey, node);
-                        else fieldRefs.current.delete(endKey);
-                      }}
-                      copy={copy.history.datePicker}
-                      disabled={controlsDisabled}
-                      fieldKind="end"
-                      invalid={endError !== undefined}
-                      label={copy.history.endDate}
-                      language={language}
-                      {...(entry.startDate === '' ? {} : { min: entry.startDate })}
-                      onChange={(value) => {
-                        updateDraft({
-                          ...draft,
-                          history: draft.history.map((candidate) =>
-                            candidate.id === entry.id
-                              ? { ...candidate, endDate: value }
-                              : candidate,
-                          ),
-                        });
-                      }}
-                      {...(entry.startDate === '' ? {} : { relatedDate: entry.startDate })}
-                      value={entry.endDate}
-                    />
-                    {endError ? (
-                      <span className={styles['fieldError']} id={endErrorId}>
-                        {endError}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              </fieldset>
-            );
-          })}
-        </div>
-      )}
-      {canAddHistory ? (
-        <button
-          className={styles['secondaryButton']}
-          disabled={controlsDisabled}
-          onClick={() => {
-            setErrors(new Map());
-            onAddHistory();
-          }}
-          type="button"
-        >
-          {copy.history.add}
-        </button>
-      ) : null}
+      <OnboardingPeriodHistoryEditor
+        busy={controlsDisabled}
+        copy={copy.history.editor}
+        entries={draft.history}
+        {...(historyErrorMessage === undefined ? {} : { errorMessage: historyErrorMessage })}
+        language={language}
+        onAdd={onAddHistory}
+        onChangeEntries={(history) => {
+          updateDraft({ ...draft, history });
+        }}
+        onRemove={onRemoveHistory}
+        rootRef={historyEditorRef}
+        today={today}
+        weekStartsOn={weekStartsOn}
+      />
     </div>
   );
 
@@ -642,7 +578,6 @@ export function TrackerOnboarding({
               value: draft.typicalCycleLength,
               initialValue: 28,
               max: MAX_TYPICAL_CYCLE_LENGTH,
-              quickChoices: TYPICAL_CYCLE_LENGTHS,
             },
             {
               key: 'typicalBleedDuration',
@@ -651,10 +586,9 @@ export function TrackerOnboarding({
               value: draft.typicalBleedDuration,
               initialValue: 5,
               max: MAX_TYPICAL_BLEED_DURATION,
-              quickChoices: TYPICAL_BLEED_DURATIONS,
             },
           ] as const satisfies readonly OptionalEstimateDefinition[]
-        ).map(({ key, label, description, value, initialValue, max, quickChoices }) => {
+        ).map(({ key, label, description, value, initialValue, max }) => {
           const descriptionId = `${idPrefix}-${key}-description`;
           const errorId = `${idPrefix}-${key}-error`;
           const inputId = `${idPrefix}-${key}`;
@@ -715,25 +649,6 @@ export function TrackerOnboarding({
                   </svg>
                 </button>
               </div>
-              <div
-                aria-label={copy.fallbacks.quickChoices(label)}
-                className={styles['numberChoices']}
-                role="group"
-              >
-                {quickChoices.map((choice) => (
-                  <button
-                    aria-pressed={value === choice}
-                    disabled={controlsDisabled}
-                    key={choice}
-                    onClick={() => {
-                      setValue(choice);
-                    }}
-                    type="button"
-                  >
-                    {choice}
-                  </button>
-                ))}
-              </div>
               {fieldError ? (
                 <span className={styles['fieldError']} id={errorId}>
                   {fieldError}
@@ -765,100 +680,83 @@ export function TrackerOnboarding({
         />
         <span>{copy.orange.enabled}</span>
       </label>
-      <div className={styles['numberField']}>
-        <label htmlFor={`${idPrefix}-orange-days`}>{copy.orange.days}</label>
-        <span className={styles['fieldDescription']} id={`${idPrefix}-orange-description`}>
-          {copy.orange.daysDescription}
-        </span>
-        <div className={styles['numberSpinner']}>
-          <button
-            aria-label={copy.orange.decrease}
-            disabled={
-              controlsDisabled ||
-              !draft.orangeEnabled ||
-              (Number.isFinite(draft.orangeDays) && draft.orangeDays <= 1)
-            }
-            onClick={() => {
-              updateDraft({
-                ...draft,
-                orangeDays: Number.isFinite(draft.orangeDays)
-                  ? Math.max(1, draft.orangeDays - 1)
-                  : 5,
-              });
-            }}
-            type="button"
-          >
-            <svg aria-hidden="true" viewBox="0 0 24 24">
-              <path d="M5 12h14" />
-            </svg>
-          </button>
-          <input
-            aria-describedby={describedBy(
-              `${idPrefix}-orange-error`,
-              `${idPrefix}-orange-description`,
-              errors.has('orangeDays'),
-            )}
-            aria-invalid={errors.has('orangeDays')}
-            disabled={controlsDisabled || !draft.orangeEnabled}
-            id={`${idPrefix}-orange-days`}
-            inputMode="numeric"
-            max={14}
-            min={1}
-            onChange={(event) => {
-              updateDraft({ ...draft, orangeDays: event.currentTarget.valueAsNumber });
-            }}
-            ref={(node) => {
-              if (node) fieldRefs.current.set('orangeDays', node);
-              else fieldRefs.current.delete('orangeDays');
-            }}
-            required={draft.orangeEnabled}
-            step={1}
-            type="number"
-            value={draft.orangeDays}
-          />
-          <button
-            aria-label={copy.orange.increase}
-            disabled={
-              controlsDisabled ||
-              !draft.orangeEnabled ||
-              (Number.isFinite(draft.orangeDays) && draft.orangeDays >= 14)
-            }
-            onClick={() => {
-              updateDraft({
-                ...draft,
-                orangeDays: Number.isFinite(draft.orangeDays)
-                  ? Math.min(14, draft.orangeDays + 1)
-                  : 5,
-              });
-            }}
-            type="button"
-          >
-            <svg aria-hidden="true" viewBox="0 0 24 24">
-              <path d="M5 12h14M12 5v14" />
-            </svg>
-          </button>
-        </div>
-        <div aria-label={copy.orange.quickChoices} className={styles['numberChoices']} role="group">
-          {TYPICAL_ORANGE_DAYS.map((choice) => (
+      {draft.orangeEnabled ? (
+        <div className={styles['numberField']}>
+          <label htmlFor={`${idPrefix}-orange-days`}>{copy.orange.days}</label>
+          <span className={styles['fieldDescription']} id={`${idPrefix}-orange-description`}>
+            {copy.orange.daysDescription}
+          </span>
+          <div className={styles['numberSpinner']}>
             <button
-              aria-pressed={draft.orangeDays === choice}
-              disabled={controlsDisabled || !draft.orangeEnabled}
-              key={choice}
+              aria-label={copy.orange.decrease}
+              disabled={
+                controlsDisabled || (Number.isFinite(draft.orangeDays) && draft.orangeDays <= 1)
+              }
               onClick={() => {
-                updateDraft({ ...draft, orangeDays: choice });
+                updateDraft({
+                  ...draft,
+                  orangeDays: Number.isFinite(draft.orangeDays)
+                    ? Math.max(1, draft.orangeDays - 1)
+                    : 5,
+                });
               }}
               type="button"
             >
-              {choice}
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M5 12h14" />
+              </svg>
             </button>
-          ))}
+            <input
+              aria-describedby={describedBy(
+                `${idPrefix}-orange-error`,
+                `${idPrefix}-orange-description`,
+                errors.has('orangeDays'),
+              )}
+              aria-invalid={errors.has('orangeDays')}
+              disabled={controlsDisabled}
+              id={`${idPrefix}-orange-days`}
+              inputMode="numeric"
+              max={14}
+              min={1}
+              onChange={(event) => {
+                updateDraft({ ...draft, orangeDays: event.currentTarget.valueAsNumber });
+              }}
+              ref={(node) => {
+                if (node) fieldRefs.current.set('orangeDays', node);
+                else fieldRefs.current.delete('orangeDays');
+              }}
+              required
+              step={1}
+              type="number"
+              value={draft.orangeDays}
+            />
+            <button
+              aria-label={copy.orange.increase}
+              disabled={
+                controlsDisabled || (Number.isFinite(draft.orangeDays) && draft.orangeDays >= 14)
+              }
+              onClick={() => {
+                updateDraft({
+                  ...draft,
+                  orangeDays: Number.isFinite(draft.orangeDays)
+                    ? Math.min(14, draft.orangeDays + 1)
+                    : 5,
+                });
+              }}
+              type="button"
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M5 12h14M12 5v14" />
+              </svg>
+            </button>
+          </div>
+          {errors.has('orangeDays') ? (
+            <span className={styles['fieldError']} id={`${idPrefix}-orange-error`}>
+              {errors.get('orangeDays')}
+            </span>
+          ) : null}
         </div>
-        {errors.has('orangeDays') ? (
-          <span className={styles['fieldError']} id={`${idPrefix}-orange-error`}>
-            {errors.get('orangeDays')}
-          </span>
-        ) : null}
-      </div>
+      ) : null}
     </div>
   );
 

@@ -169,7 +169,7 @@ function checkInTransitionForDate(
 
 export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayload }) {
   const { t } = useTranslation();
-  const { resolvedLanguage } = useLanguage();
+  const { resolvedLanguage, systemLanguages } = useLanguage();
   const { enablePin, journalEnvironment, pinProtectionAvailable, savePayload, snapshot } =
     useVault();
   const [busy, setBusy] = useState(false);
@@ -214,6 +214,80 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
         calendarLabel: (field, month) =>
           t(($) => $.tracker.onboarding.history.datePicker.calendarLabel, { field, month }),
       },
+      editor: {
+        calendar: {
+          navigationLabel: t(($) => $.mobile.calendar.navigation.label),
+          calendarLabel: t(($) => $.tracker.history.calendar.label),
+          previousMonth: t(($) => $.mobile.calendar.navigation.previousMonth),
+          nextMonth: t(($) => $.mobile.calendar.navigation.nextMonth),
+          today: t(($) => $.mobile.calendar.navigation.today),
+          outsideMonth: t(($) => $.tracker.calendar.outsideMonth),
+          legendTitle: t(($) => $.tracker.history.calendar.legend),
+          essentialLegend: {
+            recorded: t(($) => $.mobile.calendar.legend.recorded),
+            predicted: t(($) => $.mobile.calendar.legend.predicted),
+            today: t(($) => $.mobile.calendar.legend.today),
+          },
+          markers: {
+            recordedRed: t(($) => $.tracker.calendar.markers.recordedRed),
+            predictedRed: t(($) => $.tracker.calendar.markers.predictedRed),
+            predictedStart: t(($) => $.tracker.calendar.markers.predictedStart),
+            possibleStart: t(($) => $.tracker.calendar.markers.possibleStart),
+            orange: t(($) => $.tracker.calendar.markers.orange),
+            green: t(($) => $.tracker.calendar.markers.green),
+            spotting: t(($) => $.tracker.calendar.markers.spotting),
+            neutral: t(($) => $.tracker.calendar.markers.neutral),
+          },
+        },
+        periodList: {
+          sectionLabel: t(($) => $.tracker.history.sectionLabel),
+          title: t(($) => $.tracker.history.title),
+          description: t(($) => $.tracker.history.description),
+          empty: t(($) => $.tracker.history.empty),
+          active: t(($) => $.tracker.history.active),
+          completed: t(($) => $.tracker.history.completed),
+          unknownDuration: t(($) => $.tracker.history.unknownDuration),
+          startIntensityLabel: t(($) => $.tracker.history.startIntensityLabel),
+          startIntensity: {
+            unspecified: t(($) => $.tracker.history.startIntensity.unspecified),
+            light: t(($) => $.tracker.history.startIntensity.light),
+            medium: t(($) => $.tracker.history.startIntensity.medium),
+            heavy: t(($) => $.tracker.history.startIntensity.heavy),
+          },
+          edit: t(($) => $.tracker.history.edit),
+          editLabel: (date) => t(($) => $.tracker.history.editLabel, { date }),
+          bleedingDuration: (days) => t(($) => $.tracker.history.bleedingDuration, { count: days }),
+          showMore: t(($) => $.tracker.history.showMore),
+          delete: t(($) => $.tracker.history.delete.action),
+          deleteLabel: (date) => t(($) => $.tracker.history.delete.label, { date }),
+        },
+        selectedPeriod: (range) => t(($) => $.tracker.history.calendar.selectedPeriod, { range }),
+        emptyDate: (date) => t(($) => $.tracker.history.calendar.emptyDate, { date }),
+        emptyDateDescription: t(($) => $.tracker.history.calendar.emptyDateDescription),
+        startNewPeriod: t(($) => $.tracker.history.calendar.addStartingHere),
+        edit: t(($) => $.tracker.history.edit),
+        remove: t(($) => $.tracker.history.delete.action),
+        cancel: t(($) => $.tracker.history.calendar.cancel),
+        selectBoundary: t(($) => $.tracker.history.calendar.selectBoundary),
+        firstBoundary: t(($) => $.tracker.history.calendar.firstBoundary),
+        newFirstBoundary: t(($) => $.tracker.history.calendar.newFirstBoundary),
+        endAfterStart: t(($) => $.tracker.history.calendar.endAfterStart),
+        saveStartOnly: t(($) => $.tracker.onboarding.history.editor.saveStartOnly),
+        selectedStart: t(($) => $.tracker.history.calendar.selectedStart),
+        selectedEnd: t(($) => $.tracker.history.calendar.selectedEnd),
+        selectedRange: t(($) => $.tracker.history.calendar.selectedRange),
+        configureTitle: (range) => t(($) => $.tracker.history.calendar.configure.title, { range }),
+        configureDescription: t(($) => $.tracker.history.calendar.configure.description),
+        configureStartOnlyDescription: t(
+          ($) => $.tracker.onboarding.history.editor.configureStartOnlyDescription,
+        ),
+        savePeriod: t(($) => $.tracker.history.calendar.configure.save),
+        deleteTitle: (range) =>
+          t(($) => $.tracker.onboarding.history.editor.deleteTitle, { range }),
+        deleteDescription: t(($) => $.tracker.onboarding.history.editor.deleteDescription),
+        confirmDelete: t(($) => $.tracker.history.delete.confirm),
+        overlap: t(($) => $.tracker.history.correction.errors.overlap),
+      },
     },
     fallbacks: {
       title: t(($) => $.tracker.onboarding.fallbacks.title),
@@ -228,10 +302,10 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
       quickChoices: (field) => t(($) => $.tracker.onboarding.fallbacks.quickChoices, { field }),
     },
     orange: {
-      title: t(($) => $.tracker.onboarding.orange.title),
-      description: t(($) => $.tracker.onboarding.orange.description),
-      enabled: t(($) => $.tracker.onboarding.orange.enabled),
-      days: t(($) => $.tracker.onboarding.orange.days),
+      title: t(($) => $.mobile.settings.prePeriod.title),
+      description: t(($) => $.mobile.settings.prePeriod.description),
+      enabled: t(($) => $.mobile.settings.prePeriod.enabled),
+      days: t(($) => $.mobile.settings.prePeriod.days),
       daysDescription: t(($) => $.tracker.onboarding.orange.daysDescription),
       decrease: t(($) => $.tracker.onboarding.orange.decrease),
       increase: t(($) => $.tracker.onboarding.orange.increase),
@@ -364,6 +438,12 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
       }}
       pinEnabled={snapshot.pinEnabled}
       pinProtectionAvailable={pinProtectionAvailable}
+      today={journalEnvironment.today()}
+      weekStartsOn={resolveWeekStartsOn(
+        payload.settings.weekStart,
+        systemLanguages,
+        resolvedLanguage,
+      )}
     />
   );
 }

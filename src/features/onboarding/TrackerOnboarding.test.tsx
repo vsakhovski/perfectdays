@@ -38,6 +38,72 @@ const copy: OnboardingCopy = {
       nextMonth: 'Next month',
       calendarLabel: (field, month) => `Choose ${field}. ${month}`,
     },
+    editor: {
+      calendar: {
+        navigationLabel: 'Calendar navigation',
+        calendarLabel: 'Previous periods calendar',
+        previousMonth: 'Previous month',
+        nextMonth: 'Next month',
+        today: 'Go to today',
+        outsideMonth: 'Outside the active month',
+        legendTitle: 'Background colors',
+        markers: {
+          recordedRed: 'Recorded period',
+          predictedRed: 'Predicted period',
+          predictedStart: 'Predicted start',
+          possibleStart: 'Possible start',
+          orange: 'Pre-period window',
+          green: 'Recorded confidence',
+          spotting: 'Spotting',
+          neutral: 'No marker',
+        },
+      },
+      periodList: {
+        sectionLabel: 'Previous periods',
+        title: 'Recorded periods',
+        description: 'Review previous periods.',
+        empty: 'No previous periods added.',
+        active: 'Active period',
+        completed: 'Completed period',
+        unknownDuration: 'End date unknown',
+        startIntensityLabel: 'Start-day flow',
+        startIntensity: {
+          unspecified: 'Unspecified',
+          light: 'Light',
+          medium: 'Medium',
+          heavy: 'Heavy',
+        },
+        edit: 'Edit dates',
+        editLabel: (date) => `Edit period ${date}`,
+        bleedingDuration: (days) => `Bleeding duration: ${String(days)} days`,
+        showMore: 'Show more',
+        delete: 'Delete period',
+        deleteLabel: (date) => `Delete period ${date}`,
+      },
+      selectedPeriod: (range) => `Period ${range}`,
+      emptyDate: (date) => `${date} is not part of a recorded period`,
+      emptyDateDescription: 'Use this date to start a previous period.',
+      startNewPeriod: 'Start a new period here',
+      edit: 'Edit dates',
+      remove: 'Delete period',
+      cancel: 'Cancel',
+      selectBoundary: 'Select the start and end date.',
+      firstBoundary: 'Select the other boundary.',
+      newFirstBoundary: 'Select the end date.',
+      endAfterStart: 'The end date must be after the start date.',
+      saveStartOnly: 'Save start date only',
+      selectedStart: 'Selected start',
+      selectedEnd: 'Selected end',
+      selectedRange: 'Selected range',
+      configureTitle: (range) => `Configure period ${range}`,
+      configureDescription: 'Save these dates?',
+      configureStartOnlyDescription: 'Save this start date only?',
+      savePeriod: 'Save period',
+      deleteTitle: (range) => `Delete period ${range}?`,
+      deleteDescription: 'Remove this previous period.',
+      confirmDelete: 'Delete period',
+      overlap: 'Periods cannot overlap.',
+    },
   },
   fallbacks: {
     title: 'Optional period estimates',
@@ -160,6 +226,8 @@ function Harness({
       onSkip={onSkip}
       pinEnabled={pinEnabled}
       pinProtectionAvailable={pinProtectionAvailable}
+      today={asLocalDate('2025-06-15')}
+      weekStartsOn={1}
     />
   );
 }

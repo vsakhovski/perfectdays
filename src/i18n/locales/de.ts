@@ -40,7 +40,7 @@ export const de = {
   tracker: {
     onboarding: {
       splash: {
-        appName: 'Pattern Journal',
+        appName: 'My Perfect Days',
         tagline: 'Ein privater Ort für deine Zyklusmuster.',
         version: 'Version {{version}}',
       },
@@ -68,6 +68,14 @@ export const de = {
           nextMonth: 'Nächster Monat',
           calendarLabel: '{{field}} auswählen. {{month}}',
         },
+        editor: {
+          saveStartOnly: 'Nur Startdatum speichern',
+          configureStartOnlyDescription:
+            'Dieses Startdatum speichern, ohne ein unbekanntes Enddatum zu erfinden?',
+          deleteTitle: 'Frühere Periode {{range}} entfernen?',
+          deleteDescription:
+            'Dadurch wird die frühere Periode aus deinen Einrichtungsdaten entfernt.',
+        },
       },
       fallbacks: {
         title: 'Optionale Periodenschätzungen',
@@ -75,10 +83,10 @@ export const de = {
           'Sie werden nur verwendet, solange nicht genügend aufgezeichnete Daten vorliegen. Aufzeichnungen haben immer Vorrang.',
         cycleLength: 'Übliche Zykluslänge in Tagen',
         cycleLengthDescription:
-          'Optional. Wähle unten einen häufigen Wert oder gib einen anderen Wert ein.',
+          'Optional. Verwende Minus und Plus oder gib einen anderen Wert ein.',
         bleedDuration: 'Übliche Blutungsdauer in Tagen',
         bleedDurationDescription:
-          'Optional. Wähle unten einen häufigen Wert oder gib einen anderen Wert ein.',
+          'Optional. Verwende Minus und Plus oder gib einen anderen Wert ein.',
         notSure: 'Nicht sicher',
         decrease: '{{field}} verringern',
         increase: '{{field}} erhöhen',
@@ -90,7 +98,7 @@ export const de = {
           'Diese optionale Markierung hebt Tage vor der geschätzten Periode hervor. Sie sagt weder Konflikte voraus noch gibt sie Entscheidungen vor.',
         enabled: 'Möglichen Zeitraum vor der Periode anzeigen',
         days: 'Tage vor der zentralen Schätzung',
-        daysDescription: 'Wähle unten einen häufigen Wert oder gib 1 bis 14 Tage ein.',
+        daysDescription: 'Verwende Minus und Plus oder gib 1 bis 14 Tage ein.',
         decrease: 'Tage vor der Schätzung verringern',
         increase: 'Tage vor der Schätzung erhöhen',
         quickChoices: 'Schnellwerte für Tage vor der Schätzung',
@@ -270,7 +278,7 @@ export const de = {
         heavy: 'Stark',
       },
       edit: 'Daten bearbeiten',
-      editLabel: 'Periode ab {{date}} bearbeiten',
+      editLabel: 'Periode ab {{date}} auswählen',
       showMore: 'Mehr anzeigen',
       bleedingDuration: 'Blutungsdauer: {{count}} Tage',
       bleedingDuration_one: 'Blutungsdauer: {{count}} Tag',

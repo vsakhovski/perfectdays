@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
 import { useLanguage } from '../../app/i18n/use-language';
@@ -126,7 +127,7 @@ export function TrackerHistorySection({
   const [statusMessage, setStatusMessage] = useState<string>();
   const calendarContainerRef = useRef<HTMLDivElement>(null);
   const editorStatusRef = useRef<HTMLDivElement>(null);
-  const selectedActionPanelRef = useRef<HTMLElement>(null);
+  const selectionTriggerRef = useRef<HTMLButtonElement | null>(null);
   const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const insights = useMemo(
@@ -420,6 +421,9 @@ export function TrackerHistorySection({
     setVisibleMonth(startOfMonth(entry.startDate));
     setErrorMessage(undefined);
     setStatusMessage(t(($) => $.tracker.history.calendar.selectBoundary));
+    window.requestAnimationFrame(() => {
+      calendarContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
   const cancelSelection = (): void => {
@@ -428,6 +432,7 @@ export function TrackerHistorySection({
     setSelectedEmptyDate(undefined);
     setErrorMessage(undefined);
     setStatusMessage(undefined);
+    window.requestAnimationFrame(() => selectionTriggerRef.current?.focus());
   };
 
   const cancelEditing = (): void => {
@@ -440,10 +445,12 @@ export function TrackerHistorySection({
     setStatusMessage(undefined);
   };
 
-  const selectPeriod = (entry: PeriodHistoryEntry): void => {
+  const selectPeriod = (entry: PeriodHistoryEntry, trigger?: HTMLButtonElement): void => {
+    if (trigger !== undefined) selectionTriggerRef.current = trigger;
     setDraft(undefined);
     setSelectedEntryId(entry.id);
     setSelectedEmptyDate(undefined);
+    setVisibleMonth(startOfMonth(entry.startDate));
     setErrorMessage(undefined);
     setStatusMessage(undefined);
   };
@@ -455,8 +462,10 @@ export function TrackerHistorySection({
     setStatusMessage(t(($) => $.tracker.history.calendar.selectEndBoundary));
   };
 
-  const selectDate = (date: LocalDate): void => {
+  const selectDate = (date: LocalDate, trigger: HTMLButtonElement): void => {
     if (busy) return;
+
+    selectionTriggerRef.current = trigger;
 
     if (draft?.stage === 'selecting' && draft.firstDate === undefined) {
       setDraft({
@@ -521,19 +530,6 @@ export function TrackerHistorySection({
         ? formatLocalDate(selectedEntry.startDate, resolvedLanguage)
         : formatLocalDateRange(selectedEntry.startDate, selectedEntry.endDate, resolvedLanguage);
   useEffect(() => {
-    if (draft !== undefined || selectedEntry === undefined) return;
-    const frame = window.requestAnimationFrame(() => {
-      selectedActionPanelRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-      });
-    });
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
-  }, [draft, selectedEntry]);
-
-  useEffect(() => {
     if (draft?.stage !== 'selecting') return;
     const frame = window.requestAnimationFrame(() => {
       editorStatusRef.current?.scrollIntoView({
@@ -555,8 +551,8 @@ export function TrackerHistorySection({
           maxMonth={currentMonth}
           months={calendarMonths}
           onRequestMonth={requestCalendarMonth}
-          onSelectDate={(date) => {
-            selectDate(date);
+          onSelectDate={(date, trigger) => {
+            selectDate(date, trigger);
           }}
           onVisibleMonthChange={setVisibleMonth}
           today={today}
@@ -565,98 +561,123 @@ export function TrackerHistorySection({
         />
       </div>
 
-      {draft === undefined && selectedEntry !== undefined && selectedEntryRange !== undefined ? (
-        <section
-          aria-labelledby="selected-period-title"
-          className={styles['actionPanel']}
-          ref={selectedActionPanelRef}
-        >
-          <div className={styles['actionPanelCopy']}>
-            <h2 id="selected-period-title">
-              {t(($) => $.tracker.history.calendar.selectedPeriod, {
-                range: selectedEntryRange,
-              })}
-            </h2>
-            <p>
-              {selectedEntry.endDate === undefined
-                ? historyCopy.active
-                : selectedEntry.durationKnown
-                  ? historyCopy.completed
-                  : historyCopy.unknownDuration}
-            </p>
-            <p>
-              {historyCopy.startIntensityLabel}{' '}
-              {historyCopy.startIntensity[selectedEntry.startIntensity]}
-            </p>
-          </div>
-          <div className={styles['actionPanelActions']}>
-            <button
-              className={styles['primaryActionButton']}
-              disabled={busy}
-              onClick={() => {
-                beginEditing(selectedEntry);
-              }}
-              type="button"
-            >
-              {historyCopy.edit}
-            </button>
-            <button
-              className={styles['dangerActionButton']}
-              disabled={busy}
-              onClick={(event) => {
-                deleteTriggerRef.current = event.currentTarget;
-                setDeleteCandidate(selectedEntry);
-                setErrorMessage(undefined);
-                setStatusMessage(undefined);
-              }}
-              type="button"
-            >
-              {historyCopy.delete}
-            </button>
-            <button
-              className={styles['cancelButton']}
-              disabled={busy}
-              onClick={cancelSelection}
-              type="button"
-            >
-              {t(($) => $.tracker.history.calendar.cancel)}
-            </button>
-          </div>
-        </section>
-      ) : null}
+      {draft === undefined &&
+      deleteCandidate === undefined &&
+      selectedEntry !== undefined &&
+      selectedEntryRange !== undefined
+        ? createPortal(
+            <div className={styles['configureBackdrop']}>
+              <div
+                aria-labelledby="selected-period-title"
+                aria-modal="true"
+                className={styles['configureDialog']}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape' && !busy) cancelSelection();
+                }}
+                role="dialog"
+              >
+                <div className={styles['actionPanelCopy']}>
+                  <h2 id="selected-period-title">
+                    {t(($) => $.tracker.history.calendar.selectedPeriod, {
+                      range: selectedEntryRange,
+                    })}
+                  </h2>
+                  <p>
+                    {selectedEntry.endDate === undefined
+                      ? historyCopy.active
+                      : selectedEntry.durationKnown
+                        ? historyCopy.completed
+                        : historyCopy.unknownDuration}
+                  </p>
+                  <p>
+                    {historyCopy.startIntensityLabel}{' '}
+                    {historyCopy.startIntensity[selectedEntry.startIntensity]}
+                  </p>
+                </div>
+                <div className={styles['configureActions']}>
+                  <button
+                    autoFocus
+                    className={styles['primaryActionButton']}
+                    disabled={busy}
+                    onClick={() => {
+                      beginEditing(selectedEntry);
+                    }}
+                    type="button"
+                  >
+                    {historyCopy.edit}
+                  </button>
+                  <button
+                    className={styles['dangerActionButton']}
+                    disabled={busy}
+                    onClick={(event) => {
+                      deleteTriggerRef.current = event.currentTarget;
+                      setDeleteCandidate(selectedEntry);
+                      setErrorMessage(undefined);
+                      setStatusMessage(undefined);
+                    }}
+                    type="button"
+                  >
+                    {historyCopy.delete}
+                  </button>
+                  <button
+                    className={styles['cancelButton']}
+                    disabled={busy}
+                    onClick={cancelSelection}
+                    type="button"
+                  >
+                    {t(($) => $.tracker.history.calendar.cancel)}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
-      {draft === undefined && selectedEmptyDate !== undefined ? (
-        <section aria-labelledby="empty-date-title" className={styles['actionPanel']}>
-          <div className={styles['actionPanelCopy']}>
-            <h2 id="empty-date-title">
-              {t(($) => $.tracker.history.calendar.emptyDate, {
-                date: formatLocalDate(selectedEmptyDate, resolvedLanguage),
-              })}
-            </h2>
-            <p>{t(($) => $.tracker.history.calendar.emptyDateDescription)}</p>
-          </div>
-          <div className={styles['actionPanelActions']}>
-            <button
-              className={styles['primaryActionButton']}
-              disabled={busy}
-              onClick={() => {
-                beginNewPeriod();
-              }}
-              type="button"
-            >
-              {t(($) => $.tracker.history.calendar.addStartingHere)}
-            </button>
-            <button
-              className={styles['cancelButton']}
-              disabled={busy}
-              onClick={cancelSelection}
-              type="button"
-            >
-              {t(($) => $.tracker.history.calendar.cancel)}
-            </button>
-          </div>
-        </section>
-      ) : null}
+      {draft === undefined && deleteCandidate === undefined && selectedEmptyDate !== undefined
+        ? createPortal(
+            <div className={styles['configureBackdrop']}>
+              <div
+                aria-labelledby="empty-date-title"
+                aria-modal="true"
+                className={styles['configureDialog']}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape' && !busy) cancelSelection();
+                }}
+                role="dialog"
+              >
+                <div className={styles['actionPanelCopy']}>
+                  <h2 id="empty-date-title">
+                    {t(($) => $.tracker.history.calendar.emptyDate, {
+                      date: formatLocalDate(selectedEmptyDate, resolvedLanguage),
+                    })}
+                  </h2>
+                  <p>{t(($) => $.tracker.history.calendar.emptyDateDescription)}</p>
+                </div>
+                <div className={styles['configureActions']}>
+                  <button
+                    autoFocus
+                    className={styles['primaryActionButton']}
+                    disabled={busy}
+                    onClick={beginNewPeriod}
+                    type="button"
+                  >
+                    {t(($) => $.tracker.history.calendar.addStartingHere)}
+                  </button>
+                  <button
+                    className={styles['cancelButton']}
+                    disabled={busy}
+                    onClick={cancelSelection}
+                    type="button"
+                  >
+                    {t(($) => $.tracker.history.calendar.cancel)}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {draft?.stage === 'selecting' || errorMessage !== undefined || statusMessage !== undefined ? (
         <div className={styles['editorStatus']} ref={editorStatusRef}>
@@ -693,8 +714,8 @@ export function TrackerHistorySection({
         formatDateRange={(startDate, endDate) =>
           formatLocalDateRange(startDate, endDate, resolvedLanguage)
         }
-        onEdit={(entry) => {
-          beginEditing(entry);
+        onEdit={(entry, trigger) => {
+          selectPeriod(entry, trigger);
         }}
         onDelete={(entry, trigger) => {
           deleteTriggerRef.current = trigger;
