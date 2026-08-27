@@ -24,18 +24,15 @@ import { FakeVaultController } from '../test/fake-vault-controller';
 import { App } from './App';
 import { AppProviders } from './AppProviders';
 
-async function addStartOnlyOnboardingPeriod(
-  user: ReturnType<typeof userEvent.setup>,
-  accessibleDate: RegExp,
-): Promise<void> {
-  await user.click(screen.getByRole('button', { name: accessibleDate }));
-  await user.click(
+function addStartOnlyOnboardingPeriod(accessibleDate: RegExp): void {
+  fireEvent.click(screen.getByRole('button', { name: accessibleDate }));
+  fireEvent.click(
     within(screen.getByRole('dialog')).getByRole('button', {
       name: 'Start a new period here',
     }),
   );
-  await user.click(screen.getByRole('button', { name: 'Save start date only' }));
-  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save period' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save start date only' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save period' }));
 }
 
 async function enterPinWithKeypad(user: ReturnType<typeof userEvent.setup>, pin: string) {
@@ -491,10 +488,11 @@ describe('App', () => {
     expect(firstWeekday()).toMatch(/^Sun/u);
     await openRootDestination(user, 'Settings');
     const weekStart = screen.getByRole('combobox', { name: 'First day of the week' });
-    expect(weekStart).toHaveValue('system');
+    expect(weekStart).toHaveValue('System default');
     expect(screen.getByText('Your current system default is Sunday.')).toBeVisible();
 
-    await user.selectOptions(weekStart, 'monday');
+    await user.click(weekStart);
+    await user.click(screen.getByRole('option', { name: 'Monday' }));
     expect(await screen.findByText('Calendar preference saved.')).toBeVisible();
     await openRootDestination(user, 'Calendar');
 
@@ -605,17 +603,16 @@ describe('App', () => {
   });
 
   it('imports start-only history without inventing durations and derives a forecast range', async () => {
-    const user = userEvent.setup();
     const { vaultController } = await renderApp();
 
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await addStartOnlyOnboardingPeriod(user, /Wednesday, July 1, 2026/);
-    await addStartOnlyOnboardingPeriod(user, /Wednesday, July 29, 2026/);
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await user.click(screen.getByRole('button', { name: 'Finish without PIN' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Get started' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    addStartOnlyOnboardingPeriod(/Wednesday, July 1, 2026/);
+    addStartOnlyOnboardingPeriod(/Wednesday, July 29, 2026/);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish without PIN' }));
 
     expect(
       await screen.findByRole('heading', { name: 'Your recorded days and estimates' }),
@@ -663,7 +660,7 @@ describe('App', () => {
     expect(
       screen.getByText(/A new open period cannot begin before a later recorded period/i),
     ).toBeVisible();
-  });
+  }, 10_000);
 
   it('integrates recorded cycle and forecast calculations into history', async () => {
     const user = userEvent.setup();

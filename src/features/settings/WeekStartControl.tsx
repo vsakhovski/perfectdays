@@ -5,6 +5,7 @@ import { useLanguage } from '../../app/i18n/use-language';
 import { useVault } from '../../app/vault/use-vault';
 import type { VaultPayload, WeekStartPreference } from '../../domain/models';
 import { isWeekStartPreference, resolveWeekStartsOn } from '../../i18n/date-format';
+import { SelectControl, type SelectControlOption } from '../../shared/ui/SelectControl';
 import styles from './WeekStartControl.module.css';
 
 export function WeekStartControl({
@@ -25,6 +26,11 @@ export function WeekStartControl({
     systemFirstDay === 1
       ? t(($) => $.settings.weekStart.options.monday)
       : t(($) => $.settings.weekStart.options.sunday);
+  const options: readonly SelectControlOption<WeekStartPreference>[] = [
+    { label: t(($) => $.settings.weekStart.options.system), value: 'system' },
+    { label: t(($) => $.settings.weekStart.options.monday), value: 'monday' },
+    { label: t(($) => $.settings.weekStart.options.sunday), value: 'sunday' },
+  ];
 
   const changePreference = (preference: WeekStartPreference): void => {
     setPendingPreference(preference);
@@ -51,28 +57,16 @@ export function WeekStartControl({
 
   return (
     <div className={styles['control']}>
-      <label
-        className={hideLabel ? styles['visuallyHidden'] : styles['label']}
-        htmlFor="week-start-preference"
-      >
-        {t(($) => $.settings.weekStart.label)}
-      </label>
-      <select
-        className={styles['select']}
+      <SelectControl
         disabled={pendingPreference !== undefined}
-        id="week-start-preference"
-        onChange={(event) => {
-          const nextPreference = event.currentTarget.value;
-          if (isWeekStartPreference(nextPreference)) {
-            changePreference(nextPreference);
-          }
+        hideLabel={hideLabel}
+        label={t(($) => $.settings.weekStart.label)}
+        onChange={(nextPreference) => {
+          if (isWeekStartPreference(nextPreference)) changePreference(nextPreference);
         }}
+        options={options}
         value={selectedPreference}
-      >
-        <option value="system">{t(($) => $.settings.weekStart.options.system)}</option>
-        <option value="monday">{t(($) => $.settings.weekStart.options.monday)}</option>
-        <option value="sunday">{t(($) => $.settings.weekStart.options.sunday)}</option>
-      </select>
+      />
       <p className={styles['current']}>
         {t(($) => $.settings.weekStart.systemDefault, { day: systemDayLabel })}
       </p>

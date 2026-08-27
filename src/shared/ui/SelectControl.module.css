@@ -1,0 +1,142 @@
+.control {
+  min-inline-size: 0;
+}
+
+.control[data-compact='true'] {
+  inline-size: 100%;
+  text-align: start;
+}
+
+.control[data-compact='true'] .label {
+  margin-block-end: 0.4rem;
+  font-size: 0.82rem;
+}
+
+.label {
+  display: block;
+  margin-block-end: 0.75rem;
+  font-weight: 700;
+}
+
+.comboboxShell {
+  position: relative;
+  min-inline-size: 0;
+}
+
+.combobox {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding: 0.65rem 2.5rem 0.65rem 0.85rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.375rem;
+  background: var(--color-surface-subtle);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.combobox:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.pickerIcon {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: 0.85rem;
+  inline-size: 1rem;
+  block-size: 1rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.75;
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: transform 140ms ease;
+}
+
+.pickerIcon[data-open='true'] {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.combobox:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.combobox[data-pointer-focused='true']:focus-visible {
+  outline: none;
+}
+
+.listbox {
+  position: fixed;
+  z-index: 1000;
+  display: grid;
+  overflow-y: auto;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.375rem;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-soft);
+  color: var(--color-text);
+}
+
+.option {
+  min-block-size: 2.75rem;
+  padding: 0.65rem 0.85rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.05rem;
+  text-align: start;
+}
+
+.option[aria-selected='true'] {
+  background: color-mix(in srgb, var(--color-accent) 18%, var(--color-surface));
+  font-weight: 750;
+}
+
+.option[data-highlighted='true']:not([aria-selected='true']) {
+  box-shadow: inset 0 0 0 2px var(--color-focus);
+}
+
+.option:hover:not([aria-selected='true']) {
+  background: var(--color-surface-subtle);
+}
+
+.visuallyHidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pickerIcon {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .listbox {
+    border-color: CanvasText;
+  }
+
+  .option[aria-selected='true'] {
+    background: Highlight;
+    color: HighlightText;
+  }
+}

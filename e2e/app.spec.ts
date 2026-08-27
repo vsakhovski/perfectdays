@@ -800,7 +800,7 @@ test.describe('Phase 5 compact mobile shell', () => {
     await expect(firstWeekday).toHaveText(/Sun/u);
     await openRootDestination(page, 'Settings');
     const weekStart = page.getByRole('combobox', { name: 'First day of the week' });
-    await expect(weekStart).toHaveValue('system');
+    await expect(weekStart).toHaveValue('System default');
     await expect(weekStart).toHaveCSS('border-radius', '6px');
     const weekStartBounds = await weekStart.boundingBox();
     expect(weekStartBounds).not.toBeNull();
@@ -809,7 +809,8 @@ test.describe('Phase 5 compact mobile shell', () => {
       expect(weekStartBounds.x + weekStartBounds.width).toBeLessThanOrEqual(320);
     }
     await expect(page.getByText('Your current system default is Sunday.')).toBeVisible();
-    await weekStart.selectOption('monday');
+    await weekStart.click();
+    await page.getByRole('option', { name: 'Monday' }).click();
     await expect(page.getByText('Calendar preference saved.')).toBeVisible();
     await openRootDestination(page, 'Calendar');
     await expect(firstWeekday).toHaveText(/Mon/u);
