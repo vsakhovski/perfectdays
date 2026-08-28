@@ -2,7 +2,7 @@ import type { TranslationResource } from './en';
 
 export const de = {
   meta: {
-    title: 'Menstruationskalender',
+    title: 'My Perfect Days',
     description: 'Ein privates, lokal gespeichertes Tagebuch für Menstruationsmuster.',
   },
   home: {

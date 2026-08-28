@@ -39,8 +39,8 @@ test('the neutral manifest has installable, maskable raster icons', async () => 
   const manifest = JSON.parse(await readDistText('manifest.webmanifest'));
 
   assert.equal(manifest.id, '/');
-  assert.equal(manifest.name, 'Pattern Journal');
-  assert.equal(manifest.short_name, 'Pattern Journal');
+  assert.equal(manifest.name, 'My Perfect Days');
+  assert.equal(manifest.short_name, 'My Perfect Days');
   assert.equal(manifest.lang, 'und');
   assert.equal(manifest.description, undefined);
   assert.equal(manifest.start_url, '/');

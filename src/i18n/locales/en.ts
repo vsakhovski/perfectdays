@@ -1,6 +1,6 @@
 export const en = {
   meta: {
-    title: 'Menstrual Pattern Tracker',
+    title: 'My Perfect Days',
     description: 'A private, local-first menstrual pattern journal.',
   },
   home: {

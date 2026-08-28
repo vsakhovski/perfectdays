@@ -20,7 +20,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 1024,
   },
   define: {
-    __APP_VERSION__: JSON.stringify(process.env['npm_package_version'] ?? '0.1.0'),
+    __APP_VERSION__: JSON.stringify(process.env['npm_package_version'] ?? '0.2.0'),
   },
   plugins: [
     react(),
@@ -46,9 +46,9 @@ export default defineConfig({
         ],
         id: '/',
         lang: 'und',
-        name: 'Pattern Journal',
+        name: 'My Perfect Days',
         scope: '/',
-        short_name: 'Pattern Journal',
+        short_name: 'My Perfect Days',
         start_url: '/',
         theme_color: '#87365a',
       },

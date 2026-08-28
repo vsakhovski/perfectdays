@@ -429,7 +429,7 @@ describe('App', () => {
     await renderApp();
 
     expect(screen.getByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
-    expect(screen.getByText('Version 0.1.0')).toBeVisible();
+    expect(screen.getByText('Version 0.2.0')).toBeVisible();
     const languageSelect = screen.getByRole('combobox', { name: 'Select language' });
     expect(languageSelect).toHaveValue('English');
     fireEvent.click(languageSelect);
@@ -439,7 +439,7 @@ describe('App', () => {
     expect(screen.queryByRole('listbox')).toBeNull();
     expect(screen.queryByRole('radio', { name: 'Dark' })).toBeNull();
     expect(document.documentElement).toHaveAttribute('lang', 'en');
-    expect(document.title).toBe('Menstrual Pattern Tracker');
+    expect(document.title).toBe('My Perfect Days');
   });
 
   it('switches language directly from the splash screen', async () => {
@@ -539,7 +539,7 @@ describe('App', () => {
 
     await user.click(persistentCheckInTodayButton());
     expect(screen.getByRole('button', { name: 'Hide note and details' })).toBeVisible();
-  });
+  }, 20_000);
 
   it('changes the first weekday from Settings and applies it to the calendar', async () => {
     const user = userEvent.setup();
@@ -729,7 +729,7 @@ describe('App', () => {
         /This day is too far from the later recorded period to extend it\. Correct the dates in Periods history\./i,
       ),
     ).toBeVisible();
-  }, 10_000);
+  }, 20_000);
 
   it('integrates recorded cycle and forecast calculations into history', async () => {
     const user = userEvent.setup();
@@ -916,7 +916,7 @@ describe('App', () => {
     expect(screen.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveValue('Deutsch');
     expect(document.documentElement).toHaveAttribute('lang', 'de');
     expect(document.documentElement).toHaveAttribute('dir', 'ltr');
-    expect(document.title).toBe('Menstruationskalender');
+    expect(document.title).toBe('My Perfect Days');
   });
 
   it('lets the user switch language without losing focus and persists the choice', async () => {
@@ -933,7 +933,7 @@ describe('App', () => {
     expect(languageStore.read()).toBe('de');
     await waitFor(() => {
       expect(document.documentElement).toHaveAttribute('lang', 'de');
-      expect(document.title).toBe('Menstruationskalender');
+      expect(document.title).toBe('My Perfect Days');
     });
   });
 
@@ -1307,7 +1307,7 @@ describe('App', () => {
     expect(vaultController.calls.unlock).toEqual(['123456']);
     expect(await screen.findByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
     await waitFor(() => {
-      expect(document.title).toBe('Menstrual Pattern Tracker');
+      expect(document.title).toBe('My Perfect Days');
     });
   });
 

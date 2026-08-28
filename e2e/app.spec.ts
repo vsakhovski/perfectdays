@@ -122,7 +122,7 @@ test.describe('English application shell', () => {
     await page.getByRole('option', { name: 'English' }).click();
     await expect(page.getByRole('combobox', { name: 'Select language' })).toBeFocused();
     await expect(page.getByRole('radio', { name: /light|dark|system/i })).toHaveCount(0);
-    const version = page.getByText('Version 0.1.0');
+    const version = page.getByText('Version 0.2.0');
     const getStarted = page.getByRole('button', { name: 'Get started' });
     await expect(version).toBeInViewport();
     const versionBounds = await version.boundingBox();
@@ -541,7 +541,7 @@ test.describe('English application shell', () => {
     await expect(page.getByRole('combobox', { name: 'Sprache auswählen' })).toBeFocused();
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
     await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
-    await expect(page).toHaveTitle('Menstruationskalender');
+    await expect(page).toHaveTitle('My Perfect Days');
     await expect(page.locator('meta[name="description"]')).toHaveAttribute(
       'content',
       'Ein privates, lokal gespeichertes Tagebuch für Menstruationsmuster.',
