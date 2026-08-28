@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type {
   PossibleMissingPeriodFinding,
   PossibleSplitPeriodFinding,
+  PossiblyStaleActivePeriodFinding,
 } from '../../domain/cycle-checks';
 import { asLocalDate } from '../../domain/local-date';
 import type { CycleEstimateSample } from '../../domain/estimate-samples';
@@ -16,8 +17,12 @@ const copy: CycleChecksPanelCopy = {
   possibleSplitDescription: (count) => `${String(count)} clear days`,
   possibleMissingTitle: 'A period may be missing',
   possibleMissingDescription: (multiple) => `${String(multiple)} times the usual interval`,
+  possiblyStaleActiveTitle: 'Is this period still active?',
+  possiblyStaleActiveDescription: (days) => `Active for ${String(days)} days`,
   interval: (from, to) => `${from} to ${to}`,
   addMissingPeriod: 'Add missing period',
+  reviewActivePeriod: 'Review period dates',
+  stillActive: 'It is still active',
   reviewDates: 'Review dates',
   keepAndUse: 'Keep and use',
   keepAndExclude: 'Keep but exclude',
@@ -55,6 +60,17 @@ const splitFinding: PossibleSplitPeriodFinding = {
   clearDayCount: 2,
 };
 
+const activeFinding: PossiblyStaleActivePeriodFinding = {
+  id: 'active-finding',
+  rule: 'possibly-stale-active-period',
+  fingerprint: 'active-fingerprint',
+  episodeId: 'active',
+  startDate: asLocalDate('2026-06-01'),
+  today: asLocalDate('2026-06-11'),
+  elapsedDays: 11,
+  reviewThresholdDays: 8,
+};
+
 const excludedSample: CycleEstimateSample = {
   id: 'cycle:old:new',
   fingerprint: 'excluded-fingerprint',
@@ -82,6 +98,7 @@ describe('CycleChecksPanel', () => {
         findings={[missingFinding]}
         formatDate={(date) => date}
         onAddMissingPeriod={onAddMissingPeriod}
+        onAcknowledgeActive={vi.fn()}
         onExclude={onExclude}
         onInclude={onInclude}
         onReviewDates={onReviewDates}
@@ -108,6 +125,7 @@ describe('CycleChecksPanel', () => {
         findings={[splitFinding]}
         formatDate={(date) => date}
         onAddMissingPeriod={vi.fn()}
+        onAcknowledgeActive={vi.fn()}
         onExclude={vi.fn()}
         onInclude={vi.fn()}
         onReviewDates={onReviewDates}
@@ -120,5 +138,33 @@ describe('CycleChecksPanel', () => {
     expect(onReviewDates).toHaveBeenCalledWith(splitFinding, expect.any(HTMLButtonElement));
     fireEvent.click(screen.getByRole('button', { name: copy.useAgain }));
     expect(onUseAgain).toHaveBeenCalledWith(excludedSample);
+  });
+
+  it('offers review or an explicit still-active acknowledgement without estimate actions', () => {
+    const onAcknowledgeActive = vi.fn();
+    const onReviewDates = vi.fn();
+    render(
+      <CycleChecksPanel
+        copy={copy}
+        excludedSamples={[]}
+        findings={[activeFinding]}
+        formatDate={(date) => date}
+        onAddMissingPeriod={vi.fn()}
+        onAcknowledgeActive={onAcknowledgeActive}
+        onExclude={vi.fn()}
+        onInclude={vi.fn()}
+        onReviewDates={onReviewDates}
+        onUseAgain={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(copy.possiblyStaleActiveTitle)).toBeVisible();
+    expect(screen.getByText('Active for 11 days')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: copy.reviewActivePeriod }));
+    expect(onReviewDates).toHaveBeenCalledWith(activeFinding, expect.any(HTMLButtonElement));
+    fireEvent.click(screen.getByRole('button', { name: copy.stillActive }));
+    expect(onAcknowledgeActive).toHaveBeenCalledWith(activeFinding);
+    expect(screen.queryByRole('button', { name: copy.keepAndUse })).toBeNull();
+    expect(screen.queryByRole('button', { name: copy.keepAndExclude })).toBeNull();
   });
 });

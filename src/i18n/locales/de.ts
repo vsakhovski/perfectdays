@@ -298,6 +298,15 @@ export const de = {
           chooseDate:
             'Wähle den aufgezeichneten Beginn im Kalender. Es wird keine Periode hinzugefügt, bevor du beide Daten ausgewählt und bestätigt hast.',
         },
+        possiblyStaleActive: {
+          title: 'Ist diese Periode noch aktiv?',
+          description:
+            'Diese Periode ist seit {{count}} Tagen aktiv. Prüfe, ob sie noch aktiv ist oder ihr Enddatum korrigiert werden muss.',
+          description_one:
+            'Diese Periode ist seit {{count}} Tag aktiv. Prüfe, ob sie noch aktiv ist oder ihr Enddatum korrigiert werden muss.',
+          description_other:
+            'Diese Periode ist seit {{count}} Tagen aktiv. Prüfe, ob sie noch aktiv ist oder ihr Enddatum korrigiert werden muss.',
+        },
         possibleSplit: {
           title: 'Zwei Perioden liegen sehr nah beieinander',
           description:
@@ -311,6 +320,8 @@ export const de = {
         },
         actions: {
           addMissingPeriod: 'Fehlende Periode hinzufügen',
+          reviewActivePeriod: 'Periodendaten prüfen',
+          stillActive: 'Sie ist noch aktiv',
           reviewDates: 'Aufgezeichnete Daten prüfen',
           keepAndUse: 'Behalten und für Schätzungen verwenden',
           keepAndExclude: 'Behalten, aber aus Schätzungen ausschließen',
@@ -323,6 +334,8 @@ export const de = {
         },
         savedIncluded: 'Diese Zykluslänge wird für Schätzungen verwendet.',
         savedExcluded: 'Diese Zykluslänge wird nicht für Schätzungen verwendet.',
+        savedStillActive:
+          'Diese Periode bleibt aktiv. Die Prüfung erscheint erneut, wenn der Eintrag geändert wird.',
         saveFailed:
           'Die Entscheidung konnte nicht gespeichert werden. Dein Tagebuch wurde nicht geändert.',
       },

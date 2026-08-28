@@ -298,8 +298,19 @@ export const en = {
           chooseDate:
             'Choose the recorded start date in the calendar. No period will be added until you select and confirm both dates.',
         },
+        possiblyStaleActive: {
+          title: 'Is this period still active?',
+          description:
+            'This period has been active for {{count}} days. Check whether it is still active or its end date needs correction.',
+          description_one:
+            'This period has been active for {{count}} day. Check whether it is still active or its end date needs correction.',
+          description_other:
+            'This period has been active for {{count}} days. Check whether it is still active or its end date needs correction.',
+        },
         actions: {
           addMissingPeriod: 'Add missing period',
+          reviewActivePeriod: 'Review period dates',
+          stillActive: 'It is still active',
           reviewDates: 'Review recorded dates',
           keepAndUse: 'Keep and use in estimates',
           keepAndExclude: 'Keep but exclude from estimates',
@@ -312,6 +323,8 @@ export const en = {
         },
         savedIncluded: 'This cycle length will be used in estimates.',
         savedExcluded: 'This cycle length will not be used in estimates.',
+        savedStillActive:
+          'This period remains active. This check will return if the record changes.',
         saveFailed: 'The estimate decision could not be saved. Your journal was not changed.',
       },
       estimate: {

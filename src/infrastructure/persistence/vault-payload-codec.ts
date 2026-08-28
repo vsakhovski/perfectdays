@@ -9,7 +9,7 @@ import {
   MAX_TYPICAL_CYCLE_LENGTH,
 } from '../../domain/tracking-settings';
 
-export const CURRENT_VAULT_SCHEMA_VERSION = 5 as const;
+export const CURRENT_VAULT_SCHEMA_VERSION = 6 as const;
 
 const localDateSchema = z.custom<LocalDate>(
   (value) => typeof value === 'string' && isLocalDate(value),
@@ -31,6 +31,12 @@ const estimateDecisionSchema = z.strictObject({
   fingerprint: z.string().min(1),
   use: z.enum(['include', 'exclude']),
   reason: z.enum(['confirmed-correct', 'recording-artifact', 'missing-entry', 'other']),
+  reviewedAt: timestampSchema,
+});
+const cycleCheckAcknowledgementSchema = z.strictObject({
+  rule: z.literal('possibly-stale-active-period'),
+  episodeId: z.string().min(1),
+  fingerprint: z.string().min(1),
   reviewedAt: timestampSchema,
 });
 
@@ -81,6 +87,7 @@ function validateDomainInvariants(
     episodes: z.output<typeof periodEpisodeSchema>[];
     logs: z.output<typeof dailyLogSchema>[];
     estimateDecisions?: z.output<typeof estimateDecisionSchema>[];
+    cycleCheckAcknowledgements?: z.output<typeof cycleCheckAcknowledgementSchema>[];
   },
   context: z.RefinementCtx,
 ): void {
@@ -218,6 +225,20 @@ function validateDomainInvariants(
       decisionKeys.add(key);
     }
   }
+
+  const acknowledgementKeys = new Set<string>();
+  for (const [index, acknowledgement] of (payload.cycleCheckAcknowledgements ?? []).entries()) {
+    const key = `${acknowledgement.rule}:${acknowledgement.episodeId}`;
+    if (acknowledgementKeys.has(key)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Cycle-check acknowledgements must be unique by rule and episode ID.',
+        path: ['cycleCheckAcknowledgements', index, 'episodeId'],
+      });
+    } else {
+      acknowledgementKeys.add(key);
+    }
+  }
 }
 
 export const vaultPayloadV1Schema = z.strictObject({
@@ -264,10 +285,23 @@ export const vaultPayloadV4Schema = z
 
 export const vaultPayloadV5Schema = z
   .strictObject({
+    schemaVersion: z.literal(5),
+    episodes: z.array(periodEpisodeSchema),
+    logs: z.array(dailyLogSchema),
+    estimateDecisions: z.array(estimateDecisionSchema),
+    settings: vaultSettingsV4Schema,
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .superRefine(validateDomainInvariants);
+
+export const vaultPayloadV6Schema = z
+  .strictObject({
     schemaVersion: z.literal(CURRENT_VAULT_SCHEMA_VERSION),
     episodes: z.array(periodEpisodeSchema),
     logs: z.array(dailyLogSchema),
     estimateDecisions: z.array(estimateDecisionSchema),
+    cycleCheckAcknowledgements: z.array(cycleCheckAcknowledgementSchema),
     settings: vaultSettingsV4Schema,
     createdAt: timestampSchema,
     updatedAt: timestampSchema,
@@ -312,6 +346,7 @@ export function createEmptyVaultPayload(nowIso: string): VaultPayload {
     episodes: [],
     logs: [],
     estimateDecisions: [],
+    cycleCheckAcknowledgements: [],
     settings: {
       onboardingCompleted: false,
       weekStart: 'system',
@@ -394,6 +429,16 @@ function migrateVersionFour(input: unknown): unknown {
   };
 }
 
+function migrateVersionFive(input: unknown): unknown {
+  const payload = vaultPayloadV5Schema.parse(input);
+
+  return {
+    ...payload,
+    schemaVersion: 6,
+    cycleCheckAcknowledgements: [],
+  };
+}
+
 export function migrateVaultPayload(input: unknown): VaultPayload {
   const { schemaVersion } = versionHeaderSchema.parse(input);
   let candidate = input;
@@ -421,6 +466,10 @@ export function migrateVaultPayload(input: unknown): VaultPayload {
         candidate = migrateVersionFour(candidate);
         candidateVersion = 5;
         break;
+      case 5:
+        candidate = migrateVersionFive(candidate);
+        candidateVersion = 6;
+        break;
       default:
         throw new UnsupportedVaultSchemaVersionError(candidateVersion);
     }
@@ -430,7 +479,7 @@ export function migrateVaultPayload(input: unknown): VaultPayload {
     throw new UnsupportedVaultSchemaVersionError(candidateVersion);
   }
 
-  return vaultPayloadV5Schema.parse(candidate) as VaultPayload;
+  return vaultPayloadV6Schema.parse(candidate) as VaultPayload;
 }
 
 const encoder = new TextEncoder();
@@ -438,7 +487,7 @@ const decoder = new TextDecoder('utf-8', { fatal: true });
 
 export function encodeVaultPayload(payload: VaultPayload): Uint8Array {
   try {
-    const validatedPayload = vaultPayloadV5Schema.parse(payload);
+    const validatedPayload = vaultPayloadV6Schema.parse(payload);
     return encoder.encode(JSON.stringify(validatedPayload));
   } catch (error) {
     if (error instanceof InvalidVaultPayloadError) {

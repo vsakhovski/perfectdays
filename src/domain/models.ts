@@ -42,6 +42,13 @@ export interface EstimateDecision {
   reviewedAt: string;
 }
 
+export interface CycleCheckAcknowledgement {
+  rule: 'possibly-stale-active-period';
+  episodeId: string;
+  fingerprint: string;
+  reviewedAt: string;
+}
+
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type SupportedLanguage = 'en' | 'de';
 export type LanguagePreference = 'system' | SupportedLanguage;
@@ -69,6 +76,7 @@ export interface VaultPayload {
   episodes: PeriodEpisode[];
   logs: DailyLog[];
   estimateDecisions: EstimateDecision[];
+  cycleCheckAcknowledgements: CycleCheckAcknowledgement[];
   settings: VaultSettings;
   createdAt: string;
   updatedAt: string;

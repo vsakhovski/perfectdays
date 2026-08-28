@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { addDays, asLocalDate } from './local-date';
-import type { EstimateDecision, PeriodEpisode } from './models';
+import type { CycleCheckAcknowledgement, EstimateDecision, PeriodEpisode } from './models';
 import {
   buildReviewedEstimateDataset,
   detectPossibleMissingPeriods,
   detectPossibleSplitPeriods,
+  detectPossiblyStaleActivePeriod,
+  POSSIBLY_STALE_ACTIVE_MIN_DAYS,
+  setCycleCheckAcknowledgement,
 } from './cycle-checks';
 import { deriveCycleEstimateSamples } from './estimate-samples';
 
@@ -146,5 +149,108 @@ describe('possible missing-period checks', () => {
 
     expect(detectPossibleMissingPeriods(withMissingPeriod)).toEqual([]);
     expect(buildReviewedEstimateDataset(withMissingPeriod).pendingCycleSamples).toEqual([]);
+  });
+});
+
+describe('possibly stale active-period checks', () => {
+  const active: PeriodEpisode = {
+    id: 'active',
+    startDate: asLocalDate('2026-06-01'),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+
+  it('uses eight days as the minimum review threshold without known durations', () => {
+    expect(
+      detectPossiblyStaleActivePeriod({
+        episodes: [active],
+        today: asLocalDate('2026-06-08'),
+      }),
+    ).toBeNull();
+
+    expect(
+      detectPossiblyStaleActivePeriod({
+        episodes: [active],
+        today: asLocalDate('2026-06-09'),
+      }),
+    ).toMatchObject({
+      rule: 'possibly-stale-active-period',
+      episodeId: 'active',
+      elapsedDays: 9,
+      reviewThresholdDays: POSSIBLY_STALE_ACTIVE_MIN_DAYS,
+    });
+  });
+
+  it('uses the larger personal-duration threshold and ignores completed periods', () => {
+    const completed = [
+      { ...episode('one', asLocalDate('2026-01-01')), endDate: asLocalDate('2026-01-10') },
+      { ...episode('two', asLocalDate('2026-02-01')), endDate: asLocalDate('2026-02-10') },
+      { ...episode('three', asLocalDate('2026-03-01')), endDate: asLocalDate('2026-03-10') },
+    ];
+
+    expect(
+      detectPossiblyStaleActivePeriod({
+        episodes: [...completed, active],
+        today: asLocalDate('2026-06-12'),
+      }),
+    ).toBeNull();
+    expect(
+      detectPossiblyStaleActivePeriod({
+        episodes: [...completed, active],
+        today: asLocalDate('2026-06-13'),
+      }),
+    ).toMatchObject({
+      elapsedDays: 13,
+      personalMedianDurationDays: 10,
+      reviewThresholdDays: 12,
+    });
+    expect(
+      detectPossiblyStaleActivePeriod({
+        episodes: completed,
+        today: asLocalDate('2026-06-30'),
+      }),
+    ).toBeNull();
+  });
+
+  it('persists an exact acknowledgement and invalidates it after the episode changes', () => {
+    const finding = detectPossiblyStaleActivePeriod({
+      episodes: [active],
+      today: asLocalDate('2026-06-09'),
+    });
+    if (finding === null) throw new Error('Expected an active-period finding.');
+    const acknowledgement: CycleCheckAcknowledgement = {
+      rule: finding.rule,
+      episodeId: finding.episodeId,
+      fingerprint: finding.fingerprint,
+      reviewedAt: timestamp,
+    };
+    const acknowledgements = setCycleCheckAcknowledgement([], acknowledgement);
+
+    expect(
+      detectPossiblyStaleActivePeriod({
+        acknowledgements,
+        episodes: [active],
+        today: asLocalDate('2026-06-20'),
+      }),
+    ).toBeNull();
+    expect(
+      detectPossiblyStaleActivePeriod({
+        acknowledgements,
+        episodes: [{ ...active, updatedAt: '2026-06-10T12:00:00.000Z' }],
+        today: asLocalDate('2026-06-20'),
+      }),
+    ).not.toBeNull();
+  });
+
+  it('replaces an older acknowledgement for the same active episode', () => {
+    const previous: CycleCheckAcknowledgement = {
+      rule: 'possibly-stale-active-period',
+      episodeId: 'active',
+      fingerprint: 'old',
+      reviewedAt: timestamp,
+    };
+    const next = { ...previous, fingerprint: 'new' };
+
+    expect(setCycleCheckAcknowledgement([previous], next)).toEqual([next]);
   });
 });

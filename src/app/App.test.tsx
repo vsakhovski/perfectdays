@@ -374,6 +374,32 @@ function createPossibleMissingPeriodPayload(): VaultPayload {
   };
 }
 
+function createPossiblyStaleActivePeriodPayload(): VaultPayload {
+  const timestamp = '2026-07-29T08:00:00.000Z';
+  const payload = createEmptyVaultPayload(timestamp);
+
+  return {
+    ...payload,
+    episodes: [
+      {
+        id: 'active-episode',
+        startDate: asLocalDate('2026-07-29'),
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+    ],
+    logs: [
+      {
+        date: asLocalDate('2026-07-29'),
+        episodeId: 'active-episode',
+        flow: 'medium',
+        updatedAt: timestamp,
+      },
+    ],
+    settings: { ...payload.settings, onboardingCompleted: true },
+  };
+}
+
 function sectionWithHeading(name: string): HTMLElement {
   const section = screen.getByRole('heading', { name }).closest('section');
   if (!(section instanceof HTMLElement)) {
@@ -756,6 +782,38 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /Thursday, April 23, 2026/i }));
     expect(screen.getByRole('dialog', { name: /Apr 23, 2026/ })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Start a new period here' })).toBeVisible();
+  });
+
+  it('persists an explicit still-active acknowledgement without closing the period', async () => {
+    const user = userEvent.setup();
+    const payload = createPossiblyStaleActivePeriodPayload();
+    const { vaultController } = await renderApp({
+      vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
+    });
+
+    await openRootDestination(user, 'History');
+    expect(screen.getByRole('heading', { name: 'Is this period still active?' })).toBeVisible();
+    expect(screen.getByText(/active for 11 days/i)).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Review period dates' }));
+    expect(screen.getByRole('dialog', { name: 'Period Jul 29, 2026' })).toBeVisible();
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
+    await user.click(screen.getByRole('button', { name: 'It is still active' }));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('heading', { name: 'Is this period still active?' }),
+      ).not.toBeInTheDocument();
+    });
+    const snapshot = vaultController.getSnapshot();
+    expect(snapshot.phase).toBe('unlocked');
+    if (snapshot.phase !== 'unlocked') return;
+    expect(snapshot.payload.episodes).toEqual(payload.episodes);
+    expect(snapshot.payload.cycleCheckAcknowledgements).toEqual([
+      expect.objectContaining({
+        rule: 'possibly-stale-active-period',
+        episodeId: 'active-episode',
+      }),
+    ]);
   });
 
   it('keeps an imported unknown period unchanged when date editing is cancelled', async () => {

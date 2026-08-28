@@ -6,7 +6,10 @@ import { useLanguage } from '../../app/i18n/use-language';
 import { useVault } from '../../app/vault/use-vault';
 import {
   buildReviewedEstimateDataset,
+  detectPossiblyStaleActivePeriod,
+  setCycleCheckAcknowledgement,
   type PossibleMissingPeriodFinding,
+  type PossiblyStaleActivePeriodFinding,
 } from '../../domain/cycle-checks';
 import { setEstimateDecision } from '../../domain/estimate-review';
 import { deriveTrackerInsights } from '../../domain/insights';
@@ -148,6 +151,23 @@ export function TrackerHistorySection({
     () => buildReviewedEstimateDataset(payload.episodes, payload.estimateDecisions),
     [payload.episodes, payload.estimateDecisions],
   );
+  const possiblyStaleActiveFinding = useMemo(
+    () =>
+      detectPossiblyStaleActivePeriod({
+        acknowledgements: payload.cycleCheckAcknowledgements,
+        decisions: payload.estimateDecisions,
+        episodes: payload.episodes,
+        today,
+      }),
+    [payload.cycleCheckAcknowledgements, payload.episodes, payload.estimateDecisions, today],
+  );
+  const cycleCheckFindings = useMemo(
+    () =>
+      possiblyStaleActiveFinding === null
+        ? estimateDataset.pendingFindings
+        : [...estimateDataset.pendingFindings, possiblyStaleActiveFinding],
+    [estimateDataset.pendingFindings, possiblyStaleActiveFinding],
+  );
 
   const insights = useMemo(
     () =>
@@ -235,8 +255,15 @@ export function TrackerHistorySection({
       t(($) => $.tracker.history.cycleChecks.possibleMissing.description, {
         count: cycleMultiple,
       }),
+    possiblyStaleActiveTitle: t(($) => $.tracker.history.cycleChecks.possiblyStaleActive.title),
+    possiblyStaleActiveDescription: (elapsedDays) =>
+      t(($) => $.tracker.history.cycleChecks.possiblyStaleActive.description, {
+        count: elapsedDays,
+      }),
     interval: (from, to) => t(($) => $.tracker.history.cycleChecks.interval, { from, to }),
     addMissingPeriod: t(($) => $.tracker.history.cycleChecks.actions.addMissingPeriod),
+    reviewActivePeriod: t(($) => $.tracker.history.cycleChecks.actions.reviewActivePeriod),
+    stillActive: t(($) => $.tracker.history.cycleChecks.actions.stillActive),
     reviewDates: t(($) => $.tracker.history.cycleChecks.actions.reviewDates),
     keepAndUse: t(($) => $.tracker.history.cycleChecks.actions.keepAndUse),
     keepAndExclude: t(($) => $.tracker.history.cycleChecks.actions.keepAndExclude),
@@ -558,6 +585,32 @@ export function TrackerHistorySection({
     });
   };
 
+  const acknowledgeActivePeriod = (finding: PossiblyStaleActivePeriodFinding): void => {
+    setReviewBusySampleId(finding.id);
+    setReviewErrorMessage(undefined);
+    setReviewStatusMessage(undefined);
+    const reviewedAt = journalEnvironment.now();
+    void savePayload({
+      ...payload,
+      cycleCheckAcknowledgements: setCycleCheckAcknowledgement(payload.cycleCheckAcknowledgements, {
+        rule: finding.rule,
+        episodeId: finding.episodeId,
+        fingerprint: finding.fingerprint,
+        reviewedAt,
+      }),
+      updatedAt: reviewedAt,
+    })
+      .then(() => {
+        setReviewStatusMessage(t(($) => $.tracker.history.cycleChecks.savedStillActive));
+      })
+      .catch(() => {
+        setReviewErrorMessage(t(($) => $.tracker.history.cycleChecks.saveFailed));
+      })
+      .finally(() => {
+        setReviewBusySampleId(undefined);
+      });
+  };
+
   const beginNewPeriod = (): void => {
     if (selectedEmptyDate === undefined) return;
     setDraft({ firstDate: selectedEmptyDate, stage: 'selecting' });
@@ -813,9 +866,10 @@ export function TrackerHistorySection({
       <CycleChecksPanel
         copy={cycleChecksCopy}
         excludedSamples={estimateDataset.excludedCycleSamples}
-        findings={estimateDataset.pendingFindings}
+        findings={cycleCheckFindings}
         formatDate={(date) => formatLocalDate(date, resolvedLanguage)}
         onAddMissingPeriod={showPossibleMissingRange}
+        onAcknowledgeActive={acknowledgeActivePeriod}
         onExclude={(finding) => {
           persistCycleDecision(
             finding.sampleId,
@@ -833,7 +887,11 @@ export function TrackerHistorySection({
           );
         }}
         onReviewDates={(finding, trigger) => {
-          const entry = entries.find((candidate) => candidate.id === finding.nextEpisodeId);
+          const episodeId =
+            finding.rule === 'possibly-stale-active-period'
+              ? finding.episodeId
+              : finding.nextEpisodeId;
+          const entry = entries.find((candidate) => candidate.id === episodeId);
           if (entry !== undefined) selectPeriod(entry, trigger);
         }}
         onUseAgain={(sample) => {

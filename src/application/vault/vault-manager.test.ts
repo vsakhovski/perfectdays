@@ -46,7 +46,7 @@ const codec: VaultPayloadCodec = {
       typeof candidate !== 'object' ||
       candidate === null ||
       !('schemaVersion' in candidate) ||
-      candidate.schemaVersion !== 5
+      candidate.schemaVersion !== 6
     ) {
       throw new Error('invalid-payload');
     }
@@ -56,10 +56,11 @@ const codec: VaultPayloadCodec = {
 
 function payload(updatedAt = '2026-08-08T10:00:00.000Z'): VaultPayload {
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     episodes: [],
     logs: [],
     estimateDecisions: [],
+    cycleCheckAcknowledgements: [],
     settings: {
       onboardingCompleted: false,
       weekStart: 'system',
@@ -1110,8 +1111,9 @@ describe('VaultManager', () => {
         if (candidate['schemaVersion'] === 2) {
           return {
             ...candidate,
-            schemaVersion: 5,
+            schemaVersion: 6,
             estimateDecisions: [],
+            cycleCheckAcknowledgements: [],
             settings: {
               ...(candidate['settings'] as VaultPayload['settings']),
               onboardingCompleted: false,
@@ -1148,8 +1150,9 @@ describe('VaultManager', () => {
     await target.manager.restoreEncryptedBackup(backup, '654321');
 
     expect(target.manager.getSnapshot().payload).toMatchObject({
-      schemaVersion: 5,
+      schemaVersion: 6,
       estimateDecisions: [],
+      cycleCheckAcknowledgements: [],
       settings: { onboardingCompleted: false, weekStart: 'system' },
     });
     const active = target.store.activeRecord();
@@ -1159,8 +1162,9 @@ describe('VaultManager', () => {
     const unlocked = await target.cryptography.unlock(active.envelope, '654321');
     try {
       expect(JSON.parse(textDecoder.decode(unlocked.plaintext))).toMatchObject({
-        schemaVersion: 5,
+        schemaVersion: 6,
         estimateDecisions: [],
+        cycleCheckAcknowledgements: [],
         settings: { onboardingCompleted: false, weekStart: 'system' },
       });
     } finally {

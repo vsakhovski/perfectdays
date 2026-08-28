@@ -1,4 +1,9 @@
-import type { CycleCheckFinding, PossibleMissingPeriodFinding } from '../../domain/cycle-checks';
+import type {
+  CycleCheckFinding,
+  EstimateCycleCheckFinding,
+  PossibleMissingPeriodFinding,
+  PossiblyStaleActivePeriodFinding,
+} from '../../domain/cycle-checks';
 import type { CycleEstimateSample } from '../../domain/estimate-samples';
 import type { LocalDate } from '../../domain/models';
 import styles from './CycleChecksPanel.module.css';
@@ -10,8 +15,12 @@ export interface CycleChecksPanelCopy {
   readonly possibleSplitDescription: (clearDayCount: number) => string;
   readonly possibleMissingTitle: string;
   readonly possibleMissingDescription: (cycleMultiple: 2 | 3) => string;
+  readonly possiblyStaleActiveTitle: string;
+  readonly possiblyStaleActiveDescription: (elapsedDays: number) => string;
   readonly interval: (from: string, to: string) => string;
   readonly addMissingPeriod: string;
+  readonly reviewActivePeriod: string;
+  readonly stillActive: string;
   readonly reviewDates: string;
   readonly keepAndUse: string;
   readonly keepAndExclude: string;
@@ -31,8 +40,9 @@ interface CycleChecksPanelProps {
     finding: PossibleMissingPeriodFinding,
     trigger: HTMLButtonElement,
   ) => void;
-  readonly onExclude: (finding: CycleCheckFinding) => void;
-  readonly onInclude: (finding: CycleCheckFinding) => void;
+  readonly onAcknowledgeActive: (finding: PossiblyStaleActivePeriodFinding) => void;
+  readonly onExclude: (finding: EstimateCycleCheckFinding) => void;
+  readonly onInclude: (finding: EstimateCycleCheckFinding) => void;
   readonly onReviewDates: (finding: CycleCheckFinding, trigger: HTMLButtonElement) => void;
   readonly onUseAgain: (sample: CycleEstimateSample) => void;
   readonly statusMessage?: string;
@@ -46,6 +56,7 @@ export function CycleChecksPanel({
   findings,
   formatDate,
   onAddMissingPeriod,
+  onAcknowledgeActive,
   onExclude,
   onInclude,
   onReviewDates,
@@ -63,23 +74,60 @@ export function CycleChecksPanel({
 
       <div className={styles['items']}>
         {findings.map((finding) => {
+          const possiblyStaleActive = finding.rule === 'possibly-stale-active-period';
           const possibleMissing = finding.rule === 'possible-missing-period';
           return (
             <article className={styles['finding']} key={finding.id}>
-              <h3>{possibleMissing ? copy.possibleMissingTitle : copy.possibleSplitTitle}</h3>
+              <h3>
+                {possiblyStaleActive
+                  ? copy.possiblyStaleActiveTitle
+                  : possibleMissing
+                    ? copy.possibleMissingTitle
+                    : copy.possibleSplitTitle}
+              </h3>
               <p>
                 {copy.interval(
-                  formatDate(possibleMissing ? finding.previousStartDate : finding.previousEndDate),
-                  formatDate(finding.nextStartDate),
+                  formatDate(
+                    possiblyStaleActive
+                      ? finding.startDate
+                      : possibleMissing
+                        ? finding.previousStartDate
+                        : finding.previousEndDate,
+                  ),
+                  formatDate(possiblyStaleActive ? finding.today : finding.nextStartDate),
                 )}
               </p>
               <p>
-                {possibleMissing
-                  ? copy.possibleMissingDescription(finding.cycleMultiple)
-                  : copy.possibleSplitDescription(finding.clearDayCount)}
+                {possiblyStaleActive
+                  ? copy.possiblyStaleActiveDescription(finding.elapsedDays)
+                  : possibleMissing
+                    ? copy.possibleMissingDescription(finding.cycleMultiple)
+                    : copy.possibleSplitDescription(finding.clearDayCount)}
               </p>
               <div className={styles['actions']}>
-                {possibleMissing ? (
+                {possiblyStaleActive ? (
+                  <>
+                    <button
+                      disabled={busySampleId !== undefined}
+                      onClick={(event) => {
+                        onReviewDates(finding, event.currentTarget);
+                      }}
+                      type="button"
+                    >
+                      {copy.reviewActivePeriod}
+                    </button>
+                    <button
+                      className={styles['secondaryAction']}
+                      disabled={busySampleId !== undefined}
+                      onClick={() => {
+                        onAcknowledgeActive(finding);
+                      }}
+                      type="button"
+                    >
+                      {copy.stillActive}
+                    </button>
+                  </>
+                ) : possibleMissing ? (
                   <button
                     disabled={busySampleId !== undefined}
                     onClick={(event) => {
@@ -90,34 +138,38 @@ export function CycleChecksPanel({
                     {copy.addMissingPeriod}
                   </button>
                 ) : null}
-                <button
-                  disabled={busySampleId !== undefined}
-                  onClick={(event) => {
-                    onReviewDates(finding, event.currentTarget);
-                  }}
-                  type="button"
-                >
-                  {copy.reviewDates}
-                </button>
-                <button
-                  disabled={busySampleId !== undefined}
-                  onClick={() => {
-                    onInclude(finding);
-                  }}
-                  type="button"
-                >
-                  {copy.keepAndUse}
-                </button>
-                <button
-                  className={styles['secondaryAction']}
-                  disabled={busySampleId !== undefined}
-                  onClick={() => {
-                    onExclude(finding);
-                  }}
-                  type="button"
-                >
-                  {copy.keepAndExclude}
-                </button>
+                {possiblyStaleActive ? null : (
+                  <>
+                    <button
+                      disabled={busySampleId !== undefined}
+                      onClick={(event) => {
+                        onReviewDates(finding, event.currentTarget);
+                      }}
+                      type="button"
+                    >
+                      {copy.reviewDates}
+                    </button>
+                    <button
+                      disabled={busySampleId !== undefined}
+                      onClick={() => {
+                        onInclude(finding);
+                      }}
+                      type="button"
+                    >
+                      {copy.keepAndUse}
+                    </button>
+                    <button
+                      className={styles['secondaryAction']}
+                      disabled={busySampleId !== undefined}
+                      onClick={() => {
+                        onExclude(finding);
+                      }}
+                      type="button"
+                    >
+                      {copy.keepAndExclude}
+                    </button>
+                  </>
+                )}
               </div>
             </article>
           );

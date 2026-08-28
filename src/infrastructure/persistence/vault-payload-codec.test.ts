@@ -42,6 +42,7 @@ function createPayload(): VaultPayload {
       },
     ],
     estimateDecisions: [],
+    cycleCheckAcknowledgements: [],
     settings: {
       onboardingCompleted: true,
       weekStart: 'system',
@@ -66,6 +67,13 @@ function withoutWeekStart(settings: VaultPayload['settings']): Record<string, un
 function withoutEstimateDecisions(payload: VaultPayload): Record<string, unknown> {
   const legacyPayload: Record<string, unknown> = { ...payload };
   delete legacyPayload['estimateDecisions'];
+  delete legacyPayload['cycleCheckAcknowledgements'];
+  return legacyPayload;
+}
+
+function withoutCycleCheckAcknowledgements(payload: VaultPayload): Record<string, unknown> {
+  const legacyPayload: Record<string, unknown> = { ...payload };
+  delete legacyPayload['cycleCheckAcknowledgements'];
   return legacyPayload;
 }
 
@@ -76,6 +84,7 @@ describe('vault payload codec', () => {
       episodes: [],
       logs: [],
       estimateDecisions: [],
+      cycleCheckAcknowledgements: [],
       settings: {
         onboardingCompleted: false,
         weekStart: 'system',
@@ -90,7 +99,17 @@ describe('vault payload codec', () => {
   });
 
   it('round-trips a validated current payload through UTF-8 bytes', () => {
-    const payload = createPayload();
+    const payload: VaultPayload = {
+      ...createPayload(),
+      cycleCheckAcknowledgements: [
+        {
+          rule: 'possibly-stale-active-period',
+          episodeId: 'episode-1',
+          fingerprint: 'episode-1|2026-08-01|2026-08-08T08:30:00.000Z',
+          reviewedAt: timestamp,
+        },
+      ],
+    };
     const encoded = encodeVaultPayload(payload);
 
     expect(ArrayBuffer.isView(encoded)).toBe(true);
@@ -201,6 +220,18 @@ describe('vault payload codec', () => {
 
     expect(migrated.schemaVersion).toBe(CURRENT_VAULT_SCHEMA_VERSION);
     expect(migrated.settings.weekStart).toBe('system');
+  });
+
+  it('migrates a version-five payload with no cycle-check acknowledgements', () => {
+    const current = createPayload();
+    const legacyPayload = {
+      ...withoutCycleCheckAcknowledgements(current),
+      schemaVersion: 5,
+    };
+
+    expect(decodeVaultPayload(new TextEncoder().encode(JSON.stringify(legacyPayload)))).toEqual(
+      current,
+    );
   });
 
   it('rejects unknown future versions without treating them as the current shape', () => {
