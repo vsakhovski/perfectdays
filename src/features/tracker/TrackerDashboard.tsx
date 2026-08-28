@@ -263,19 +263,6 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
     history: {
       title: t(($) => $.tracker.onboarding.history.title),
       description: t(($) => $.tracker.onboarding.history.description),
-      empty: t(($) => $.tracker.onboarding.history.empty),
-      startDate: t(($) => $.tracker.onboarding.history.startDate),
-      endDate: t(($) => $.tracker.onboarding.history.endDate),
-      add: t(($) => $.tracker.onboarding.history.add),
-      entryLabel: (position) => t(($) => $.tracker.onboarding.history.entryLabel, { position }),
-      removeEntry: (position) => t(($) => $.tracker.onboarding.history.removeEntry, { position }),
-      datePicker: {
-        chooseDate: t(($) => $.tracker.onboarding.history.datePicker.chooseDate),
-        previousMonth: t(($) => $.tracker.onboarding.history.datePicker.previousMonth),
-        nextMonth: t(($) => $.tracker.onboarding.history.datePicker.nextMonth),
-        calendarLabel: (field, month) =>
-          t(($) => $.tracker.onboarding.history.datePicker.calendarLabel, { field, month }),
-      },
       editor: {
         calendar: {
           navigationLabel: t(($) => $.mobile.calendar.navigation.label),

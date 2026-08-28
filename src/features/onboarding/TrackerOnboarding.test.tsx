@@ -35,18 +35,6 @@ const copy: OnboardingCopy = {
   history: {
     title: 'Previous periods',
     description: 'Previous starts improve estimates.',
-    empty: 'No previous periods added.',
-    startDate: 'Start date',
-    endDate: 'End date, optional',
-    add: 'Add period',
-    entryLabel: (position) => `Previous period ${String(position)}`,
-    removeEntry: (position) => `Remove previous period ${String(position)}`,
-    datePicker: {
-      chooseDate: 'Choose date',
-      previousMonth: 'Previous month',
-      nextMonth: 'Next month',
-      calendarLabel: (field, month) => `Choose ${field}. ${month}`,
-    },
     editor: {
       calendar: {
         navigationLabel: 'Calendar navigation',

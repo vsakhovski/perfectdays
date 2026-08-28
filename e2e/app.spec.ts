@@ -69,7 +69,7 @@ test.describe('English application shell', () => {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
-    await expect(page.getByText(/Version 0\.1\.0/)).toBeVisible();
+    await expect(page.getByText(/Version 0\.2\.0/)).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 
     const accessibilityScan = await new AxeBuilder({ page }).analyze();

@@ -3,36 +3,6 @@ export const en = {
     title: 'My Perfect Days',
     description: 'A private, local-first menstrual pattern journal.',
   },
-  home: {
-    eyebrow: 'Foundation scaffold',
-    title: 'Your patterns, in your hands.',
-    introduction:
-      'A private menstrual journal designed to reflect what you record, without prescribing how you should feel or act.',
-    foundation: {
-      label: 'Built into the architecture',
-      title: 'Privacy and clarity from day one',
-      items: {
-        localFirst: {
-          title: 'Local-first',
-          description: 'No account, analytics, or health-data network requests.',
-        },
-        personalPatterns: {
-          title: 'Personal patterns',
-          description: 'Recorded observations will remain distinct from predictions.',
-        },
-        accessible: {
-          title: 'Accessible by default',
-          description: 'Meaning will never depend on red, orange, or green alone.',
-        },
-      },
-    },
-    preferences: {
-      label: 'MVP preferences',
-      title: 'Make the app yours',
-      description: 'Appearance and language are saved only on this device.',
-    },
-    footer: 'Your data will stay on this device by default.',
-  },
   tracker: {
     onboarding: {
       splash: {
@@ -52,18 +22,6 @@ export const en = {
         title: 'Previous periods',
         description:
           'Predictions are based on previous period starts. Add previous periods when that information is available. Add an end date only when you know it.',
-        empty: 'No previous periods added yet.',
-        startDate: 'Start date',
-        endDate: 'End date (optional)',
-        add: 'Add period',
-        entryLabel: 'Previous period {{position}}',
-        removeEntry: 'Remove previous period {{position}}',
-        datePicker: {
-          chooseDate: 'Choose date',
-          previousMonth: 'Previous month',
-          nextMonth: 'Next month',
-          calendarLabel: 'Choose {{field}}. {{month}}',
-        },
         editor: {
           saveStartOnly: 'Save start date only',
           configureStartOnlyDescription:
@@ -87,11 +45,6 @@ export const en = {
         quickChoices: 'Quick choices for {{field}}',
       },
       orange: {
-        title: 'Possible pre-period window',
-        description:
-          'This optional marker highlights days leading up to the estimated period. It does not predict conflict or tell you what decisions to make.',
-        enabled: 'Show the possible pre-period window',
-        days: 'Days before the central estimate',
         daysDescription: 'Use the minus and plus controls or enter from 1 to 14 days.',
         decrease: 'Decrease days before the estimate',
         increase: 'Increase days before the estimate',
@@ -142,19 +95,10 @@ export const en = {
       saveFailed: 'The setup could not be saved. Your existing journal was not changed.',
     },
     calendar: {
-      sectionLabel: 'Calendar',
       title: 'Your recorded days and estimates',
-      description:
-        'Recorded observations are solid. Estimates are patterned or outlined and can change when history changes.',
-      navigationLabel: 'Calendar month navigation',
       calendarLabel: 'Menstrual pattern calendar',
-      previousMonth: 'Previous month',
-      nextMonth: 'Next month',
-      today: 'Today.',
-      selected: 'Selected.',
       outsideMonth: 'Outside the displayed month.',
       future: 'Future date; check-ins are unavailable.',
-      legendTitle: 'Calendar marker legend',
       markers: {
         recordedRed: 'Recorded period day.',
         predictedRed: 'Predicted period day.',
@@ -169,86 +113,30 @@ export const en = {
         predictedRed: 'Predicted period day. Forecast confidence: {{confidence}}.',
         activePredictedRed:
           'Estimated remaining period day based on recorded or usual bleeding duration.',
-        possibleStart: 'Possible period start. Forecast confidence: {{confidence}}.',
         orange: 'Possible pre-period window. Forecast confidence: {{confidence}}.',
       },
     },
     forecast: {
-      title: 'Next-period estimate',
-      unavailable:
-        'Add at least two period starts, or an optional usual cycle length, to see an estimate.',
-      paused: 'Forecasting is paused. Recorded observations remain visible.',
-      range: 'Your next period may start {{range}}.',
-      central: 'Central estimate: {{date}}.',
-      confidenceLabel: 'Confidence: {{confidence}}.',
       confidence: {
         rough: 'rough',
         low: 'low',
         medium: 'medium',
       },
-      basedOn: 'Based on {{count}} completed cycle-length records.',
-      basedOn_one: 'Based on {{count}} completed cycle-length record.',
-      basedOn_other: 'Based on {{count}} completed cycle-length records.',
-      typicalSource: 'This rough estimate uses your optional usual cycle length.',
-      duration: 'Estimated bleeding duration in days: {{count}}.',
-      variable:
-        'Recent cycle lengths vary widely, so calendar forecast coloring is hidden while the textual range remains available.',
-      late: 'This estimate is now later than its original range. It has not been moved forward automatically.',
     },
     insights: {
-      sectionLabel: 'Insights',
-      title: 'Recent patterns from your journal',
-      description:
-        'These summaries use up to six recent recorded observations. They describe your history, not what every cycle or future day will be like.',
-      noRecords: 'Not enough recorded history yet.',
       cycles: {
-        title: 'Recent cycle lengths',
-        description: 'Days between successive recorded period starts.',
         days: '{{count}} days',
         days_one: '{{count}} day',
         days_other: '{{count}} days',
       },
       bleeding: {
-        title: 'Known bleeding durations',
-        description: 'Only completed periods whose end date is known are included.',
         days: '{{count}} days',
         days_one: '{{count}} day',
         days_other: '{{count}} days',
       },
-      greenDays: {
-        title: 'Recent higher-confidence days',
-        description: 'Only days where you explicitly recorded confidence 4 or 5 are included.',
-        count: '{{count}} recent records',
-        count_one: '{{count}} recent record',
-        count_other: '{{count}} recent records',
-        confidence: 'Confidence {{rating}} of 5',
-      },
       forecast: {
-        title: 'Why this estimate looks this way',
-        description:
-          'This explains the current deterministic estimate; it is not a measure of clinical accuracy.',
         unavailable: 'There is no current estimate to explain.',
         confidenceLabel: 'Confidence',
-        sourceLabel: 'Cycle-length source',
-        source: {
-          recorded: 'Recent recorded period starts',
-          typical: 'Your optional usual cycle length',
-        },
-        cyclesUsedLabel: 'Recorded cycles used',
-        cyclesUsed: '{{count}} cycles',
-        cyclesUsed_one: '{{count}} cycle',
-        cyclesUsed_other: '{{count}} cycles',
-        variabilityLabel: 'Recent variability',
-        variability: {
-          unavailable: 'Not enough recorded cycle lengths yet',
-          narrow: 'Recent cycle lengths differ by 4 days or less',
-          variable: 'Recent cycle lengths differ by 5 to 10 days',
-          highlyVariable: 'Recent cycle lengths differ by more than 10 days',
-        },
-        spanLabel: 'Shortest-to-longest difference',
-        span: '{{count}} days',
-        span_one: '{{count}} day',
-        span_other: '{{count}} days',
       },
     },
     history: {
@@ -406,52 +294,18 @@ export const en = {
         deleted: 'Period deleted.',
       },
       correction: {
-        title: 'Correct period dates',
-        close: 'Close period correction',
-        explanation: 'Adjust this period without changing the boundaries of another period.',
-        consequence:
-          'Moving, shortening, or marking the end unknown removes old period links and period-only flow outside the corrected dates. Your chosen start-day flow replaces any flow on the corrected start date; unrelated ratings and notes are kept.',
-        startDate: 'Start date',
-        endDate: 'Inclusive end date',
-        endDateDescription: 'Used only when you choose a known end date.',
-        endState: 'Period end',
-        endStateOptions: {
-          known: {
-            label: 'Ended — date known',
-            description: 'Include this period in bleeding-duration summaries.',
-          },
-          unknown: {
-            label: 'Ended — date unknown',
-            description: 'Keep this as a start-only record without inventing a duration.',
-          },
-          active: {
-            label: 'Still active',
-            description: 'This period has no end date yet.',
-          },
-        },
-        startIntensity: 'Start-day flow',
         validation: {
-          startRequired: 'Enter a start date.',
-          endRequired: 'Enter an end date or choose an unknown or active end state.',
-          endBeforeStart: 'The end date cannot be before the start date.',
           futureDate: 'Period dates cannot be in the future.',
-          startIntensityRequired: 'Choose the flow for the corrected start date.',
         },
-        save: 'Save corrected dates',
-        saving: 'Saving correction…',
-        cancel: 'Cancel',
         errors: {
           overlap: 'Those dates overlap another recorded period.',
           activeConflict: 'Another period is already active.',
           missing: 'This period no longer exists. Close the editor and try again.',
           failed: 'The correction could not be saved. Your existing journal was not changed.',
         },
-        saved: 'Period dates corrected.',
       },
     },
     dayDetail: {
-      title: 'Daily check-in',
-      close: 'Close daily check-in',
       quickActionsTitle: 'Period',
       periodActions: {
         start: {
@@ -518,8 +372,6 @@ export const en = {
       },
       noteLabel: 'Private note',
       noteDescription: 'Stored only inside your local journal.',
-      save: 'Save check-in',
-      saving: 'Saving…',
       removePeriodConfirmation:
         'Remove this complete period? Check-in values unrelated to it will be kept.',
       confirmRemovePeriod: 'Remove period',
@@ -534,8 +386,6 @@ export const en = {
         startFlow: 'Choose light, medium, or heavy flow before starting a period.',
         historicalStart:
           'This day is too far from the later recorded period to extend it. Correct the dates in Periods history.',
-        laterPeriodDays:
-          'This period has recorded days after this date. Remove those entries before ending it here.',
         noneRequiresPeriodCorrection:
           'None cannot change a completed period or skip later recorded period days. Correct the period dates in Periods history.',
         periodConflict:
@@ -545,11 +395,7 @@ export const en = {
         saveFailed: 'The change could not be saved. Your existing journal was left unchanged.',
       },
       status: {
-        saved: 'Check-in saved.',
         deleted: 'Check-in deleted.',
-        started: 'Period started.',
-        continued: 'Period day recorded.',
-        ended: 'Period ended.',
         removed: 'Period removed.',
       },
     },
@@ -588,8 +434,6 @@ export const en = {
       },
     },
     calendar: {
-      title: 'Calendar',
-      description: 'Recorded days, estimates, and today at a glance.',
       navigation: {
         label: 'Calendar month navigation',
         previousMonth: 'Previous month',
@@ -602,47 +446,17 @@ export const en = {
         recorded: 'Recorded period',
         predicted: 'Estimated period',
         today: 'Today',
-        showGuide: 'Show marker guide',
-        hideGuide: 'Hide marker guide',
-        guideTitle: 'Marker guide',
-        markers: {
-          recorded: 'Solid band: recorded period.',
-          predicted: 'Striped band: predicted period.',
-          possibleStart: 'Outline: possible period start.',
-          checkInWindow: 'Amber bar: possible pre-period window.',
-          higherConfidence: 'Green marker: higher confidence recorded.',
-          spotting: 'Dot: spotting recorded.',
-        },
       },
       forecast: {
-        title: 'Next period',
-        range: 'May start {{range}}.',
-        basis: '{{confidence}} confidence · based on {{count}} completed cycles.',
-        basis_one: '{{confidence}} confidence · based on {{count}} completed cycle.',
-        basis_other: '{{confidence}} confidence · based on {{count}} completed cycles.',
-        why: 'Why this estimate?',
         states: {
-          active: {
-            title: 'Current period is active',
-            description: 'The next estimated start is not available yet.',
-            nextEstimatedStart: 'Next period starts approximately on {{date}}.',
-          },
-          unavailable: {
-            title: 'Estimate unavailable',
-            description:
-              'Add at least two period starts, or a usual cycle length, to see an estimate.',
-          },
           paused: {
-            title: 'Estimate paused',
             description: 'Recorded days remain visible.',
           },
           variable: {
-            title: 'Cycle lengths vary widely',
             description:
               'The estimated start range remains available, but forecast coloring is hidden.',
           },
           late: {
-            title: 'Original estimate range has passed',
             description: 'The original range stays fixed and is not moved forward automatically.',
           },
         },
@@ -651,37 +465,12 @@ export const en = {
         navigationLabel: 'Calendar details',
         insights: 'Insights',
         periodHistory: 'Periods history',
-        backToCalendar: 'Back to Calendar',
-      },
-      day: {
-        title: 'Details for {{date}}',
-        recorded: 'Recorded observations',
-        forecast: 'Estimate for this date',
-        edit: 'Edit this day',
-        future: 'Future dates are read-only.',
-        close: 'Close day details',
       },
       selectedDay: {
-        title: '{{date}}',
-        titleToday: '{{date}} (today)',
         selected: 'Selected calendar day',
-        periodKnown: 'Period: {{range}}.',
-        periodActive: 'Active period started {{date}}.',
-        periodUnknown: 'Period started {{date}}; end date unknown.',
-        noCheckIn: 'No check-in has been saved for this day.',
-        flow: 'Flow: {{flow}}',
-        rating: '{{label}}: {{value}}',
-        start: 'Check in for this day',
-        startToday: 'Check in today',
-        edit: 'Edit this day’s check-in',
       },
     },
     privacy: {
-      title: 'Privacy',
-      sections: {
-        protection: 'PIN protection',
-        portability: 'Backup and export',
-      },
       storage: {
         title: 'Journal data',
         description:
@@ -696,16 +485,10 @@ export const en = {
       },
     },
     settings: {
-      title: 'Settings',
-      description: 'Manage estimates, calendar layout, appearance, and language.',
       cards: {
         theme: 'Theme',
         language: 'Language',
         weekStart: 'First day of the week',
-      },
-      sections: {
-        tracking: 'Tracking and estimates',
-        appearance: 'Appearance, language, and calendar',
       },
       prePeriod: {
         title: 'Pre-period window',
@@ -751,16 +534,12 @@ export const en = {
       editTitle: "Edit today's check-in",
       dayTitle: 'Check in for this day',
       editDayTitle: "Edit this day's check-in",
-      description: 'Record only what you notice today. Nothing optional is selected for you.',
       optional: {
         show: 'Add note or details (optional)',
         hide: 'Hide note and details',
       },
       guidance: {
         chooseObservation: 'Choose at least one observation before saving.',
-        startPeriod: 'Light, medium, or heavy flow can start a period.',
-        activePeriod: 'Saving bleeding for today continues the active period.',
-        endPeriod: 'Saving None ends an active period on the preceding day.',
       },
       actions: {
         saveAndDone: 'Save and done',
@@ -811,7 +590,6 @@ export const en = {
       cryptoUnavailable:
         'PIN unlocking is unavailable in this browser or connection. Your stored data was not changed. Try this app in a supported secure browser before considering a reset.',
       pinLabel: 'PIN',
-      pinHint: 'Enter six digits.',
       unlocking: 'Unlocking…',
       failed: 'The app could not be unlocked. Check the PIN and try again.',
       forgotPin: 'Forgot PIN?',
@@ -888,8 +666,6 @@ export const en = {
         },
       },
       feedback: {
-        encryptedDownloaded: 'The encrypted backup download has started.',
-        plaintextDownloaded: 'The readable export download has started.',
         restored:
           'The encrypted backup was restored. This journal is now protected by the backup PIN.',
         encryptedFailed: 'The encrypted backup could not be created. Your journal was not changed.',
@@ -953,7 +729,6 @@ export const en = {
         confirmation: 'I understand that this cannot be undone.',
         submit: 'Erase everything',
         working: 'Erasing…',
-        success: 'All app data was erased.',
         partialSuccess:
           'The journal and PIN data were erased, but an appearance or language preference may remain.',
       },

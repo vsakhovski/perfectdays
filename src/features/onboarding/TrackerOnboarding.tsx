@@ -24,7 +24,6 @@ import {
   OnboardingPeriodHistoryEditor,
   type OnboardingPeriodHistoryEditorCopy,
 } from './OnboardingPeriodHistoryEditor';
-import type { OnboardingDatePickerCopy } from './OnboardingDatePicker';
 import styles from './onboarding.module.css';
 
 export interface HistoricalPeriodDraft {
@@ -56,13 +55,6 @@ export interface OnboardingCopy {
   readonly history: {
     readonly title: string;
     readonly description: string;
-    readonly empty: string;
-    readonly startDate: string;
-    readonly endDate: string;
-    readonly add: string;
-    readonly entryLabel: (position: number) => string;
-    readonly removeEntry: (position: number) => string;
-    readonly datePicker: OnboardingDatePickerCopy;
     readonly editor: OnboardingPeriodHistoryEditorCopy;
   };
   readonly fallbacks: {

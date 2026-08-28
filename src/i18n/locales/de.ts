@@ -5,38 +5,6 @@ export const de = {
     title: 'My Perfect Days',
     description: 'Ein privates, lokal gespeichertes Tagebuch für Menstruationsmuster.',
   },
-  home: {
-    eyebrow: 'Technische Grundlage',
-    title: 'Deine Muster. In deiner Hand.',
-    introduction:
-      'Ein privates Menstruationstagebuch, das widerspiegelt, was du einträgst – ohne dir vorzuschreiben, wie du dich fühlen oder verhalten sollst.',
-    foundation: {
-      label: 'In der Architektur verankert',
-      title: 'Datenschutz und Klarheit von Anfang an',
-      items: {
-        localFirst: {
-          title: 'Lokal gespeichert',
-          description:
-            'Kein Konto, keine Analyse-Tools und keine Übertragung von Gesundheitsdaten.',
-        },
-        personalPatterns: {
-          title: 'Persönliche Muster',
-          description: 'Aufgezeichnete Beobachtungen bleiben klar von Vorhersagen getrennt.',
-        },
-        accessible: {
-          title: 'Barrierefrei von Anfang an',
-          description:
-            'Bedeutungen werden nie ausschließlich durch Rot, Orange oder Grün vermittelt.',
-        },
-      },
-    },
-    preferences: {
-      label: 'MVP-Einstellungen',
-      title: 'Passe die App an',
-      description: 'Darstellung und Sprache werden nur auf diesem Gerät gespeichert.',
-    },
-    footer: 'Deine Daten bleiben standardmäßig auf diesem Gerät.',
-  },
   tracker: {
     onboarding: {
       splash: {
@@ -56,18 +24,6 @@ export const de = {
         title: 'Frühere Perioden',
         description:
           'Schätzungen beruhen auf früheren Periodenstarts. Füge frühere Perioden hinzu, wenn dir diese Daten vorliegen. Trage ein Enddatum nur ein, wenn du es kennst.',
-        empty: 'Noch keine frühere Periode hinzugefügt.',
-        startDate: 'Startdatum',
-        endDate: 'Enddatum (optional)',
-        add: 'Periode hinzufügen',
-        entryLabel: 'Frühere Periode {{position}}',
-        removeEntry: 'Frühere Periode {{position}} entfernen',
-        datePicker: {
-          chooseDate: 'Datum auswählen',
-          previousMonth: 'Vorheriger Monat',
-          nextMonth: 'Nächster Monat',
-          calendarLabel: '{{field}} auswählen. {{month}}',
-        },
         editor: {
           saveStartOnly: 'Nur Startdatum speichern',
           configureStartOnlyDescription:
@@ -93,11 +49,6 @@ export const de = {
         quickChoices: 'Schnellwerte für {{field}}',
       },
       orange: {
-        title: 'Möglicher Zeitraum vor der Periode',
-        description:
-          'Diese optionale Markierung hebt Tage vor der geschätzten Periode hervor. Sie sagt weder Konflikte voraus noch gibt sie Entscheidungen vor.',
-        enabled: 'Möglichen Zeitraum vor der Periode anzeigen',
-        days: 'Tage vor der zentralen Schätzung',
         daysDescription: 'Verwende Minus und Plus oder gib 1 bis 14 Tage ein.',
         decrease: 'Tage vor der Schätzung verringern',
         increase: 'Tage vor der Schätzung erhöhen',
@@ -151,19 +102,10 @@ export const de = {
         'Die Einrichtung konnte nicht gespeichert werden. Dein bestehendes Tagebuch wurde nicht verändert.',
     },
     calendar: {
-      sectionLabel: 'Kalender',
       title: 'Deine Aufzeichnungen und Schätzungen',
-      description:
-        'Aufzeichnungen sind flächig dargestellt. Schätzungen sind gemustert oder umrandet und können sich mit dem Verlauf ändern.',
-      navigationLabel: 'Monatsnavigation des Kalenders',
       calendarLabel: 'Kalender für Menstruationsmuster',
-      previousMonth: 'Vorheriger Monat',
-      nextMonth: 'Nächster Monat',
-      today: 'Heute.',
-      selected: 'Ausgewählt.',
       outsideMonth: 'Außerhalb des angezeigten Monats.',
       future: 'Zukünftiges Datum; Check-ins sind nicht verfügbar.',
-      legendTitle: 'Legende der Kalendermarkierungen',
       markers: {
         recordedRed: 'Aufgezeichneter Periodentag.',
         predictedRed: 'Geschätzter Periodentag.',
@@ -178,87 +120,30 @@ export const de = {
         predictedRed: 'Geschätzter Periodentag. Prognosesicherheit: {{confidence}}.',
         activePredictedRed:
           'Geschätzter verbleibender Periodentag auf Grundlage der aufgezeichneten oder üblichen Blutungsdauer.',
-        possibleStart: 'Möglicher Periodenbeginn. Prognosesicherheit: {{confidence}}.',
         orange: 'Möglicher Zeitraum vor der Periode. Prognosesicherheit: {{confidence}}.',
       },
     },
     forecast: {
-      title: 'Schätzung der nächsten Periode',
-      unavailable:
-        'Füge mindestens zwei Periodenstarts oder eine optionale übliche Zykluslänge hinzu, um eine Schätzung zu sehen.',
-      paused: 'Schätzungen sind pausiert. Aufzeichnungen bleiben sichtbar.',
-      range: 'Deine nächste Periode könnte zwischen {{range}} beginnen.',
-      central: 'Zentrale Schätzung: {{date}}.',
-      confidenceLabel: 'Verlässlichkeit: {{confidence}}.',
       confidence: {
         rough: 'grob',
         low: 'niedrig',
         medium: 'mittel',
       },
-      basedOn: 'Basierend auf {{count}} abgeschlossenen Zyklusabständen.',
-      basedOn_one: 'Basierend auf {{count}} abgeschlossenen Zyklusabstand.',
-      basedOn_other: 'Basierend auf {{count}} abgeschlossenen Zyklusabständen.',
-      typicalSource: 'Diese grobe Schätzung verwendet deine optionale übliche Zykluslänge.',
-      duration: 'Geschätzte Blutungsdauer in Tagen: {{count}}.',
-      variable:
-        'Die letzten Zykluslängen schwanken stark. Deshalb werden Kalenderschätzungen ausgeblendet, der Textzeitraum bleibt aber sichtbar.',
-      late: 'Diese Schätzung liegt nun hinter ihrem ursprünglichen Zeitraum. Sie wurde nicht automatisch nach vorn verschoben.',
     },
     insights: {
-      sectionLabel: 'Einblicke',
-      title: 'Aktuelle Muster aus deinem Tagebuch',
-      description:
-        'Diese Zusammenfassungen verwenden bis zu sechs aktuelle Aufzeichnungen. Sie beschreiben deinen Verlauf, nicht jeden Zyklus oder künftigen Tag.',
-      noRecords: 'Noch nicht genügend Verlauf aufgezeichnet.',
       cycles: {
-        title: 'Letzte Zykluslängen',
-        description: 'Tage zwischen aufeinanderfolgenden aufgezeichneten Periodenstarts.',
         days: '{{count}} Tage',
         days_one: '{{count}} Tag',
         days_other: '{{count}} Tage',
       },
       bleeding: {
-        title: 'Bekannte Blutungsdauern',
-        description: 'Einbezogen werden nur beendete Perioden mit bekanntem Enddatum.',
         days: '{{count}} Tage',
         days_one: '{{count}} Tag',
         days_other: '{{count}} Tage',
       },
-      greenDays: {
-        title: 'Letzte Tage mit höherem Selbstvertrauen',
-        description:
-          'Einbezogen werden nur Tage, an denen du ausdrücklich Selbstvertrauen 4 oder 5 eingetragen hast.',
-        count: '{{count}} aktuelle Einträge',
-        count_one: '{{count}} aktueller Eintrag',
-        count_other: '{{count}} aktuelle Einträge',
-        confidence: 'Selbstvertrauen {{rating}} von 5',
-      },
       forecast: {
-        title: 'Warum diese Schätzung so aussieht',
-        description:
-          'Dies erklärt die aktuelle deterministische Schätzung; es ist kein Maß für klinische Genauigkeit.',
         unavailable: 'Es gibt derzeit keine Schätzung, die erklärt werden kann.',
         confidenceLabel: 'Verlässlichkeit',
-        sourceLabel: 'Quelle der Zykluslänge',
-        source: {
-          recorded: 'Letzte aufgezeichnete Periodenstarts',
-          typical: 'Deine optionale übliche Zykluslänge',
-        },
-        cyclesUsedLabel: 'Verwendete aufgezeichnete Zyklen',
-        cyclesUsed: '{{count}} Zyklen',
-        cyclesUsed_one: '{{count}} Zyklus',
-        cyclesUsed_other: '{{count}} Zyklen',
-        variabilityLabel: 'Letzte Schwankung',
-        variability: {
-          unavailable: 'Noch nicht genügend Zykluslängen aufgezeichnet',
-          narrow: 'Die letzten Zykluslängen unterscheiden sich um höchstens 4 Tage',
-          variable: 'Die letzten Zykluslängen unterscheiden sich um 5 bis 10 Tage',
-          highlyVariable: 'Die letzten Zykluslängen unterscheiden sich um mehr als 10 Tage',
-        },
-        spanLabel: 'Unterschied zwischen kürzester und längster Dauer',
-        span: '{{count}} Tage',
-        span_one: '{{count}} Tag',
-        span_other: '{{count}} Tage',
       },
     },
     history: {
@@ -420,40 +305,9 @@ export const de = {
         deleted: 'Periode gelöscht.',
       },
       correction: {
-        title: 'Periodendaten korrigieren',
-        close: 'Korrektur der Periodendaten schließen',
-        explanation: 'Passe diese Periode an, ohne die Grenzen einer anderen zu verändern.',
-        consequence:
-          'Beim Verschieben, Verkürzen oder Markieren eines unbekannten Endes werden alte Periodenverknüpfungen und reine Blutungsangaben außerhalb der korrigierten Daten entfernt. Die gewählte Blutungsstärke ersetzt Angaben am korrigierten Startdatum; andere Bewertungen und Notizen bleiben erhalten.',
-        startDate: 'Startdatum',
-        endDate: 'Einschließliches Enddatum',
-        endDateDescription: 'Wird nur verwendet, wenn du ein bekanntes Enddatum auswählst.',
-        endState: 'Periodenende',
-        endStateOptions: {
-          known: {
-            label: 'Beendet — Datum bekannt',
-            description: 'Diese Periode fließt in Zusammenfassungen der Blutungsdauer ein.',
-          },
-          unknown: {
-            label: 'Beendet — Datum unbekannt',
-            description: 'Als reinen Starteintrag behalten, ohne eine Dauer zu erfinden.',
-          },
-          active: {
-            label: 'Noch aktiv',
-            description: 'Diese Periode hat noch kein Enddatum.',
-          },
-        },
-        startIntensity: 'Blutung am Starttag',
         validation: {
-          startRequired: 'Gib ein Startdatum ein.',
-          endRequired: 'Gib ein Enddatum ein oder wähle ein unbekanntes oder aktives Ende.',
-          endBeforeStart: 'Das Enddatum darf nicht vor dem Startdatum liegen.',
           futureDate: 'Periodendaten dürfen nicht in der Zukunft liegen.',
-          startIntensityRequired: 'Wähle die Blutungsstärke für das korrigierte Startdatum.',
         },
-        save: 'Korrigierte Daten speichern',
-        saving: 'Korrektur wird gespeichert…',
-        cancel: 'Abbrechen',
         errors: {
           overlap: 'Diese Daten überschneiden sich mit einer anderen aufgezeichneten Periode.',
           activeConflict: 'Eine andere Periode ist bereits aktiv.',
@@ -462,12 +316,9 @@ export const de = {
           failed:
             'Die Korrektur konnte nicht gespeichert werden. Dein bestehendes Tagebuch wurde nicht verändert.',
         },
-        saved: 'Periodendaten korrigiert.',
       },
     },
     dayDetail: {
-      title: 'Täglicher Check-in',
-      close: 'Täglichen Check-in schließen',
       quickActionsTitle: 'Periode',
       periodActions: {
         start: {
@@ -535,8 +386,6 @@ export const de = {
       },
       noteLabel: 'Private Notiz',
       noteDescription: 'Wird nur in deinem lokalen Tagebuch gespeichert.',
-      save: 'Check-in speichern',
-      saving: 'Wird gespeichert…',
       removePeriodConfirmation:
         'Diese gesamte Periode entfernen? Check-in-Werte ohne Bezug dazu bleiben erhalten.',
       confirmRemovePeriod: 'Periode entfernen',
@@ -552,8 +401,6 @@ export const de = {
           'Wähle eine leichte, mittlere oder starke Blutung, bevor du eine Periode beginnst.',
         historicalStart:
           'Dieser Tag liegt zu weit vor der später aufgezeichneten Periode, um sie zu erweitern. Korrigiere die Daten im Periodenverlauf.',
-        laterPeriodDays:
-          'Für diese Periode sind Tage nach diesem Datum eingetragen. Entferne diese Einträge, bevor du sie hier beendest.',
         noneRequiresPeriodCorrection:
           'Mit „Keine“ können eine abgeschlossene Periode oder spätere eingetragene Periodentage nicht geändert werden. Korrigiere die Periodendaten im Periodenverlauf.',
         periodConflict:
@@ -564,11 +411,7 @@ export const de = {
           'Die Änderung konnte nicht gespeichert werden. Dein bestehendes Tagebuch wurde nicht verändert.',
       },
       status: {
-        saved: 'Check-in gespeichert.',
         deleted: 'Check-in gelöscht.',
-        started: 'Periode begonnen.',
-        continued: 'Periodentag eingetragen.',
-        ended: 'Periode beendet.',
         removed: 'Periode entfernt.',
       },
     },
@@ -608,8 +451,6 @@ export const de = {
       },
     },
     calendar: {
-      title: 'Kalender',
-      description: 'Aufzeichnungen, Schätzungen und der heutige Tag auf einen Blick.',
       navigation: {
         label: 'Monatsnavigation des Kalenders',
         previousMonth: 'Vorheriger Monat',
@@ -622,49 +463,17 @@ export const de = {
         recorded: 'Aufgezeichnete Periode',
         predicted: 'Geschätzte Periode',
         today: 'Heute',
-        showGuide: 'Markierungsübersicht anzeigen',
-        hideGuide: 'Markierungsübersicht ausblenden',
-        guideTitle: 'Erklärung der Markierungen',
-        markers: {
-          recorded: 'Durchgehendes Band: aufgezeichnete Periode.',
-          predicted: 'Gestreiftes Band: geschätzte Periode.',
-          possibleStart: 'Umrandung: möglicher Periodenbeginn.',
-          checkInWindow: 'Bernsteinfarbener Balken: möglicher Zeitraum vor der Periode.',
-          higherConfidence: 'Grüne Markierung: höheres Selbstvertrauen aufgezeichnet.',
-          spotting: 'Punkt: Schmierblutung aufgezeichnet.',
-        },
       },
       forecast: {
-        title: 'Nächste Periode',
-        range: 'Möglicher Beginn: {{range}}.',
-        basis: 'Verlässlichkeit: {{confidence}} · basierend auf {{count}} abgeschlossenen Zyklen.',
-        basis_one:
-          'Verlässlichkeit: {{confidence}} · basierend auf {{count}} abgeschlossenem Zyklus.',
-        basis_other:
-          'Verlässlichkeit: {{confidence}} · basierend auf {{count}} abgeschlossenen Zyklen.',
-        why: 'Warum diese Schätzung?',
         states: {
-          active: {
-            title: 'Die aktuelle Periode ist aktiv',
-            description: 'Der nächste geschätzte Beginn ist noch nicht verfügbar.',
-            nextEstimatedStart: 'Die nächste Periode beginnt ungefähr am {{date}}.',
-          },
-          unavailable: {
-            title: 'Keine Schätzung verfügbar',
-            description:
-              'Füge mindestens zwei Periodenstarts oder eine übliche Zykluslänge hinzu, um eine Schätzung zu sehen.',
-          },
           paused: {
-            title: 'Schätzung pausiert',
             description: 'Aufgezeichnete Tage bleiben sichtbar.',
           },
           variable: {
-            title: 'Zykluslängen schwanken stark',
             description:
               'Der geschätzte Startzeitraum bleibt verfügbar, aber Prognosefarben werden ausgeblendet.',
           },
           late: {
-            title: 'Ursprünglicher Schätzzeitraum überschritten',
             description:
               'Der ursprüngliche Zeitraum bleibt bestehen und wird nicht automatisch nach vorn verschoben.',
           },
@@ -674,37 +483,12 @@ export const de = {
         navigationLabel: 'Kalenderdetails',
         insights: 'Einblicke',
         periodHistory: 'Periodenverlauf',
-        backToCalendar: 'Zurück zum Kalender',
-      },
-      day: {
-        title: 'Details für {{date}}',
-        recorded: 'Aufgezeichnete Beobachtungen',
-        forecast: 'Schätzung für dieses Datum',
-        edit: 'Diesen Tag bearbeiten',
-        future: 'Zukünftige Daten können nur angesehen werden.',
-        close: 'Tagesdetails schließen',
       },
       selectedDay: {
-        title: '{{date}}',
-        titleToday: '{{date}} (heute)',
         selected: 'Ausgewählter Kalendertag',
-        periodKnown: 'Periode: {{range}}.',
-        periodActive: 'Aktive Periode, begonnen am {{date}}.',
-        periodUnknown: 'Periode begann am {{date}}; Enddatum unbekannt.',
-        noCheckIn: 'Für diesen Tag wurde noch kein Check-in gespeichert.',
-        flow: 'Blutung: {{flow}}',
-        rating: '{{label}}: {{value}}',
-        start: 'Für diesen Tag eintragen',
-        startToday: 'Heute eintragen',
-        edit: 'Check-in dieses Tages bearbeiten',
       },
     },
     privacy: {
-      title: 'Datenschutz',
-      sections: {
-        protection: 'PIN-Schutz',
-        portability: 'Sicherung und Export',
-      },
       storage: {
         title: 'Tagebuchdaten',
         description:
@@ -719,16 +503,10 @@ export const de = {
       },
     },
     settings: {
-      title: 'Einstellungen',
-      description: 'Verwalte Schätzungen, Kalenderdarstellung, Design und Sprache.',
       cards: {
         theme: 'Design',
         language: 'Sprache',
         weekStart: 'Erster Tag der Woche',
-      },
-      sections: {
-        tracking: 'Tracking und Schätzungen',
-        appearance: 'Design, Sprache und Kalender',
       },
       prePeriod: {
         title: 'Zeitraum vor der Periode',
@@ -774,18 +552,12 @@ export const de = {
       editTitle: 'Heutigen Check-in bearbeiten',
       dayTitle: 'Check-in für diesen Tag',
       editDayTitle: 'Check-in dieses Tages bearbeiten',
-      description:
-        'Trage nur ein, was du heute bemerkst. Optionale Werte sind nicht vorausgewählt.',
       optional: {
         show: 'Notiz oder Details hinzufügen (optional)',
         hide: 'Notiz und Details ausblenden',
       },
       guidance: {
         chooseObservation: 'Wähle vor dem Speichern mindestens eine Beobachtung aus.',
-        startPeriod: 'Eine leichte, mittlere oder starke Blutung kann eine Periode beginnen.',
-        activePeriod:
-          'Wenn du die heutige Blutung speicherst, wird die aktive Periode fortgeführt.',
-        endPeriod: 'Wenn du „Keine“ speicherst, endet eine aktive Periode am vorherigen Tag.',
       },
       actions: {
         saveAndDone: 'Speichern und fertig',
@@ -836,7 +608,6 @@ export const de = {
       cryptoUnavailable:
         'Das Entsperren per PIN ist in diesem Browser oder über diese Verbindung nicht verfügbar. Deine gespeicherten Daten wurden nicht verändert. Öffne die App in einem unterstützten sicheren Browser, bevor du ein Zurücksetzen erwägst.',
       pinLabel: 'PIN',
-      pinHint: 'Gib sechs Ziffern ein.',
       unlocking: 'Wird entsperrt…',
       failed: 'Die App konnte nicht entsperrt werden. Prüfe die PIN und versuche es erneut.',
       forgotPin: 'PIN vergessen?',
@@ -917,8 +688,6 @@ export const de = {
         },
       },
       feedback: {
-        encryptedDownloaded: 'Der Download der verschlüsselten Sicherung wurde gestartet.',
-        plaintextDownloaded: 'Der Download des lesbaren Exports wurde gestartet.',
         restored:
           'Die verschlüsselte Sicherung wurde wiederhergestellt. Dieses Tagebuch ist jetzt durch die Sicherungs-PIN geschützt.',
         encryptedFailed:
@@ -985,7 +754,6 @@ export const de = {
         confirmation: 'Ich verstehe, dass dies nicht rückgängig gemacht werden kann.',
         submit: 'Alles löschen',
         working: 'Wird gelöscht…',
-        success: 'Alle App-Daten wurden gelöscht.',
         partialSuccess:
           'Tagebuch und PIN-Daten wurden gelöscht, aber eine Darstellungs- oder Spracheinstellung könnte erhalten geblieben sein.',
       },
