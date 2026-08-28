@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import type { LocalDate } from '../../domain/models';
+import type { LocalDate, SupportedLanguage } from '../../domain/models';
 import { integerMedian } from '../../domain/forecast';
 import { daysBetween } from '../../domain/local-date';
 import { AppLogo } from '../../shared/ui/AppLogo';
@@ -127,7 +127,7 @@ export interface TrackerOnboardingProps {
   readonly draft: OnboardingDraft;
   readonly errorMessage?: string;
   readonly languageControl: ReactNode;
-  readonly language: 'de' | 'en';
+  readonly language: SupportedLanguage;
   readonly onAddHistory: () => void;
   readonly onChange: (draft: OnboardingDraft) => void;
   readonly onComplete: (draft: OnboardingDraft) => void;

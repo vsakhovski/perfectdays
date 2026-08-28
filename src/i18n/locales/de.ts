@@ -798,10 +798,12 @@ export const de = {
       options: {
         en: 'English',
         de: 'Deutsch',
+        ru: 'Русский',
       },
       resolved: {
         en: 'Englisch',
         de: 'Deutsch',
+        ru: 'Russisch',
       },
       current: 'Die App wird derzeit auf {{language}} angezeigt.',
     },

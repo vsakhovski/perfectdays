@@ -92,7 +92,7 @@ Language to avoid:
 - Enable or disable the orange window and choose its length. Default: five days; allowed range: 1–14 days. Use the same centered hybrid number spinner as the optional period estimates, with one row of five 44-by-44-pixel quick choices for 3–7 days plus direct entry and decrease/increase controls.
 - Use confidence as the initial green metric.
 - Offer an optional six-digit PIN and explain that, when enabled, forgetting it requires erasing the inaccessible encrypted local data.
-- Put the **Select language** control directly below the splash subtitle. It shows only the resolved `English` and `Deutsch` choices, never a separate Device language entry. Do not place appearance or calendar-week-start controls in onboarding. Initial appearance is **Light**; language initially follows the device with English fallback until the user explicitly chooses a language. Appearance, language, and week-start remain configurable later in Settings.
+- Put the **Select language** control directly below the splash subtitle. It shows only the resolved `English`, `Deutsch`, and `Русский` choices, never a separate Device language entry. Do not place appearance or calendar-week-start controls in onboarding. Initial appearance is **Light**; language initially follows the device with English fallback until the user explicitly chooses a language. Appearance, language, and week-start remain configurable later in Settings.
 
 ### 2. Calendar as the default destination
 
@@ -144,7 +144,7 @@ Language to avoid:
 ### 6. Settings
 
 - System, light, and dark theme selection.
-- Device-language, English, and German language selection.
+- Device-language, English, German, and Russian language selection.
 - Configure or disable the orange window.
 - Configure bounded cycle and bleeding-duration fallbacks.
 - Pause forecasting without deleting recorded history. Forecasts are derived, so there is no separate persisted forecast state to reset.
@@ -258,7 +258,7 @@ The current tracker composition derives today, the displayed month, markers, and
 
 ### Delivery sequence
 
-1. [x] Add characterization tests and keyed English and German copy for every new screen and state.
+1. [x] Add characterization tests and keyed English, German, and Russian copy for every new screen and state.
 2. [x] Introduce the mobile shell, Calendar/Privacy/Settings navigation, safe-area layout, and persistent check-in action.
 3. [ ] Extract a smaller tracker view model and command hook from the current dashboard orchestration; the atomic application operation is already separated.
 4. [x] Make Calendar the default, implement the revised markers and legend, and place the prediction summary below the grid.
@@ -457,7 +457,7 @@ type DailyLog = {
 };
 
 type ThemePreference = "system" | "light" | "dark";
-type SupportedLanguage = "en" | "de";
+type SupportedLanguage = "en" | "de" | "ru";
 type LanguagePreference = "system" | SupportedLanguage;
 type WeekStartPreference = "system" | "monday" | "sunday";
 type LegacyAutoLockDelay = "immediate" | "1-minute" | "5-minutes" | "15-minutes";
@@ -657,7 +657,7 @@ Secure local core:
 - PIN-free mode intentionally stores the versioned payload as unprotected IndexedDB data and says so in the UI.
 - PIN unlock revalidates the authoritative active record before and after decryption so an obsolete tab cannot unlock a replaced record.
 
-The production build now generates a manifest, registration script, and service worker. Workbox precaches only local build assets matched by the explicit static-shell patterns; runtime caching is empty, API-like navigation is excluded from the fallback, and the service worker never opens the health-data IndexedDB database. New workers explicitly activate and claim clients; open pages still need a reload before assuming that their already-loaded application code changed. Development mode does not register a service worker, so offline behavior is verified against the production preview. Install metadata contains only the provisional product name and no locale-specific descriptive prose; all in-app messages remain in the English and German catalogs.
+The production build now generates a manifest, registration script, and service worker. Workbox precaches only local build assets matched by the explicit static-shell patterns; runtime caching is empty, API-like navigation is excluded from the fallback, and the service worker never opens the health-data IndexedDB database. New workers explicitly activate and claim clients; open pages still need a reload before assuming that their already-loaded application code changed. Development mode does not register a service worker, so offline behavior is verified against the production preview. Install metadata contains only the provisional product name and no locale-specific descriptive prose; all in-app messages remain in the bundled English, German, and Russian catalogs.
 
 Architecture constraints:
 
@@ -693,6 +693,7 @@ src/
   i18n/                      Typed resources, locale resolution, localized date formatting, and tests
     locales/en.ts            Canonical English message catalog
     locales/de.ts            German message catalog
+    locales/ru.ts            Russian message catalog
   infrastructure/
     cryptography/            Web Crypto adapter and PBKDF2 calibration policy
     lifecycle/               Auto-lock and cross-tab invalidation adapters
@@ -731,8 +732,8 @@ app -> composition of all layers
 - A responsive, accessible React shell rendered in `StrictMode`.
 - System, light, and dark theme selection with local persistence.
 - Theme application before React renders, preventing an explicit saved theme from flashing incorrectly at startup.
-- Device-language, English, and German selection with local persistence and English fallback.
-- Typed English and German message catalogs stored in separate per-language files with no runtime translation network request.
+- Device-language, English, German, and Russian selection with local persistence and English fallback.
+- Typed English, German, and Russian message catalogs stored in separate per-language files with no runtime translation network request.
 - Immediate copy updates plus synchronized document `lang`, `dir`, title, and description metadata when language changes.
 - Device locale resolution by supported base tag, including values such as `de-DE` and `de-AT`, and live re-resolution after a browser language change while no explicit language has been chosen. The selector displays the resolved language rather than an internal device-default value. Calendar week-start resolution retains the device's regional locale so `en-US` can begin on Sunday while `en-GB` begins on Monday.
 - CSS design tokens for both themes, reduced-motion handling, visible keyboard focus, and non-color marker accents.
@@ -819,15 +820,15 @@ The interface must never diagnose from a single entry or turn safety information
 
 ## Accessibility and localization
 
-- The MVP ships complete English (`en`) and German (`de`) catalogs. English is the fallback language.
-- The initial language follows the device. The app checks browser language tags in priority order, resolves supported base tags such as `de-DE` to `de`, and falls back to English when none is supported. The selector itself always shows the actually resolved `English` or `Deutsch` choice; selecting either stores it explicitly.
+- The MVP ships complete English (`en`), German (`de`), and Russian (`ru`) catalogs. English is the fallback language.
+- The initial language follows the device. The app checks browser language tags in priority order, resolves supported base tags such as `de-DE` to `de` and `ru-RU` to `ru`, and falls back to English when none is supported. The selector itself always shows the actually resolved `English`, `Deutsch`, or `Русский` choice; selecting one stores it explicitly.
 - Every visible message and every user-facing accessible name, description, validation error, empty state, confirmation, and notification must use a typed key from a per-language file.
 - The document `lang` and `dir` attributes, page title, and description metadata update whenever the resolved language changes.
-- The language picker is an accessible labeled combobox with a small corner radius, comfortably sized text, and full container width. Clicking the control toggles its list open and closed; outside click and Escape close it; arrows plus Enter support keyboard selection. The selected row uses a background instead of a checkmark, and the fixed-position list matches the control width, flips above when needed, and is capped to the visible viewport. Language choices use endonyms (`English`, `Deutsch`), not flags. Other list preferences retain their labeled native controls and viewport-managed platform pickers.
+- The language picker is an accessible labeled combobox with a small corner radius, comfortably sized text, and full container width. Clicking the control toggles its list open and closed; outside click and Escape close it; arrows plus Enter support keyboard selection. The selected row uses a background instead of a checkmark, and the fixed-position list matches the control width, flips above when needed, and is capped to the visible viewport. Language choices use endonyms (`English`, `Deutsch`, `Русский`), not flags. Other list preferences retain their labeled native controls and viewport-managed platform pickers.
 - Translation keys represent complete messages. Use interpolation, context, and locale-aware plural rules rather than concatenating fragments.
 - Format dates, month and weekday names, numbers, and quantities with the resolved language at the presentation boundary. Persisted `LocalDate` values and enum codes remain locale-neutral.
-- English and German are left-to-right, while layout continues to use logical CSS properties for future right-to-left locales.
-- Catalog tests require identical keys, non-empty values, and matching interpolation placeholders. Localized browser smoke tests cover the English and German application shell; the tracker persistence flow currently runs in English across every configured browser project.
+- English, German, and Russian are left-to-right, while layout continues to use logical CSS properties for future right-to-left locales.
+- Catalog tests require identical base keys, non-empty values, matching interpolation placeholders, and Russian singular/paucal/plural selection. App integration and localized browser smoke tests cover device-language resolution for German and Russian; the tracker persistence flow runs in English across every configured browser project.
 - Meet WCAG 2.2 AA contrast in light and dark themes.
 - Never communicate a state with color alone; use text, icons, patterns, and screen-reader descriptions.
 - Example announcement: “August 12, predicted period, medium confidence.”
@@ -877,7 +878,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Initialize Git and scaffold React, TypeScript, and Vite without losing this document.
 - [x] Configure strict TypeScript, linting, formatting, unit tests, and production builds.
 - [x] Establish theme tokens and local-date utilities before feature components.
-- [x] Add typed, locally bundled English/German catalogs, device-language resolution, selection, persistence, and metadata synchronization.
+- [x] Add typed, locally bundled English/German/Russian catalogs, device-language resolution, selection, persistence, and metadata synchronization.
 
 ### Phase 1 — Secure local core (complete)
 
@@ -908,7 +909,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Generate an installable manifest, neutral raster icons, registration script, and static-only offline application shell.
 - [x] Add strict encrypted export/restore and a separately confirmed readable export.
 - [x] Integrate light/dark startup state with browser and installed-app theme chrome.
-- [x] Automate narrow responsive layout, dark-theme contrast/semantics, keyboard focus, and English/German accessibility smoke checks; retain manual screen-reader and forced-colors review for public-beta readiness.
+- [x] Automate narrow responsive layout, dark-theme contrast/semantics, keyboard focus, and localized accessibility smoke checks; retain manual Russian browser-layout, screen-reader, and forced-colors review for public-beta readiness.
 - [x] Add preview/static-host security policies plus dependency, network-request, cache, URL, localStorage, and encrypted-file leakage checks.
 - [x] Verify encrypted export, old-backup PIN independence, restore, offline persistence, and encrypted-vault erasure in a production Chromium browser.
 - [x] Verify that readable downloads complete in Firefox and mobile WebKit as well as Chromium.
@@ -921,8 +922,8 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Keep forecast reasoning, recent patterns, and history/correction contextually reachable without a **Patterns** bottom destination.
 - [x] Present Insights and Periods history as focused secondary screens with one title, a top-bar close action, restored trigger focus, and no bottom chrome.
 - [x] Move PIN protection, backup/restore, human-readable export, storage explanation, and confirmed erasure into Privacy; move tracking, appearance, language, calendar week start, and About into Settings.
-- [x] Add all new English and German copy, component/unit coverage, mobile browser flows, and navigation/check-in privacy-leakage assertions.
-- [x] Refactor onboarding into focused consecutive screens with icon-only Back/Skip controls, accessible dot progress, horizontal swipe navigation, directional slide-and-fade transitions, a placeholder logo, package version and a resolved English/Deutsch language selector, light-mode/device-language resolution defaults, touch-friendly hybrid period-estimate controls, and optional PIN as the final step. During a horizontal gesture the current screen follows the finger by a short, damped distance before the transition begins, or settles back when the gesture is rejected. Forward navigation enters from the right and backward navigation from the left; all gesture and transition movement is disabled for `prefers-reduced-motion`. Programmatic heading focus still announces the destination to assistive technology without drawing a focus border on the non-interactive heading; interactive controls retain visible focus indicators. Swipe-left follows the same per-step validation as Continue, swipe-right returns to the preceding step, and vertical scrolling or gestures beginning on form controls are not treated as navigation.
+- [x] Add all new English, German, and Russian copy, component/unit coverage, mobile browser flows, and navigation/check-in privacy-leakage assertions.
+- [x] Refactor onboarding into focused consecutive screens with icon-only Back/Skip controls, accessible dot progress, horizontal swipe navigation, directional slide-and-fade transitions, a placeholder logo, package version and a resolved English/Deutsch/Русский language selector, light-mode/device-language resolution defaults, touch-friendly hybrid period-estimate controls, and optional PIN as the final step. During a horizontal gesture the current screen follows the finger by a short, damped distance before the transition begins, or settles back when the gesture is rejected. Forward navigation enters from the right and backward navigation from the left; all gesture and transition movement is disabled for `prefers-reduced-motion`. Programmatic heading focus still announces the destination to assistive technology without drawing a focus border on the non-interactive heading; interactive controls retain visible focus indicators. Swipe-left follows the same per-step validation as Continue, swipe-right returns to the preceding step, and vertical scrolling or gestures beginning on form controls are not treated as navigation.
 - [ ] Complete manual contrast, software-keyboard, forced-colors, screen-reader, real-device, and real-user usability validation and address findings.
 
 ### Phase 6 — Cycle checks and estimate review (first three slices implemented)
@@ -939,7 +940,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Add a localized **Needs review** workflow to Periods History for possible splits with date review, explicit include/exclude decisions, and reversible **Use again** controls.
 - [x] Extend **Needs review** with a possible-missing-period action that opens the existing History calendar near the likely range without saving a suggested date.
 - [ ] Extend **Needs review** with duration-specific decisions, status badges, and actions required by later rules.
-- [ ] Add schema migration, encrypted backup/restore, readable-export, erasure, cross-tab invalidation, EN/DE parity, keyboard/modal, offline, and health-data leakage coverage for review decisions.
+- [ ] Add schema migration, encrypted backup/restore, readable-export, erasure, cross-tab invalidation, EN/DE/RU parity, keyboard/modal, offline, and health-data leakage coverage for review decisions.
 - [ ] Extend the walk-forward evaluator so every finding is derived from strictly earlier training history and compare baseline versus reviewed forecast error, range coverage, sample availability, and false-positive review rates.
 - [ ] Keep clinical health guidance in a separate, non-diagnostic layer that never changes estimate inclusion; obtain clinical-language review before enabling it publicly.
 
@@ -974,7 +975,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 ### Cycle checks and estimate review
 
-- [x] The implemented possible-split, possible-missing, and possibly-left-open findings are deterministic, reproducible from local recorded history, expressed as stable non-localized domain codes, and presented with keyed English and German copy.
+- [x] The implemented possible-split, possible-missing, and possibly-left-open findings are deterministic, reproducible from local recorded history, expressed as stable non-localized domain codes, and presented with keyed English, German, and Russian copy.
 - [x] A Cycle checks finding never silently changes, merges, splits, adds, deletes, or relabels a recorded period or daily observation.
 - [x] Only the implemented high-confidence possible tracking artifact is quarantined by default; broader statistical and population-reference rules remain unimplemented.
 - [x] Every possible-split or possible-missing quarantine and every explicit cycle exclusion remains visible in Periods History and can be restored with **Use again**.
@@ -1019,10 +1020,10 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 - [x] System, light, and dark modes work on the lock screen and every implemented application screen.
 - [x] The correct theme appears before first paint without a visible flash.
-- [x] Device-language, English, and German selection updates the current application shell and survives reload.
+- [x] Device-language, English, German, and Russian selection updates the current application shell and survives reload.
 - [x] Supported device base tags resolve predictably, with English as the tested fallback.
 - [x] Language changes update current visible/accessibility copy, document `lang`/`dir`, title, and description metadata without losing selector focus.
-- [x] English and German catalogs have exact key and interpolation-placeholder parity.
+- [x] English, German, and Russian catalogs have exact base-key and interpolation-placeholder parity; Russian also supplies and tests its additional paucal and plural forms.
 - [x] The current lock and PIN-security screens expose no hard-coded user-visible copy.
 - [x] Calendar dates, month and weekday names, week starts, and day numbers follow the resolved language while persisted domain values remain locale-neutral.
 - [ ] User-facing quantity messages use locale-aware plural rules in every supported language.
@@ -1141,7 +1142,7 @@ Add a message to `src/i18n/locales/en.ts` first, then add the matching key and p
 - Mobile-first installable PWA
 - Local-only, offline, single-user MVP
 - Adult self-tracking use case
-- English and German MVP catalogs; device language resolution by default without a separate selector option; English fallback
+- English, German, and Russian MVP catalogs; device language resolution by default without a separate selector option; English fallback
 - Final product name deferred
 - Light theme by default; System and Dark remain available in Settings
 - Optional six-digit PIN

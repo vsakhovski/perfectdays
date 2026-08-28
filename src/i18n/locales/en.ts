@@ -773,10 +773,12 @@ export const en = {
       options: {
         en: 'English',
         de: 'Deutsch',
+        ru: 'Русский',
       },
       resolved: {
         en: 'English',
         de: 'German',
+        ru: 'Russian',
       },
       current: 'The app is currently displayed in {{language}}.',
     },

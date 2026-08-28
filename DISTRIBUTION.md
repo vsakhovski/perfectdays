@@ -180,7 +180,7 @@ Prepare:
 
 - cleared name, subtitle, category, bundle ID, SKU, and copyright;
 - age rating and intended-audience answers;
-- localized English and German descriptions, keywords, screenshots, and release notes;
+- localized English, German, and Russian descriptions, keywords, screenshots, and release notes;
 - final icon and launch assets;
 - privacy-policy, support, and optional marketing URLs;
 - App Privacy answers;
@@ -281,7 +281,7 @@ Required product work:
 Provide precise steps in both stores' review notes:
 
 1. Launch the app; no account or network connection is required.
-2. Select English or German on the splash screen.
+2. Select English, German, or Russian on the splash screen.
 3. Complete or skip onboarding and explain that all fields are optional.
 4. Add synthetic historical periods, open Calendar, and perform a daily check-in.
 5. Open forecast reasoning and period-history correction.

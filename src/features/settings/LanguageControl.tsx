@@ -17,11 +17,9 @@ export function LanguageControl({
   const options: readonly SelectControlOption<SupportedLanguage>[] = [
     { label: t(($) => $.settings.language.options.en), value: 'en' },
     { label: t(($) => $.settings.language.options.de), value: 'de' },
+    { label: t(($) => $.settings.language.options.ru), value: 'ru' },
   ];
-  const resolvedLanguageLabel =
-    resolvedLanguage === 'de'
-      ? t(($) => $.settings.language.resolved.de)
-      : t(($) => $.settings.language.resolved.en);
+  const resolvedLanguageLabel = t(($) => $.settings.language.resolved[resolvedLanguage]);
 
   return (
     <div className={styles['control']}>

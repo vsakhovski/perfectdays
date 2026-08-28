@@ -36,6 +36,9 @@ describe('browser language store', () => {
 
     expect(store.read()).toBe('de');
     expect(memory.values.get('perfect-days:theme')).toBe('dark');
+
+    store.write('ru');
+    expect(store.read()).toBe('ru');
   });
 
   it('clears only the stored language preference', () => {

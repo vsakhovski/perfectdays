@@ -433,7 +433,7 @@ describe('App', () => {
     const languageSelect = screen.getByRole('combobox', { name: 'Select language' });
     expect(languageSelect).toHaveValue('English');
     fireEvent.click(languageSelect);
-    expect(screen.getAllByRole('option')).toHaveLength(2);
+    expect(screen.getAllByRole('option')).toHaveLength(3);
     expect(screen.queryByRole('option', { name: 'Device language' })).toBeNull();
     fireEvent.click(languageSelect);
     expect(screen.queryByRole('listbox')).toBeNull();
@@ -915,6 +915,16 @@ describe('App', () => {
     expect(screen.getByText('Ein privater Ort für deine Zyklusmuster.')).toBeVisible();
     expect(screen.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveValue('Deutsch');
     expect(document.documentElement).toHaveAttribute('lang', 'de');
+    expect(document.documentElement).toHaveAttribute('dir', 'ltr');
+    expect(document.title).toBe('My Perfect Days');
+  });
+
+  it('uses Russian from the device preference', async () => {
+    await renderApp({ languagePreference: 'system', systemLanguages: ['ru-RU', 'en-US'] });
+
+    expect(screen.getByText('Личное пространство для наблюдения за вашим циклом.')).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'Выберите язык' })).toHaveValue('Русский');
+    expect(document.documentElement).toHaveAttribute('lang', 'ru');
     expect(document.documentElement).toHaveAttribute('dir', 'ltr');
     expect(document.title).toBe('My Perfect Days');
   });

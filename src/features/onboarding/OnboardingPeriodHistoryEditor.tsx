@@ -8,7 +8,7 @@ import {
   isSameMonth,
   startOfMonth,
 } from '../../domain/local-date';
-import type { LocalDate } from '../../domain/models';
+import type { LocalDate, SupportedLanguage } from '../../domain/models';
 import {
   formatLocalDate,
   formatLocalDateRange,
@@ -64,7 +64,7 @@ export interface OnboardingPeriodHistoryEditorProps {
   readonly copy: OnboardingPeriodHistoryEditorCopy;
   readonly entries: readonly HistoricalPeriodDraft[];
   readonly errorMessage?: string;
-  readonly language: 'de' | 'en';
+  readonly language: SupportedLanguage;
   readonly onAdd: () => void;
   readonly onChangeEntries: (entries: readonly HistoricalPeriodDraft[]) => void;
   readonly onRemove: (id: string) => void;

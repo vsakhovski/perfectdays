@@ -12,7 +12,7 @@ function asUtcDate(value: LocalDate): Date {
 }
 
 export function weekStartsOn(language: SupportedLanguage): WeekStartsOn {
-  return language === 'de' ? 1 : 0;
+  return language === 'en' ? 0 : 1;
 }
 
 interface LocaleWeekInfo {

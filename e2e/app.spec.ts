@@ -95,7 +95,7 @@ test.describe('English application shell', () => {
     await expect(language).toHaveCSS('outline-style', 'none');
     const languageListbox = page.getByRole('listbox', { name: 'Select language' });
     await expect(languageListbox).toBeVisible();
-    await expect(languageListbox.getByRole('option')).toHaveCount(2);
+    await expect(languageListbox.getByRole('option')).toHaveCount(3);
     await expect(languageListbox.getByRole('option', { name: 'Device language' })).toHaveCount(0);
     await expect(languageListbox.getByRole('option', { name: 'English' })).toHaveCSS(
       'box-shadow',
@@ -909,6 +909,20 @@ test.describe('device language detection', () => {
     await expect(page.getByText('Ein privater Ort für deine Zyklusmuster.')).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveValue('Deutsch');
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+  });
+});
+
+test.describe('Russian device language detection', () => {
+  test.use({ locale: 'ru-RU' });
+
+  test('uses the supported Russian base language on first visit', async ({ page }) => {
+    await page.goto('/');
+
+    await expect(
+      page.getByText('Личное пространство для наблюдения за вашим циклом.'),
+    ).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Выберите язык' })).toHaveValue('Русский');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
   });
 });
 

@@ -50,7 +50,7 @@ export interface CycleCheckAcknowledgement {
 }
 
 export type ThemePreference = 'system' | 'light' | 'dark';
-export type SupportedLanguage = 'en' | 'de';
+export type SupportedLanguage = 'en' | 'de' | 'ru';
 export type LanguagePreference = 'system' | SupportedLanguage;
 export type WeekStartPreference = 'system' | 'monday' | 'sunday';
 export type AutoLockDelay = 'immediate' | '1-minute' | '5-minutes' | '15-minutes';

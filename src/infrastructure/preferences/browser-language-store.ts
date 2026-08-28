@@ -10,7 +10,7 @@ interface LanguageStorage {
 }
 
 function isLanguagePreference(value: string | null): value is LanguagePreference {
-  return value === 'system' || value === 'en' || value === 'de';
+  return value === 'system' || value === 'en' || value === 'de' || value === 'ru';
 }
 
 export function createBrowserLanguageStore(getStorage: () => LanguageStorage): LanguageStore {
