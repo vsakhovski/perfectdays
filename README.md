@@ -3,7 +3,7 @@
 
 A private, mobile-first menstrual journal that records bleeding and helps its user notice her own recurring wellbeing patterns. The product uses red, orange, and green calendar markers, but treats them as personal context rather than biological verdicts or judgments about competence.
 
-**Status:** Phase 5 mobile engineering and the first Phase 6 Cycle checks slice are implemented. First use now opens a focused, skippable six-screen onboarding flow with a placeholder brand splash and language selector, dot progress, privacy introduction, optional history and estimates, pre-period window configuration, and optional PIN setup. After onboarding or unlock, the app opens a compact Calendar-first shell with separate Calendar, History, Privacy, and Settings destinations and a one-tap check-in action. The app now detects a possible split period locally, temporarily keeps that interval out of estimates, and offers reversible review decisions in Periods History. Manual contrast, software-keyboard, forced-colors, screen-reader, real-user usability, additional cycle-check rules, evaluation coverage, episode splitting/merging, evidence-driven forecast calibration, final naming, and public-beta clinical, legal, and independent security review remain open.
+**Status:** Phase 5 mobile engineering and the first two Phase 6 Cycle checks are implemented. First use now opens a focused, skippable six-screen onboarding flow with a placeholder brand splash and language selector, dot progress, privacy introduction, optional history and estimates, pre-period window configuration, and optional PIN setup. After onboarding or unlock, the app opens a compact Calendar-first shell with separate Calendar, History, Privacy, and Settings destinations and a one-tap check-in action. The app now detects possible split records and possible missing periods locally, temporarily keeps affected cycle intervals out of estimates, and offers reversible review decisions in Periods History. Manual contrast, software-keyboard, forced-colors, screen-reader, real-user usability, additional cycle-check rules, evaluation coverage, episode splitting/merging, evidence-driven forecast calibration, final naming, and public-beta clinical, legal, and independent security review remain open.
 
 Store packaging, submission requirements, and release-readiness planning are tracked in [DISTRIBUTION.md](DISTRIBUTION.md).
 
@@ -338,7 +338,7 @@ Initial confidence labels:
 
 ## Cycle checks and estimate review
 
-The first Phase 6 vertical slice is implemented as a deterministic, local **Cycle checks** system rather than opaque AI. It detects one high-confidence possible recording artifact: two completed periods with known ends separated by no more than two clear days. The affected cycle interval is visibly held out of estimates until the user reviews it. The remaining rules in this section are planned. The system must never silently rewrite, merge, split, delete, or diagnose a recorded period.
+The first Phase 6 vertical slices are implemented as a deterministic, local **Cycle checks** system rather than opaque AI. It detects two high-confidence possible recording artifacts: two completed periods with known ends separated by no more than two clear days, and a cycle interval close to two or three times a sufficiently consistent personal baseline. An affected interval is visibly held out of estimates until the user reviews it. The remaining rules in this section are planned. The system must never silently rewrite, merge, split, delete, or diagnose a recorded period.
 
 ### Finding categories
 
@@ -350,14 +350,14 @@ The product must keep three concepts separate:
 
 The journal remains the source of truth in all three cases. A finding is not an error verdict, and a statistically unusual value is not proof of bad data. Clinical population ranges must not be reused as automatic data-cleaning thresholds.
 
-### Proposed first rules
+### Initial rules
 
 The initial thresholds below are versioned product hypotheses. They require synthetic edge-case tests, walk-forward evaluation, private-pilot review, and clinical-language review before public release.
 
 | Rule | Proposed trigger | Initial estimate behavior |
 | --- | --- | --- |
 | **Possible split period** (implemented) | Two completed periods with known ends have no more than two clear days between them | Temporarily quarantine the cycle interval and ask whether the records should be reviewed; do not merge them automatically |
-| **Possible missing period** | With at least four other usable cycles, one interval is close to two or three times the leave-one-out personal median; initial tolerance is the larger of three days or 15% of that median | Temporarily quarantine that interval and offer to open History around the likely missing range |
+| **Possible missing period** (implemented) | With at least three other usable cycle intervals that form a consistent baseline, one interval is close to two or three times their leave-one-out personal median; consistency and multiple-match tolerance use the larger of three days or 15% of the relevant median | Temporarily quarantine that interval and offer to open History around the likely missing range |
 | **Isolated personal cycle outlier** | With at least five comparison cycles, a single interval differs by at least seven days and has a modified median/MAD score above 3.5 | Label it for review; do not exclude it solely because of the statistical score unless the higher-confidence split/missing rule also applies or the user chooses exclusion |
 | **Unusual known bleeding duration** | With at least five comparison durations, one known completed duration is an isolated robust outlier | Review only that duration sample; its cycle-start interval remains independent |
 | **Period possibly left open** | An active period exceeds the larger of eight days or the personal known-duration median plus two days | Ask whether the period should be ended or corrected; never end it automatically |
@@ -389,7 +389,7 @@ type EstimateDecision = {
 
 The fingerprint prevents a decision about old boundaries from being applied after either affected period is changed. Stale decisions are ignored safely and a later cleanup pass may prune them. The version-4-to-5 migration adds an empty `estimateDecisions` collection without changing any recorded episode or log. Decisions live inside the vault, participate in encrypted backup/restore and readable export, and are removed by **Erase everything**; they must never be stored in URLs, browser history, Web Storage, caches, logs, or network requests.
 
-The implemented possible-split slice uses this pure domain pipeline:
+The implemented possible-split and possible-missing slices use this pure domain pipeline:
 
 ```text
 recorded episodes
@@ -405,14 +405,13 @@ If a possible split involves the latest forecast anchor, calendar prediction mar
 
 ### Review experience
 
-Periods History shows a localized **Needs review** card above the period list for possible split findings. Each finding names the affected dates, gives one short neutral explanation, and offers these implemented actions:
+Periods History shows a localized **Needs review** card above the period list for possible split and possible missing-period findings. Each finding names the affected dates, gives one short neutral explanation, and offers applicable implemented actions:
 
 - **Review recorded dates**;
+- **Add missing period**, which opens the existing History calendar near a derived likely range but does not create or persist a period;
 - **Keep and use in estimates**;
 - **Keep but exclude from estimates**; and
 - leaving the finding unresolved without losing it.
-
-**Add missing period** will be added with the possible-missing-period rule.
 
 Excluded samples stay fully visible in the journal and calendar with a compact **Not used in estimates** status and a reversible **Use again** action. A cycle-length decision and a bleeding-duration decision remain independent. UI copy should say, for example, **“This interval is about twice your recent cycle length. A period may be missing from the journal.”** It must avoid labels such as **invalid**, **wrong**, or **abnormal** for data review.
 
@@ -718,7 +717,7 @@ app -> composition of all layers
 - ESLint rejects literal user-visible JSX text, while tests enforce translation key and interpolation-placeholder parity.
 - Directories are added when they contain a real implementation or contract; empty placeholder layers and generic `utils` folders are avoided.
 
-### Implemented foundation, secure core, Phase 5 mobile slice, and first Cycle checks slice
+### Implemented foundation, secure core, Phase 5 mobile slice, and first Cycle checks slices
 
 - A responsive, accessible React shell rendered in `StrictMode`.
 - System, light, and dark theme selection with local persistence.
@@ -754,7 +753,7 @@ app -> composition of all layers
 - An atomic historical-period operation that creates the selected start and end boundaries and its start-day observations together, preventing an old check-in from accidentally producing a very long active period.
 - Contextual Insights and Periods history screens under Calendar, plus dedicated Privacy and Settings destinations, without a prominent Patterns or Today navigation item.
 - Deterministic forecast statistics, uncertainty ranges, late-estimate behavior, marker suppression for highly variable histories, and tracking preferences for fallbacks, orange, and forecast pause.
-- Canonical fingerprinted cycle and known-duration estimate samples, deterministic possible-split detection, default visible quarantine of the affected interval, and reversible **Keep and use**, **Keep but exclude**, and **Use again** decisions without changing recorded periods.
+- Canonical fingerprinted cycle and known-duration estimate samples, deterministic possible-split and possible-missing detection, default visible quarantine of affected intervals, and reversible **Keep and use**, **Keep but exclude**, and **Use again** decisions without changing recorded periods.
 - One reviewed estimate dataset used by Calendar forecasts and explanations, History statistics, Insights, and fallback-override detection; a pending finding on the latest forecast anchor withholds prediction markers until it is reviewed.
 - Derived, presentation-neutral insight summaries for the six most recent successive cycle lengths, known completed bleeding durations, and explicitly recorded confidence-4-or-5 days, plus the forecast source, confidence, history count, variability, and span shown in localized insight cards.
 - A localized, accessible recorded-only history calendar and compact period table. Calendar days and row edit icons start two-boundary correction, empty past dates can start a new period, and the shared journal invariants prevent overlapping or future ranges while preserving unrelated daily observations.
@@ -770,7 +769,7 @@ app -> composition of all layers
 
 The first Phase 5 slice removes the former single long unlocked page. It retains focused scrolling within each destination and reuses several established panels internally; smaller settings sub-screens and a dedicated tracker view-model hook remain optional follow-up refactors rather than blockers to the new information architecture.
 
-Also not implemented yet: missing-period, personal-outlier, duration-outlier, stale-active-period, and pattern-shift checks; Cycle checks walk-forward evaluation and broader automated coverage; episode splitting/merging; evidence-based forecast-range refinement or calibration from pilot data; final product-name clearance; deployment-specific header verification; or public-beta clinical, legal, manual assistive-technology, and independent security review. The backtest evaluator is not exposed as a user-facing accuracy score and does not establish clinical accuracy.
+Also not implemented yet: personal-outlier, duration-outlier, stale-active-period, and pattern-shift checks; Cycle checks walk-forward evaluation and broader automated coverage; episode splitting/merging; evidence-based forecast-range refinement or calibration from pilot data; final product-name clearance; deployment-specific header verification; or public-beta clinical, legal, manual assistive-technology, and independent security review. The backtest evaluator is not exposed as a user-facing accuracy score and does not establish clinical accuracy.
 
 ## Privacy and data lifecycle
 
@@ -917,17 +916,19 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [x] Refactor onboarding into focused consecutive screens with icon-only Back/Skip controls, accessible dot progress, horizontal swipe navigation, directional slide-and-fade transitions, a placeholder logo, package version and a resolved English/Deutsch language selector, light-mode/device-language resolution defaults, touch-friendly hybrid period-estimate controls, and optional PIN as the final step. During a horizontal gesture the current screen follows the finger by a short, damped distance before the transition begins, or settles back when the gesture is rejected. Forward navigation enters from the right and backward navigation from the left; all gesture and transition movement is disabled for `prefers-reduced-motion`. Programmatic heading focus still announces the destination to assistive technology without drawing a focus border on the non-interactive heading; interactive controls retain visible focus indicators. Swipe-left follows the same per-step validation as Continue, swipe-right returns to the preceding step, and vertical scrolling or gestures beginning on form controls are not treated as navigation.
 - [ ] Complete manual contrast, software-keyboard, forced-colors, screen-reader, real-device, and real-user usability validation and address findings.
 
-### Phase 6 — Cycle checks and estimate review (first slice implemented)
+### Phase 6 — Cycle checks and estimate review (first two slices implemented)
 
 - [x] Add canonical cycle-length and known-duration sample types with stable IDs and edit-sensitive fingerprints.
 - [x] Implement the pure deterministic possible-split rule for completed, known-duration periods separated by no more than two clear days; keep its finding derived and never rewrite journal data.
-- [ ] Add possible missing-period, isolated personal-outlier, unusual known-duration, possibly stale active-period, and sustained-pattern-shift rules with explicit precedence and insufficient-history behavior.
+- [x] Implement the pure deterministic possible-missing-period rule only when at least three other usable intervals form a consistent personal baseline; quarantine the inflated interval without inventing a replacement period.
+- [ ] Add isolated personal-outlier, unusual known-duration, possibly stale active-period, and sustained-pattern-shift rules with explicit precedence and insufficient-history behavior.
 - [x] Add a versioned, encrypted, migratable model for explicit include/exclude decisions and migrate existing version-4 vaults with an empty decision collection.
 - [x] Build one reviewed estimate dataset consumed by forecasts, **Why this estimate?**, History statistics, Insights, and fallback-override detection, including available, used, excluded, and pending-review cycle counts.
 - [ ] Extend the reviewed dataset into walk-forward evaluation without allowing held-out or future records to influence findings.
 - [x] Withhold prediction markers when the latest anchor itself is an unresolved possible split; otherwise keep anchor selection and cycle/duration exclusion independent and explain estimate effects.
 - [x] Add a localized **Needs review** workflow to Periods History for possible splits with date review, explicit include/exclude decisions, and reversible **Use again** controls.
-- [ ] Extend **Needs review** with missing-period entry, duration-specific decisions, status badges, and actions required by later rules.
+- [x] Extend **Needs review** with a possible-missing-period action that opens the existing History calendar near the likely range without saving a suggested date.
+- [ ] Extend **Needs review** with duration-specific decisions, status badges, and actions required by later rules.
 - [ ] Add schema migration, encrypted backup/restore, readable-export, erasure, cross-tab invalidation, EN/DE parity, keyboard/modal, offline, and health-data leakage coverage for review decisions.
 - [ ] Extend the walk-forward evaluator so every finding is derived from strictly earlier training history and compare baseline versus reviewed forecast error, range coverage, sample availability, and false-positive review rates.
 - [ ] Keep clinical health guidance in a separate, non-diagnostic layer that never changes estimate inclusion; obtain clinical-language review before enabling it publicly.
@@ -963,13 +964,13 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 ### Cycle checks and estimate review
 
-- [x] The implemented possible-split finding is deterministic, reproducible from local recorded history, expressed as a stable non-localized domain code, and presented with keyed English and German copy.
-- [x] The possible-split finding never silently changes, merges, splits, deletes, or relabels a recorded period or daily observation.
+- [x] The implemented possible-split and possible-missing findings are deterministic, reproducible from local recorded history, expressed as stable non-localized domain codes, and presented with keyed English and German copy.
+- [x] A Cycle checks finding never silently changes, merges, splits, adds, deletes, or relabels a recorded period or daily observation.
 - [x] Only the implemented high-confidence possible tracking artifact is quarantined by default; broader statistical and population-reference rules remain unimplemented.
-- [x] Every possible-split quarantine or explicit cycle exclusion remains visible in Periods History and can be restored with **Use again**.
+- [x] Every possible-split or possible-missing quarantine and every explicit cycle exclusion remains visible in Periods History and can be restored with **Use again**.
 - [ ] Cycle-length and bleeding-duration inclusion remain independent, and editing either affected boundary invalidates stale decisions safely.
 - [ ] Forecast, History, explanation, and backtest use one reviewed dataset and report matching available, used, excluded, and pending counts.
-- [ ] Possible missing-period review can open the existing History calendar near the relevant range without inventing or persisting a suggested period.
+- [x] Possible missing-period review can open the existing History calendar near the relevant range without inventing or persisting a suggested period.
 - [ ] Repeated shifts are treated as possible new personal patterns with reduced confidence rather than repeatedly discarded as isolated errors.
 - [ ] Too little reviewed history falls back honestly or withholds the estimate; it never manufactures replacement samples or certainty.
 - [ ] Schema migration, encrypted backup/restore, readable export, erasure, cross-tab behavior, offline use, accessibility, and privacy-leakage tests cover persisted estimate decisions.

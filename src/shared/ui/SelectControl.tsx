@@ -58,6 +58,8 @@ export function SelectControl<Value extends string>({
   const listboxRef = useRef<HTMLDivElement>(null);
   const selectedOption = options.find((option) => option.value === value);
 
+  if (disabled && open) setOpen(false);
+
   useEffect(() => {
     if (!open) return;
 
@@ -74,10 +76,6 @@ export function SelectControl<Value extends string>({
       document.removeEventListener('pointerdown', closeFromOutside);
     };
   }, [open]);
-
-  useEffect(() => {
-    if (disabled) setOpen(false);
-  }, [disabled]);
 
   useLayoutEffect(() => {
     if (!open) return;

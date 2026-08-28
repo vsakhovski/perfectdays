@@ -1,4 +1,4 @@
-import type { PossibleSplitPeriodFinding } from '../../domain/cycle-checks';
+import type { CycleCheckFinding, PossibleMissingPeriodFinding } from '../../domain/cycle-checks';
 import type { CycleEstimateSample } from '../../domain/estimate-samples';
 import type { LocalDate } from '../../domain/models';
 import styles from './CycleChecksPanel.module.css';
@@ -8,7 +8,10 @@ export interface CycleChecksPanelCopy {
   readonly description: string;
   readonly possibleSplitTitle: string;
   readonly possibleSplitDescription: (clearDayCount: number) => string;
+  readonly possibleMissingTitle: string;
+  readonly possibleMissingDescription: (cycleMultiple: 2 | 3) => string;
   readonly interval: (from: string, to: string) => string;
+  readonly addMissingPeriod: string;
   readonly reviewDates: string;
   readonly keepAndUse: string;
   readonly keepAndExclude: string;
@@ -22,11 +25,15 @@ interface CycleChecksPanelProps {
   readonly copy: CycleChecksPanelCopy;
   readonly errorMessage?: string;
   readonly excludedSamples: readonly CycleEstimateSample[];
-  readonly findings: readonly PossibleSplitPeriodFinding[];
+  readonly findings: readonly CycleCheckFinding[];
   readonly formatDate: (date: LocalDate) => string;
-  readonly onExclude: (finding: PossibleSplitPeriodFinding) => void;
-  readonly onInclude: (finding: PossibleSplitPeriodFinding) => void;
-  readonly onReviewDates: (finding: PossibleSplitPeriodFinding, trigger: HTMLButtonElement) => void;
+  readonly onAddMissingPeriod: (
+    finding: PossibleMissingPeriodFinding,
+    trigger: HTMLButtonElement,
+  ) => void;
+  readonly onExclude: (finding: CycleCheckFinding) => void;
+  readonly onInclude: (finding: CycleCheckFinding) => void;
+  readonly onReviewDates: (finding: CycleCheckFinding, trigger: HTMLButtonElement) => void;
   readonly onUseAgain: (sample: CycleEstimateSample) => void;
   readonly statusMessage?: string;
 }
@@ -38,6 +45,7 @@ export function CycleChecksPanel({
   excludedSamples,
   findings,
   formatDate,
+  onAddMissingPeriod,
   onExclude,
   onInclude,
   onReviewDates,
@@ -55,17 +63,33 @@ export function CycleChecksPanel({
 
       <div className={styles['items']}>
         {findings.map((finding) => {
+          const possibleMissing = finding.rule === 'possible-missing-period';
           return (
             <article className={styles['finding']} key={finding.id}>
-              <h3>{copy.possibleSplitTitle}</h3>
+              <h3>{possibleMissing ? copy.possibleMissingTitle : copy.possibleSplitTitle}</h3>
               <p>
                 {copy.interval(
-                  formatDate(finding.previousEndDate),
+                  formatDate(possibleMissing ? finding.previousStartDate : finding.previousEndDate),
                   formatDate(finding.nextStartDate),
                 )}
               </p>
-              <p>{copy.possibleSplitDescription(finding.clearDayCount)}</p>
+              <p>
+                {possibleMissing
+                  ? copy.possibleMissingDescription(finding.cycleMultiple)
+                  : copy.possibleSplitDescription(finding.clearDayCount)}
+              </p>
               <div className={styles['actions']}>
+                {possibleMissing ? (
+                  <button
+                    disabled={busySampleId !== undefined}
+                    onClick={(event) => {
+                      onAddMissingPeriod(finding, event.currentTarget);
+                    }}
+                    type="button"
+                  >
+                    {copy.addMissingPeriod}
+                  </button>
+                ) : null}
                 <button
                   disabled={busySampleId !== undefined}
                   onClick={(event) => {

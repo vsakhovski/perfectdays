@@ -4,7 +4,10 @@ import { useTranslation } from 'react-i18next';
 
 import { useLanguage } from '../../app/i18n/use-language';
 import { useVault } from '../../app/vault/use-vault';
-import { buildReviewedEstimateDataset } from '../../domain/cycle-checks';
+import {
+  buildReviewedEstimateDataset,
+  type PossibleMissingPeriodFinding,
+} from '../../domain/cycle-checks';
 import { setEstimateDecision } from '../../domain/estimate-review';
 import { deriveTrackerInsights } from '../../domain/insights';
 import {
@@ -15,7 +18,13 @@ import {
   type JournalMutationResult,
 } from '../../domain/journal';
 import { addMonths, calendarMonthGrid, isSameMonth, startOfMonth } from '../../domain/local-date';
-import type { DailyLog, LocalDate, PeriodEpisode, VaultPayload } from '../../domain/models';
+import type {
+  DailyLog,
+  EstimateDecisionReason,
+  LocalDate,
+  PeriodEpisode,
+  VaultPayload,
+} from '../../domain/models';
 import { importHistoricalEpisodes } from '../../domain/onboarding';
 import {
   formatLocalDate,
@@ -221,7 +230,13 @@ export function TrackerHistorySection({
       t(($) => $.tracker.history.cycleChecks.possibleSplit.description, {
         count: clearDayCount,
       }),
+    possibleMissingTitle: t(($) => $.tracker.history.cycleChecks.possibleMissing.title),
+    possibleMissingDescription: (cycleMultiple) =>
+      t(($) => $.tracker.history.cycleChecks.possibleMissing.description, {
+        count: cycleMultiple,
+      }),
     interval: (from, to) => t(($) => $.tracker.history.cycleChecks.interval, { from, to }),
+    addMissingPeriod: t(($) => $.tracker.history.cycleChecks.actions.addMissingPeriod),
     reviewDates: t(($) => $.tracker.history.cycleChecks.actions.reviewDates),
     keepAndUse: t(($) => $.tracker.history.cycleChecks.actions.keepAndUse),
     keepAndExclude: t(($) => $.tracker.history.cycleChecks.actions.keepAndExclude),
@@ -486,6 +501,7 @@ export function TrackerHistorySection({
     sampleId: string,
     fingerprint: string,
     use: 'include' | 'exclude',
+    reason: EstimateDecisionReason,
   ): void => {
     setReviewBusySampleId(sampleId);
     setReviewErrorMessage(undefined);
@@ -498,7 +514,7 @@ export function TrackerHistorySection({
         sampleKind: 'cycle',
         fingerprint,
         use,
-        reason: use === 'include' ? 'confirmed-correct' : 'recording-artifact',
+        reason,
         reviewedAt,
       }),
       updatedAt: reviewedAt,
@@ -516,6 +532,30 @@ export function TrackerHistorySection({
       .finally(() => {
         setReviewBusySampleId(undefined);
       });
+  };
+
+  const showPossibleMissingRange = (
+    finding: PossibleMissingPeriodFinding,
+    trigger: HTMLButtonElement,
+  ): void => {
+    selectionTriggerRef.current = trigger;
+    const targetMonth = startOfMonth(finding.suggestedStartDate);
+    const requestedStart = addMonths(targetMonth, -1);
+    const requestedEnd = addMonths(targetMonth, 1);
+    setCalendarRangeStart((current) => (requestedStart < current ? requestedStart : current));
+    setCalendarRangeEnd((current) => {
+      const boundedEnd = requestedEnd > currentMonth ? currentMonth : requestedEnd;
+      return boundedEnd > current ? boundedEnd : current;
+    });
+    setVisibleMonth(targetMonth);
+    setDraft(undefined);
+    setSelectedEntryId(undefined);
+    setSelectedEmptyDate(undefined);
+    setErrorMessage(undefined);
+    setStatusMessage(t(($) => $.tracker.history.cycleChecks.possibleMissing.chooseDate));
+    window.requestAnimationFrame(() => {
+      calendarContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
   const beginNewPeriod = (): void => {
@@ -775,18 +815,29 @@ export function TrackerHistorySection({
         excludedSamples={estimateDataset.excludedCycleSamples}
         findings={estimateDataset.pendingFindings}
         formatDate={(date) => formatLocalDate(date, resolvedLanguage)}
+        onAddMissingPeriod={showPossibleMissingRange}
         onExclude={(finding) => {
-          persistCycleDecision(finding.sampleId, finding.sampleFingerprint, 'exclude');
+          persistCycleDecision(
+            finding.sampleId,
+            finding.sampleFingerprint,
+            'exclude',
+            finding.rule === 'possible-missing-period' ? 'missing-entry' : 'recording-artifact',
+          );
         }}
         onInclude={(finding) => {
-          persistCycleDecision(finding.sampleId, finding.sampleFingerprint, 'include');
+          persistCycleDecision(
+            finding.sampleId,
+            finding.sampleFingerprint,
+            'include',
+            'confirmed-correct',
+          );
         }}
         onReviewDates={(finding, trigger) => {
           const entry = entries.find((candidate) => candidate.id === finding.nextEpisodeId);
           if (entry !== undefined) selectPeriod(entry, trigger);
         }}
         onUseAgain={(sample) => {
-          persistCycleDecision(sample.id, sample.fingerprint, 'include');
+          persistCycleDecision(sample.id, sample.fingerprint, 'include', 'confirmed-correct');
         }}
         {...(reviewBusySampleId === undefined ? {} : { busySampleId: reviewBusySampleId })}
         {...(reviewErrorMessage === undefined ? {} : { errorMessage: reviewErrorMessage })}

@@ -237,6 +237,23 @@ describe('calculateForecast', () => {
     expect(forecast?.latestStart).toBe(addDays(lastEpisode(episodes).startDate, 36));
   });
 
+  it('quarantines a possible missing-period interval without withholding the newer anchor', () => {
+    const episodes = episodesFromLengths('2026-01-01', [28, 29, 27, 56]);
+    const forecast = calculateForecast({
+      episodes,
+      settings: { forecastingPaused: false },
+    });
+
+    expect(forecast).toMatchObject({
+      centralStart: addDays(lastEpisode(episodes).startDate, 28),
+      completedCyclesUsed: 3,
+      recentCycleLengths: [28, 29, 27],
+      cycleSamplesAvailable: 4,
+      cycleSamplesExcluded: 0,
+      cycleSamplesPendingReview: 1,
+    });
+  });
+
   it('lets recorded cycle and duration history override supplied typical values', () => {
     const episodes = episodesFromLengths('2026-01-01', [27, 29]);
     episodes[0] = episode('episode-0', '2026-01-01', '2026-01-04');

@@ -291,7 +291,15 @@ export const en = {
           description_other:
             'There are only {{count}} clear days between these periods. Check whether both records are correct.',
         },
+        possibleMissing: {
+          title: 'A period may be missing from the journal',
+          description:
+            'This interval is about {{count}} times your recent cycle length. Check whether a period was not recorded.',
+          chooseDate:
+            'Choose the recorded start date in the calendar. No period will be added until you select and confirm both dates.',
+        },
         actions: {
+          addMissingPeriod: 'Add missing period',
           reviewDates: 'Review recorded dates',
           keepAndUse: 'Keep and use in estimates',
           keepAndExclude: 'Keep but exclude from estimates',

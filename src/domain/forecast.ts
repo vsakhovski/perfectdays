@@ -129,7 +129,10 @@ export function calculateForecast(input: ForecastInput): ForecastDetails | null 
   const latestCycleSample = dataset.cycleSamples.at(-1);
   const latestAnchorNeedsReview =
     latestCycleSample?.nextEpisodeId === latestEpisode.id &&
-    dataset.pendingCycleSamples.some((sample) => sample.id === latestCycleSample.id);
+    dataset.pendingFindings.some(
+      (finding) =>
+        finding.rule === 'possible-split-period' && finding.sampleId === latestCycleSample.id,
+    );
   if (latestAnchorNeedsReview) {
     return null;
   }

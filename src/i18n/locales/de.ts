@@ -291,6 +291,13 @@ export const de = {
         description:
           'Zyklusprüfungen weisen auf Einträge hin, die Schätzungen beeinflussen können. Dein Tagebuch wird nie automatisch geändert.',
         interval: '{{from}} bis {{to}}',
+        possibleMissing: {
+          title: 'Im Tagebuch könnte eine Periode fehlen',
+          description:
+            'Dieses Intervall ist ungefähr {{count}}-mal so lang wie deine letzten Zyklen. Prüfe, ob eine Periode nicht aufgezeichnet wurde.',
+          chooseDate:
+            'Wähle den aufgezeichneten Beginn im Kalender. Es wird keine Periode hinzugefügt, bevor du beide Daten ausgewählt und bestätigt hast.',
+        },
         possibleSplit: {
           title: 'Zwei Perioden liegen sehr nah beieinander',
           description:
@@ -303,6 +310,7 @@ export const de = {
             'Zwischen diesen Perioden liegen nur {{count}} blutungsfreie Tage. Prüfe, ob beide Einträge stimmen.',
         },
         actions: {
+          addMissingPeriod: 'Fehlende Periode hinzufügen',
           reviewDates: 'Aufgezeichnete Daten prüfen',
           keepAndUse: 'Behalten und für Schätzungen verwenden',
           keepAndExclude: 'Behalten, aber aus Schätzungen ausschließen',

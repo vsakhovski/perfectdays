@@ -344,6 +344,36 @@ function createRecordedMultiCyclePayload(): VaultPayload {
   };
 }
 
+function createPossibleMissingPeriodPayload(): VaultPayload {
+  const timestamp = '2026-06-01T08:00:00.000Z';
+  const payload = createEmptyVaultPayload(timestamp);
+  const periods = [
+    ['episode-0', '2026-01-01', '2026-01-05'],
+    ['episode-1', '2026-01-29', '2026-02-02'],
+    ['episode-2', '2026-02-27', '2026-03-03'],
+    ['episode-3', '2026-03-26', '2026-03-30'],
+    ['episode-4', '2026-05-21', '2026-05-25'],
+  ] as const;
+
+  return {
+    ...payload,
+    episodes: periods.map(([id, startDate, endDate]) => ({
+      id,
+      startDate: asLocalDate(startDate),
+      endDate: asLocalDate(endDate),
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })),
+    logs: periods.map(([id, startDate]) => ({
+      date: asLocalDate(startDate),
+      episodeId: id,
+      flow: 'medium' as const,
+      updatedAt: timestamp,
+    })),
+    settings: { ...payload.settings, onboardingCompleted: true },
+  };
+}
+
 function sectionWithHeading(name: string): HTMLElement {
   const section = screen.getByRole('heading', { name }).closest('section');
   if (!(section instanceof HTMLElement)) {
@@ -700,6 +730,32 @@ describe('App', () => {
     expect(screen.getAllByText('Cycle length: 28 days')).toHaveLength(2);
     expect(screen.queryByRole('heading', { name: 'Next period' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Why this estimate?' })).not.toBeInTheDocument();
+  });
+
+  it('opens History near a possible missing period without changing the journal', async () => {
+    const user = userEvent.setup();
+    const payload = createPossibleMissingPeriodPayload();
+    const { vaultController } = await renderApp({
+      vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
+    });
+
+    await openRootDestination(user, 'History');
+    expect(
+      screen.getByRole('heading', { name: 'A period may be missing from the journal' }),
+    ).toBeVisible();
+    expect(screen.getByText(/about 2 times your recent cycle length/i)).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Add missing period' }));
+
+    expect(screen.getByRole('heading', { name: 'April 2026' })).toBeVisible();
+    expect(screen.getByText(/Choose the recorded start date in the calendar/i)).toBeVisible();
+    const snapshot = vaultController.getSnapshot();
+    expect(snapshot.phase).toBe('unlocked');
+    if (snapshot.phase !== 'unlocked') return;
+    expect(snapshot.payload.episodes).toEqual(payload.episodes);
+
+    await user.click(screen.getByRole('button', { name: /Thursday, April 23, 2026/i }));
+    expect(screen.getByRole('dialog', { name: /Apr 23, 2026/ })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Start a new period here' })).toBeVisible();
   });
 
   it('keeps an imported unknown period unchanged when date editing is cancelled', async () => {
