@@ -2,6 +2,8 @@
 
 > Last policy review: 2026-08-19. Store policies, fees, target SDK requirements, and legal obligations change. Re-check every linked primary source immediately before creating accounts and before each submission. This document is an engineering and product-planning reference, not legal, medical, tax, or export-control advice.
 
+For the public repository overview and local setup, see [README.md](README.md). The detailed product and engineering specification is in [DEVELOPMENT.md](DEVELOPMENT.md).
+
 ## Recommended Distribution Strategy
 
 For the current product, distribute the hosted PWA first and add store packages later. The recommended sequence is:
