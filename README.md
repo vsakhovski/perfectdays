@@ -15,6 +15,7 @@ My Perfect Days is a private, mobile-first menstrual journal. It records bleedin
 - Estimates derived from completed recorded cycles when enough history exists, with optional starting estimates used only as a fallback.
 - English, German, and Russian interfaces with device-language detection.
 - Light and dark themes, keyboard support, reduced-motion behavior, and non-color marker semantics.
+- Browser Back and Forward navigation between app screens, with confirmation before leaving from the start screen after the page has received a user interaction.
 - Installable offline application shell with local IndexedDB persistence.
 - Optional six-digit PIN protection, encrypted backup and restore, and explicitly warned readable export.
 

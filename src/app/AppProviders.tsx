@@ -1,6 +1,6 @@
 import type { i18n as I18nInstance } from 'i18next';
 import { useCallback, type ReactNode } from 'react';
-import { I18nextProvider } from 'react-i18next';
+import { I18nextProvider, useTranslation } from 'react-i18next';
 
 import type { LanguageStore } from '../application/ports/language-store';
 import type { SystemLanguageSource } from '../application/ports/system-language-source';
@@ -16,6 +16,7 @@ import type { VaultPayload } from '../domain/models';
 import type { JournalMutationContext } from '../domain/journal';
 import { LanguageProvider } from './i18n/LanguageProvider';
 import { useLanguage } from './i18n/use-language';
+import { AppNavigationProvider } from './navigation/AppNavigationProvider';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { useTheme } from './theme/use-theme';
 import { VaultProvider } from './vault/VaultProvider';
@@ -54,6 +55,23 @@ type AppVaultProviderProps = Pick<
   | 'vaultInitializationFailed'
   | 'vaultInvalidationChannel'
 >;
+
+function LocalizedNavigationProvider({ children }: { readonly children: ReactNode }) {
+  const { t } = useTranslation();
+
+  return (
+    <AppNavigationProvider
+      copy={{
+        title: t(($) => $.navigation.leave.title),
+        description: t(($) => $.navigation.leave.description),
+        stay: t(($) => $.navigation.leave.stay),
+        leave: t(($) => $.navigation.leave.leave),
+      }}
+    >
+      {children}
+    </AppNavigationProvider>
+  );
+}
 
 function AppVaultProvider({
   children,
@@ -132,23 +150,25 @@ export function AppProviders({
         store={languageStore}
         systemLanguageSource={systemLanguageSource}
       >
-        <ThemeProvider store={themeStore}>
-          <AppVaultProvider
-            autoLockClock={autoLockClock}
-            createInitialVaultPayload={createInitialVaultPayload}
-            lifecycle={lifecycle}
-            journalEnvironment={journalEnvironment}
-            nowIso={nowIso}
-            pinProtectionAvailable={pinProtectionAvailable}
-            reloadPage={reloadPage}
-            textFileDownloader={textFileDownloader}
-            vaultController={vaultController}
-            vaultInitializationFailed={vaultInitializationFailed}
-            vaultInvalidationChannel={vaultInvalidationChannel}
-          >
-            {children}
-          </AppVaultProvider>
-        </ThemeProvider>
+        <LocalizedNavigationProvider>
+          <ThemeProvider store={themeStore}>
+            <AppVaultProvider
+              autoLockClock={autoLockClock}
+              createInitialVaultPayload={createInitialVaultPayload}
+              lifecycle={lifecycle}
+              journalEnvironment={journalEnvironment}
+              nowIso={nowIso}
+              pinProtectionAvailable={pinProtectionAvailable}
+              reloadPage={reloadPage}
+              textFileDownloader={textFileDownloader}
+              vaultController={vaultController}
+              vaultInitializationFailed={vaultInitializationFailed}
+              vaultInvalidationChannel={vaultInvalidationChannel}
+            >
+              {children}
+            </AppVaultProvider>
+          </ThemeProvider>
+        </LocalizedNavigationProvider>
       </LanguageProvider>
     </I18nextProvider>
   );

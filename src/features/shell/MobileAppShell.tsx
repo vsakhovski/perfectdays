@@ -1,8 +1,9 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 
+import type { AppRootDestination } from '../../app/navigation/app-navigation-types';
 import styles from './MobileAppShell.module.css';
 
-export type RootDestination = 'calendar' | 'history' | 'privacy' | 'settings';
+export type RootDestination = AppRootDestination;
 
 export interface MobileAppShellCopy {
   readonly checkInToday: string;

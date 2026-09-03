@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useLanguage } from '../../app/i18n/use-language';
+import { useAppNavigation } from '../../app/navigation/use-app-navigation';
 import { useVault } from '../../app/vault/use-vault';
 import type { LocalDate, VaultPayload } from '../../domain/models';
 import { formatLocalDate } from '../../i18n/date-format';
@@ -142,7 +143,9 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   const { t } = useTranslation();
   const { resolvedLanguage } = useLanguage();
   const { journalEnvironment, lock, snapshot } = useVault();
-  const [destination, setDestination] = useState<RootDestination>('calendar');
+  const { navigate: navigateHistory, reset: resetHistory, route } = useAppNavigation();
+  const destination: RootDestination = route.kind === 'root' ? route.destination : 'calendar';
+  const previousDestinationRef = useRef<RootDestination>(destination);
   const [checkInRequest, setCheckInRequest] = useState<number>();
   const checkInRequestCounterRef = useRef(0);
   const [checkInReturnFocusElement, setCheckInReturnFocusElement] =
@@ -184,12 +187,23 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   };
   const screenTitle = copy.destinations[destination];
 
-  const navigate = (nextDestination: RootDestination): void => {
-    if (nextDestination === 'calendar' && destination !== 'calendar') {
+  useEffect(() => {
+    if (route.kind === 'onboarding') {
+      resetHistory({ kind: 'start' });
+    }
+  }, [resetHistory, route.kind]);
+
+  useEffect(() => {
+    const previousDestination = previousDestinationRef.current;
+    previousDestinationRef.current = destination;
+    if (destination === 'calendar' && previousDestination !== 'calendar') {
       setCalendarShowsCurrentMonth(true);
       setCalendarCheckInDate(today);
     }
-    setDestination(nextDestination);
+  }, [destination, today]);
+
+  const navigate = (nextDestination: RootDestination): void => {
+    navigateHistory({ kind: 'root', destination: nextDestination });
   };
 
   const content =
@@ -250,7 +264,9 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
         : {})}
       onCheckIn={(trigger) => {
         setCheckInReturnFocusElement(trigger);
-        setDestination('calendar');
+        if (destination !== 'calendar') {
+          navigateHistory({ kind: 'root', destination: 'calendar' });
+        }
         checkInRequestCounterRef.current += 1;
         setCheckInRequest(checkInRequestCounterRef.current);
       }}

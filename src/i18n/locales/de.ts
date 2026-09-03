@@ -5,6 +5,15 @@ export const de = {
     title: 'My Perfect Days',
     description: 'Ein privates, lokal gespeichertes Tagebuch für Menstruationsmuster.',
   },
+  navigation: {
+    leave: {
+      title: 'My Perfect Days verlassen?',
+      description:
+        'Dein Tagebuch bleibt auf diesem Gerät gespeichert. Möchtest du die App verlassen?',
+      stay: 'In der App bleiben',
+      leave: 'App verlassen',
+    },
+  },
   tracker: {
     onboarding: {
       splash: {

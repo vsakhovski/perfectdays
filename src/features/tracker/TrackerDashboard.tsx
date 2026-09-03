@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Ref } from 'rea
 import { useTranslation } from 'react-i18next';
 
 import { useLanguage } from '../../app/i18n/use-language';
+import { useAppNavigation } from '../../app/navigation/use-app-navigation';
 import { useVault } from '../../app/vault/use-vault';
 import {
   buildDailyCheckInPayload,
@@ -232,6 +233,7 @@ interface PendingHistoricalPeriodEnd {
 export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayload }) {
   const { t } = useTranslation();
   const { resolvedLanguage, systemLanguages } = useLanguage();
+  const { navigate, reset, route } = useAppNavigation();
   const { enablePin, journalEnvironment, pinProtectionAvailable, savePayload, snapshot } =
     useVault();
   const [busy, setBusy] = useState(false);
@@ -247,6 +249,11 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
       ? {}
       : { typicalBleedDuration: payload.settings.typicalBleedDuration }),
   }));
+  const onboardingStep = route.kind === 'onboarding' ? route.step : 'splash';
+
+  useEffect(() => {
+    if (route.kind === 'root') reset({ kind: 'start' });
+  }, [reset, route.kind]);
 
   const copy: OnboardingCopy = {
     splash: {
@@ -457,6 +464,7 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
 
   return (
     <TrackerOnboarding
+      activeStep={onboardingStep}
       appVersion={__APP_VERSION__}
       busy={busy}
       copy={copy}
@@ -481,6 +489,9 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
           ...current,
           history: current.history.filter((entry) => entry.id !== id),
         }));
+      }}
+      onStepChange={(step) => {
+        navigate({ kind: 'onboarding', step });
       }}
       onSkip={() => {
         void saveSetup(skipOnboarding(payload, journalEnvironment));

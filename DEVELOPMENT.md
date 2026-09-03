@@ -163,6 +163,7 @@ This section describes the implemented Phase 5 mobile foundation and the remaini
 | Surface            | Responsibility                                                                                                                               |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Calendar**       | Default destination; current month, recorded observations, predictions, forecast summary, day access, and contextual history                 |
+| **History**        | Recorded periods, review findings, period correction, and estimate context                                                                   |
 | **Privacy**        | PIN protection, encrypted backup and verified restore, warned human-readable export, storage explanation, and confirmed erasure controls     |
 | **Settings**       | Tracking and forecast preferences, orange-window configuration, appearance, language, calendar week start, and About/non-medical information |
 | **Check in today** | Persistent primary action above the navigation; opens or edits today's entry and is not a destination                                        |
@@ -173,7 +174,7 @@ There is no separate **Today** or **Patterns** bottom destination. Their useful 
 
 Only one primary screen is mounted and presented at a time; the app no longer reads as a sequence of large dashboard cards. The unlocked shell uses a compact top bar, `min-block-size: 100dvh`, a mobile content width of about `32rem` even when centered on desktop, and safe-area-aware bottom chrome. The action dock sits immediately above the three-destination navigation, whose icon-and-text controls retain 44 × 44 CSS-pixel targets. Secondary settings and explanations open as focused sub-screens instead of expanding the daily surface indefinitely.
 
-The initial implementation uses a closed, typed in-memory destination state rather than a router. Calendar is restored as the default whenever the unlocked shell mounts. The active destination, selected date, editor draft, ratings, notes, marker states, and episode identifiers are not persisted in URLs, browser history, `localStorage`, or `sessionStorage`. Locking unmounts the shell and discards navigation state and unsaved drafts. Browser Back support may later store symbolic screen depth only, never health values.
+The app uses a closed, typed navigation state rather than a URL router. Browser Back and Forward move between onboarding steps and the Calendar, History, Privacy, and Settings destinations while leaving the URL unchanged. History entries contain only symbolic routes such as a screen name or onboarding-step name; selected dates, editor drafts, ratings, notes, marker states, and episode identifiers are never included. Calendar is the protected start destination after onboarding or unlock. After the document receives its first genuine pointer or keyboard interaction, the app recreates the start boundary within that activation; Back from the start can then open a localized confirmation dialog instead of immediately leaving. Confirming leaves past the app-owned entries, while staying restores the start screen. A browser may skip script-created history entries on a completely untouched launch as an anti-history-trapping measure. Guaranteeing confirmation in that zero-interaction case would require an explicit **Open journal** launch action. Completing onboarding, locking, or otherwise resetting the protected flow installs a fresh start boundary so stale protected screens cannot be revisited. Locking still unmounts the shell and discards navigation state and unsaved drafts.
 
 ### Calendar screen structure
 
@@ -919,13 +920,14 @@ Initial browser targets for the prototype are the latest two major versions of C
 
 ### Phase 5 — Calendar-first mobile interaction redesign (first slice implemented)
 
-- [x] Replace the long unlocked scrolling composition with a Calendar/Privacy/Settings shell whose default destination is Calendar.
+- [x] Replace the long unlocked scrolling composition with a Calendar/History/Privacy/Settings shell whose default destination is Calendar.
 - [x] Add the persistent **Check in today** action separately from navigation and implement the focused, atomic **Save and done** flow.
 - [x] Add a smoothly and freely vertical month stream, animated up/down month navigation and **Go to today**, revised recorded/predicted bands and amber marker, a compact legend, and the forecast summary below the calendar.
 - [x] Keep forecast reasoning, recent patterns, and history/correction contextually reachable without a **Patterns** bottom destination.
 - [x] Present Insights and Periods history as focused secondary screens with one title, a top-bar close action, restored trigger focus, and no bottom chrome.
 - [x] Move PIN protection, backup/restore, human-readable export, storage explanation, and confirmed erasure into Privacy; move tracking, appearance, language, calendar week start, and About into Settings.
 - [x] Add all new English, German, and Russian copy, component/unit coverage, mobile browser flows, and navigation/check-in privacy-leakage assertions.
+- [x] Integrate onboarding steps and primary destinations with browser Back and Forward while keeping URLs unchanged, store only symbolic non-health routes in `history.state`, and confirm before Back leaves the protected start screen after a user interaction.
 - [x] Refactor onboarding into focused consecutive screens with icon-only Back/Skip controls, accessible dot progress, horizontal swipe navigation, directional slide-and-fade transitions, a placeholder logo, package version and a resolved English/Deutsch/Русский language selector, light-mode/device-language resolution defaults, touch-friendly hybrid period-estimate controls, and optional PIN as the final step. During a horizontal gesture the current screen follows the finger by a short, damped distance before the transition begins, or settles back when the gesture is rejected. Forward navigation enters from the right and backward navigation from the left; all gesture and transition movement is disabled for `prefers-reduced-motion`. Programmatic heading focus still announces the destination to assistive technology without drawing a focus border on the non-interactive heading; interactive controls retain visible focus indicators. Swipe-left follows the same per-step validation as Continue, swipe-right returns to the preceding step, and vertical scrolling or gestures beginning on form controls are not treated as navigation.
 - [ ] Complete manual contrast, software-keyboard, forced-colors, screen-reader, real-device, and real-user usability validation and address findings.
 
@@ -995,7 +997,8 @@ Initial browser targets for the prototype are the latest two major versions of C
 ### Mobile interaction redesign
 
 - [x] Calendar is the default destination after completed onboarding, reload, and unlock, and it opens the current local month.
-- [x] Bottom navigation contains exactly **Calendar**, **Privacy**, and **Settings**, exposes the current destination semantically, and resets to Calendar when the unlocked shell remounts.
+- [x] Bottom navigation contains exactly **Calendar**, **History**, **Privacy**, and **Settings**, exposes the current destination semantically, and resets to Calendar when the unlocked shell remounts.
+- [x] Browser Back and Forward traverse onboarding steps and primary destinations without changing the URL; after a page interaction, Back at the protected start screen asks for confirmation before leaving, and completing or locking a flow prevents stale screens from being revisited.
 - [x] **Check in today** is visually and semantically separate from navigation, is reachable in one tap from every primary destination, and always opens today regardless of the displayed month or selected date.
 - [x] The calendar scrolls continuously up and down without month snapping; previous and next controls animate to the adjacent month with up/down icons; **Go to today** returns to the current local month, is disabled there, and places roving calendar focus on today.
 - [ ] Today remains visibly and semantically distinct from keyboard focus, recorded periods, predictions, amber, green, and spotting in normal and forced-colors modes.
@@ -1017,7 +1020,7 @@ Initial browser targets for the prototype are the latest two major versions of C
 - [ ] Fixed bottom controls do not obscure content at 320 CSS pixels, large text, browser zoom, with an open software keyboard, or across device safe-area insets.
 - [ ] Month, **Today**, navigation, check-in, and sticky action controls have localized accessible names and targets of at least 44 × 44 CSS pixels.
 - [ ] Both themes meet applicable WCAG 2.2 AA text contrast and 3:1 non-text/component contrast with the proposed marker palette before those tokens are accepted.
-- [ ] Navigation and check-in flows place no selected date, observation, draft, note, rating, marker state, or episode identifier in URLs, history state, Web Storage, caches, logs, or network requests. Automated tests already keep the URL fixed, exclude transient draft values from history/Web Storage, and exclude synthetic health secrets from current cache/network surfaces; broaden the matrix as new navigation state is added.
+- [ ] Navigation and check-in flows place no selected date, observation, draft, note, rating, marker state, or episode identifier in URLs, history state, Web Storage, caches, logs, or network requests. Browser navigation now keeps the URL fixed and stores only validated symbolic screen or onboarding-step routes; automated tests exclude transient draft values from history/Web Storage and synthetic health secrets from current cache/network surfaces. Broaden the matrix as new navigation state is added.
 
 ### Theme, localization, and accessibility
 

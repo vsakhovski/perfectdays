@@ -569,6 +569,60 @@ test.describe('English application shell', () => {
 test.describe('Phase 5 compact mobile shell', () => {
   test.use({ locale: 'en-US', viewport: { height: 800, width: 320 } });
 
+  test('guards programmatic Back from Calendar after starting without a PIN', async ({ page }) => {
+    await page.goto('/');
+    await finishOnboarding(page);
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
+
+    await page.goBack();
+
+    await expect(page.getByRole('dialog', { name: 'Leave My Perfect Days?' })).toBeVisible();
+  });
+
+  test('uses browser Back and Forward and confirms before leaving the initial Calendar', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await finishOnboarding(page);
+    const initialUrl = page.url();
+
+    await openRootDestination(page, 'Privacy');
+    await openRootDestination(page, 'Settings');
+    await page.goBack();
+    await expect(page.getByRole('heading', { level: 1, name: 'Privacy' })).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
+    await page.goForward();
+    await expect(page.getByRole('heading', { level: 1, name: 'Privacy' })).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
+
+    await page.goBack();
+    const leaveDialog = page.getByRole('dialog', { name: 'Leave My Perfect Days?' });
+    await expect(leaveDialog).toBeVisible();
+    await expect(leaveDialog.getByRole('button', { name: 'Stay in the app' })).toBeFocused();
+    await leaveDialog.getByRole('button', { name: 'Stay in the app' }).click();
+
+    await expect(leaveDialog).toBeHidden();
+    await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
+    expect(page.url()).toBe(initialUrl);
+
+    await page.goBack();
+    await expect(leaveDialog).toBeVisible();
+    await Promise.all([
+      page.waitForURL('about:blank'),
+      leaveDialog.getByRole('button', { name: 'Leave app' }).click(),
+    ]);
+
+    await page.goForward();
+    await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
+    expect(page.url()).toBe(initialUrl);
+
+    await page.goBack();
+    await expect(page.getByRole('dialog', { name: 'Leave My Perfect Days?' })).toBeVisible();
+  });
+
   test('defaults to Calendar with four root destinations and a contextual check-in action', async ({
     page,
   }) => {

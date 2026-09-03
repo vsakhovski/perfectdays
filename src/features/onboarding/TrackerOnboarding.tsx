@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import type { AppOnboardingStep } from '../../app/navigation/app-navigation-types';
 import type { LocalDate, SupportedLanguage } from '../../domain/models';
 import { integerMedian } from '../../domain/forecast';
 import { daysBetween } from '../../domain/local-date';
@@ -122,6 +123,7 @@ export interface OnboardingCopy {
 
 export interface TrackerOnboardingProps {
   readonly appVersion: string;
+  readonly activeStep?: AppOnboardingStep;
   readonly busy?: boolean;
   readonly copy: OnboardingCopy;
   readonly draft: OnboardingDraft;
@@ -133,6 +135,7 @@ export interface TrackerOnboardingProps {
   readonly onComplete: (draft: OnboardingDraft) => void;
   readonly onEnablePin: (pin: string) => Promise<void>;
   readonly onRemoveHistory: (id: string) => void;
+  readonly onStepChange?: (step: AppOnboardingStep) => void;
   readonly onSkip: () => void;
   readonly pinEnabled: boolean;
   readonly pinProtectionAvailable: boolean;
@@ -140,7 +143,7 @@ export interface TrackerOnboardingProps {
   readonly weekStartsOn: 0 | 1;
 }
 
-type OnboardingStep = 'splash' | 'introduction' | 'history' | 'fallbacks' | 'orange' | 'pin';
+type OnboardingStep = AppOnboardingStep;
 type ValidatedStep = Extract<OnboardingStep, 'history' | 'fallbacks' | 'orange'>;
 type TransitionDirection = 'backward' | 'forward';
 type PinEntryStep = 'first' | 'confirmation';
@@ -318,6 +321,7 @@ function withHistoryEstimates(draft: OnboardingDraft): OnboardingDraft {
 
 export function TrackerOnboarding({
   appVersion,
+  activeStep,
   busy = false,
   copy,
   draft,
@@ -329,13 +333,15 @@ export function TrackerOnboarding({
   onComplete,
   onEnablePin,
   onRemoveHistory,
+  onStepChange,
   onSkip,
   pinEnabled,
   pinProtectionAvailable,
   today,
   weekStartsOn,
 }: TrackerOnboardingProps) {
-  const [step, setStep] = useState<OnboardingStep>('splash');
+  const [internalStep, setInternalStep] = useState<OnboardingStep>('splash');
+  const step = activeStep ?? internalStep;
   const [errors, setErrors] = useState<FieldErrors>(new Map());
   const [pin, setPin] = useState('');
   const [pinConfirmation, setPinConfirmation] = useState('');
@@ -378,7 +384,8 @@ export function TrackerOnboarding({
     setErrors(new Map());
     setPinError(undefined);
     setScreenTransition({ direction, fromStep: step, startOffset: swipeFeedback });
-    setStep(nextStep);
+    if (onStepChange) onStepChange(nextStep);
+    else setInternalStep(nextStep);
   };
 
   const next = (): void => {

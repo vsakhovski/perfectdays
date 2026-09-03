@@ -40,4 +40,5 @@ afterEach(() => {
   document.querySelector('#app-description')?.remove();
   document.title = '';
   window.localStorage.clear();
+  window.history.replaceState(null, '', '/');
 });

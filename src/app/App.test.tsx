@@ -496,6 +496,64 @@ describe('App', () => {
     expect(persistentCheckInTodayButton()).toBeVisible();
   }, 10_000);
 
+  it('navigates main screens with browser Back and Forward and confirms before leaving', async () => {
+    const user = userEvent.setup();
+    await renderApp({ onboardingCompleted: true });
+    const initialUrl = window.location.href;
+
+    await openRootDestination(user, 'Privacy');
+    await openRootDestination(user, 'Settings');
+
+    act(() => {
+      window.history.back();
+    });
+    expect(await screen.findByRole('heading', { name: 'Privacy', level: 1 })).toBeVisible();
+
+    act(() => {
+      window.history.back();
+    });
+    expect(await screen.findByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
+
+    act(() => {
+      window.history.forward();
+    });
+    expect(await screen.findByRole('heading', { name: 'Privacy', level: 1 })).toBeVisible();
+
+    act(() => {
+      window.history.back();
+    });
+    expect(await screen.findByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
+    act(() => {
+      window.history.back();
+    });
+    expect(await screen.findByRole('dialog', { name: 'Leave My Perfect Days?' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Stay in the app' }));
+
+    expect(screen.queryByRole('dialog', { name: 'Leave My Perfect Days?' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
+    expect(window.location.href).toBe(initialUrl);
+  }, 10_000);
+
+  it('navigates onboarding steps with browser Back and Forward', async () => {
+    const user = userEvent.setup();
+    await renderApp();
+
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
+    expect(screen.getByRole('heading', { name: 'Understand your cycle, privately' })).toBeVisible();
+
+    act(() => {
+      window.history.back();
+    });
+    expect(await screen.findByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
+
+    act(() => {
+      window.history.forward();
+    });
+    expect(
+      await screen.findByRole('heading', { name: 'Understand your cycle, privately' }),
+    ).toBeVisible();
+  });
+
   it('keeps Go to today in the header and disables it for the current month', async () => {
     const user = userEvent.setup();
     await renderApp({ onboardingCompleted: true });
