@@ -46,7 +46,7 @@ test('the neutral manifest has installable, maskable raster icons', async () => 
   assert.equal(manifest.start_url, '/');
   assert.equal(manifest.scope, '/');
   assert.equal(manifest.display, 'standalone');
-  assert.equal(manifest.theme_color, '#87365a');
+  assert.equal(manifest.theme_color, '#087b80');
   assert.equal(manifest.background_color, '#fbf8f7');
 
   for (const size of [192, 512]) {

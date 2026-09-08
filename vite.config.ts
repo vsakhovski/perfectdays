@@ -56,7 +56,7 @@ export default defineConfig({
         scope: '/',
         short_name: 'My Perfect Days',
         start_url: '/',
-        theme_color: '#87365a',
+        theme_color: '#087b80',
       },
       registerType: 'autoUpdate',
       strategies: 'generateSW',
