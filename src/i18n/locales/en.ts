@@ -143,7 +143,8 @@ export const en = {
         days_other: '{{count}} days',
       },
       forecast: {
-        unavailable: 'There is no current estimate to explain.',
+        unavailable:
+          'Not enough data to predict the next period. Need at least {{count}} recorded periods.',
         confidenceLabel: 'Confidence',
       },
     },

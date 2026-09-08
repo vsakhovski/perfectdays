@@ -32,19 +32,13 @@ export default defineConfig({
         display: 'standalone',
         icons: [
           {
-            src: '/icons/app-icon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any',
-          },
-          {
-            src: '/icons/app-icon-192.png',
+            src: '/icons/app-icon-v10-192.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any maskable',
           },
           {
-            src: '/icons/app-icon-512.png',
+            src: '/icons/app-icon-v10-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable',

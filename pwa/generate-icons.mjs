@@ -6,6 +6,7 @@ import { chromium } from 'playwright';
 const rootDirectory = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const iconPath = resolve(rootDirectory, 'public/icons/app-icon.svg');
 const outputDirectory = resolve(rootDirectory, 'public/icons');
+const installIconVersion = 'v10';
 const iconMarkup = await readFile(iconPath, 'utf8');
 const browser = await chromium.launch({ headless: true });
 
@@ -31,7 +32,10 @@ try {
           omitBackground: true,
           type: 'png',
         });
-        await writeFile(resolve(outputDirectory, `app-icon-${String(size)}.png`), png);
+        await writeFile(
+          resolve(outputDirectory, `app-icon-${installIconVersion}-${String(size)}.png`),
+          png,
+        );
       } finally {
         await page.close();
       }

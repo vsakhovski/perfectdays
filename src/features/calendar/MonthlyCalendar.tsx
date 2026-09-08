@@ -190,6 +190,17 @@ function dayOfMonth(date: LocalDate): number {
   return Number(date.slice(8, 10));
 }
 
+function targetScrollTop(scroller: HTMLElement, target: HTMLElement): number {
+  return (
+    scroller.scrollTop + target.getBoundingClientRect().top - scroller.getBoundingClientRect().top
+  );
+}
+
+function finishScrollAtTarget(scroller: HTMLElement, target: HTMLElement): void {
+  const top = targetScrollTop(scroller, target);
+  if (Math.abs(scroller.scrollTop - top) > 1) scroller.scrollTop = top;
+}
+
 function continuousDays(months: readonly CalendarMonth[]): readonly CalendarDay[] {
   const daysByDate = new Map<LocalDate, CalendarDay>();
   for (const month of months) {
@@ -280,6 +291,7 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
   const pendingMonthRef = useRef<LocalDate | undefined>(undefined);
   const pendingMonthFocusDayRef = useRef<number | undefined>(undefined);
   const programmaticScrollTargetRef = useRef<LocalDate | undefined>(undefined);
+  const programmaticScrollReachedRef = useRef(false);
   const programmaticScrollTimerRef = useRef<number | undefined>(undefined);
   const prependAnchorRef = useRef<{ date: LocalDate; offset: number } | undefined>(undefined);
   const leadingRequestRef = useRef<LocalDate | undefined>(undefined);
@@ -360,20 +372,26 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
       }
       pendingMonthRef.current = undefined;
       programmaticScrollTargetRef.current = month;
+      programmaticScrollReachedRef.current = false;
       if (programmaticScrollTimerRef.current !== undefined) {
         window.clearTimeout(programmaticScrollTimerRef.current);
       }
       programmaticScrollTimerRef.current = window.setTimeout(() => {
+        const pendingTarget = programmaticScrollTargetRef.current;
+        const scroller = scrollerRef.current;
+        const target = pendingTarget ? monthAnchorRefs.current.get(pendingTarget) : undefined;
+        if (scroller && target && !programmaticScrollReachedRef.current) {
+          finishScrollAtTarget(scroller, target);
+        }
         programmaticScrollTimerRef.current = undefined;
         programmaticScrollTargetRef.current = undefined;
+        programmaticScrollReachedRef.current = false;
       }, 500);
       const scroller = scrollerRef.current;
       if (scroller) {
-        const targetTop =
-          scroller.scrollTop +
-          target.getBoundingClientRect().top -
-          scroller.getBoundingClientRect().top;
+        const targetTop = targetScrollTop(scroller, target);
         scroller.scrollTo({ behavior, top: targetTop });
+        programmaticScrollReachedRef.current = Math.abs(scroller.scrollTop - targetTop) <= 1;
       }
       reportVisibleMonth(month);
     },
@@ -537,12 +555,26 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
 
   const handleScroll = (): void => {
     if (programmaticScrollTargetRef.current !== undefined) {
+      const scroller = scrollerRef.current;
+      const target = monthAnchorRefs.current.get(programmaticScrollTargetRef.current);
+      if (scroller && target) {
+        programmaticScrollReachedRef.current =
+          programmaticScrollReachedRef.current ||
+          Math.abs(scroller.scrollTop - targetScrollTop(scroller, target)) <= 1;
+      }
       if (programmaticScrollTimerRef.current !== undefined) {
         window.clearTimeout(programmaticScrollTimerRef.current);
       }
       programmaticScrollTimerRef.current = window.setTimeout(() => {
+        const pendingTarget = programmaticScrollTargetRef.current;
+        const scroller = scrollerRef.current;
+        const target = pendingTarget ? monthAnchorRefs.current.get(pendingTarget) : undefined;
+        if (scroller && target && !programmaticScrollReachedRef.current) {
+          finishScrollAtTarget(scroller, target);
+        }
         programmaticScrollTimerRef.current = undefined;
         programmaticScrollTargetRef.current = undefined;
+        programmaticScrollReachedRef.current = false;
         updateVisibleMonthFromScroll();
       }, 180);
     }

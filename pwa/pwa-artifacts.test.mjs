@@ -50,7 +50,7 @@ test('the neutral manifest has installable, maskable raster icons', async () => 
   assert.equal(manifest.background_color, '#fbf8f7');
 
   for (const size of [192, 512]) {
-    const source = `/icons/app-icon-${String(size)}.png`;
+    const source = `/icons/app-icon-v10-${String(size)}.png`;
     const icon = manifest.icons.find((candidate) => candidate.src === source);
     assert.deepEqual(icon, {
       src: source,
@@ -73,8 +73,8 @@ test('the service worker precaches only local static shell assets', async () => 
   assert.equal(new Set(precachedUrls).size, precachedUrls.length, 'precache URLs must be unique');
   assert.ok(precachedUrls.includes('index.html'));
   assert.ok(precachedUrls.includes('theme-init.js'));
-  assert.ok(precachedUrls.includes('icons/app-icon-192.png'));
-  assert.ok(precachedUrls.includes('icons/app-icon-512.png'));
+  assert.ok(precachedUrls.includes('icons/app-icon-v10-192.png'));
+  assert.ok(precachedUrls.includes('icons/app-icon-v10-512.png'));
   assert.ok(precachedUrls.some((url) => /^assets\/.+\.js$/.test(url)));
   assert.ok(precachedUrls.some((url) => /^assets\/.+\.css$/.test(url)));
 

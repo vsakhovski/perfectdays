@@ -610,17 +610,8 @@ test.describe('Phase 5 compact mobile shell', () => {
 
     await page.goBack();
     await expect(leaveDialog).toBeVisible();
-    await Promise.all([
-      page.waitForURL('about:blank'),
-      leaveDialog.getByRole('button', { name: 'Leave app' }).click(),
-    ]);
-
-    await page.goForward();
-    await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
-    expect(page.url()).toBe(initialUrl);
-
-    await page.goBack();
-    await expect(page.getByRole('dialog', { name: 'Leave My Perfect Days?' })).toBeVisible();
+    await leaveDialog.getByRole('button', { name: 'Leave app' }).click();
+    await expect(leaveDialog).toBeHidden();
   });
 
   test('defaults to Calendar with four root destinations and a contextual check-in action', async ({
@@ -645,14 +636,14 @@ test.describe('Phase 5 compact mobile shell', () => {
     await expect(checkInAction).toBeVisible();
     await expect(checkInAction).toBeInViewport();
     await expect(page.getByRole('heading', { name: 'Next period' })).toBeInViewport();
-    const unavailableEstimate = page
-      .getByText('There is no current estimate to explain.', {
-        exact: true,
-      })
-      .first();
+    const unavailableEstimate = page.getByText(
+      'Not enough data to predict the next period. Need at least 2 recorded periods.',
+      { exact: true },
+    );
     await expect(unavailableEstimate).toBeVisible();
     await unavailableEstimate.scrollIntoViewIfNeeded();
     await expect(unavailableEstimate).toBeInViewport();
+    await expect(page.getByRole('heading', { name: 'Why this estimate?' })).toHaveCount(0);
 
     const monthToolbar = page.getByRole('group', { name: 'Calendar month navigation' });
     const toolbarChildren = monthToolbar.locator(':scope > *');

@@ -1382,7 +1382,7 @@ export function TrackerCalendar({
                 ? t(($) => $.mobile.calendar.forecast.states.paused.description)
                 : recentPendingReviewCount > 0
                   ? t(($) => $.tracker.history.estimate.reviewRequired)
-                  : t(($) => $.tracker.insights.forecast.unavailable)}
+                  : t(($) => $.tracker.insights.forecast.unavailable, { count: 2 })}
             </p>
           ) : (
             <dl className={styles['estimateDetails']}>
@@ -1424,20 +1424,17 @@ export function TrackerCalendar({
           ) : null}
         </section>
 
-        <section className={styles['estimateCard']} aria-labelledby="estimate-calculation-title">
-          <header className={styles['estimateHeader']}>
-            <h3 id="estimate-calculation-title">
-              {t(($) => $.tracker.history.estimate.explanationTitle)}
-            </h3>
-            <p>{t(($) => $.tracker.history.estimate.explanation)}</p>
-          </header>
-          {forecast === null ? (
-            <p className={styles['estimateMessage']}>
-              {recentPendingReviewCount > 0
-                ? t(($) => $.tracker.history.estimate.reviewRequired)
-                : t(($) => $.tracker.insights.forecast.unavailable)}
-            </p>
-          ) : (
+        {forecast === null ||
+        nextEstimateCentral === undefined ||
+        nextEstimateEarliest === undefined ||
+        nextEstimateLatest === undefined ? null : (
+          <section className={styles['estimateCard']} aria-labelledby="estimate-calculation-title">
+            <header className={styles['estimateHeader']}>
+              <h3 id="estimate-calculation-title">
+                {t(($) => $.tracker.history.estimate.explanationTitle)}
+              </h3>
+              <p>{t(($) => $.tracker.history.estimate.explanation)}</p>
+            </header>
             <dl className={styles['estimateDetails']}>
               <div>
                 <dt>{t(($) => $.tracker.history.estimate.basedOnLabel)}</dt>
@@ -1485,27 +1482,25 @@ export function TrackerCalendar({
                 </div>
               )}
             </dl>
-          )}
-          {forecast !== null && forecast.cycleSamplesPendingReview > 0 ? (
-            <p className={styles['estimateMessage']}>
-              {t(($) => $.tracker.history.estimate.pendingReview, {
-                count: forecast.cycleSamplesPendingReview,
-              })}
-            </p>
-          ) : null}
-          {forecast !== null && forecast.cycleSamplesExcluded > 0 ? (
-            <p className={styles['estimateMessage']}>
-              {t(($) => $.tracker.history.estimate.excluded, {
-                count: forecast.cycleSamplesExcluded,
-              })}
-            </p>
-          ) : null}
-          {forecast === null ? null : (
+            {forecast.cycleSamplesPendingReview > 0 ? (
+              <p className={styles['estimateMessage']}>
+                {t(($) => $.tracker.history.estimate.pendingReview, {
+                  count: forecast.cycleSamplesPendingReview,
+                })}
+              </p>
+            ) : null}
+            {forecast.cycleSamplesExcluded > 0 ? (
+              <p className={styles['estimateMessage']}>
+                {t(($) => $.tracker.history.estimate.excluded, {
+                  count: forecast.cycleSamplesExcluded,
+                })}
+              </p>
+            ) : null}
             <p className={styles['consistencyNote']}>
               {t(($) => $.tracker.history.estimate.consistency[cycleConsistency])}
             </p>
-          )}
-        </section>
+          </section>
+        )}
 
         {onOpenInsights || onOpenHistory ? (
           <nav

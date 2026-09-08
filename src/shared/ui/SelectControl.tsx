@@ -80,6 +80,8 @@ export function SelectControl<Value extends string>({
   useLayoutEffect(() => {
     if (!open) return;
 
+    let positionFrame: number | undefined;
+
     const positionPicker = (): void => {
       const bounds = controlRef.current?.getBoundingClientRect();
       if (!bounds) return;
@@ -96,21 +98,32 @@ export function SelectControl<Value extends string>({
       const expectedHeight = Math.min(options.length * 44 + 2, viewportHeight - 16);
       const opensBelow = spaceBelow >= expectedHeight || spaceBelow >= spaceAbove;
 
-      setPickerPosition({
+      const nextPosition: PickerPosition = {
         availableHeight: Math.max(44, opensBelow ? spaceBelow : spaceAbove),
         edge: opensBelow ? 'top' : 'bottom',
         left,
         offset: opensBelow ? bounds.bottom + PICKER_GAP : viewportHeight - bounds.top + PICKER_GAP,
         width,
-      });
+      };
+      setPickerPosition((current) =>
+        current?.availableHeight === nextPosition.availableHeight &&
+        current.edge === nextPosition.edge &&
+        current.left === nextPosition.left &&
+        current.offset === nextPosition.offset &&
+        current.width === nextPosition.width
+          ? current
+          : nextPosition,
+      );
     };
 
-    positionPicker();
-    window.addEventListener('resize', positionPicker);
-    window.addEventListener('scroll', positionPicker, true);
+    const trackPickerPosition = (): void => {
+      positionPicker();
+      positionFrame = window.requestAnimationFrame(trackPickerPosition);
+    };
+
+    trackPickerPosition();
     return () => {
-      window.removeEventListener('resize', positionPicker);
-      window.removeEventListener('scroll', positionPicker, true);
+      if (positionFrame !== undefined) window.cancelAnimationFrame(positionFrame);
     };
   }, [open, options.length]);
 

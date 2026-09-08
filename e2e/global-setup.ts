@@ -9,7 +9,10 @@ const E2E_URL = getE2EBaseUrl();
 async function serverIsAvailable(): Promise<boolean> {
   try {
     const response = await fetch(E2E_URL);
-    return response.ok;
+    return (
+      response.ok &&
+      response.headers.get('content-security-policy')?.includes("default-src 'self'") === true
+    );
   } catch {
     return false;
   }

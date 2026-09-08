@@ -151,7 +151,8 @@ export const de = {
         days_other: '{{count}} Tage',
       },
       forecast: {
-        unavailable: 'Es gibt derzeit keine Schätzung, die erklärt werden kann.',
+        unavailable:
+          'Noch nicht genügend Daten, um die nächste Periode vorherzusagen. Mindestens {{count}} aufgezeichnete Perioden sind erforderlich.',
         confidenceLabel: 'Verlässlichkeit',
       },
     },
