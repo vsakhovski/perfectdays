@@ -809,7 +809,7 @@ export function TrackerOnboarding({
     renderedStep === 'splash' ? (
       <div className={styles['splash']} data-testid="onboarding-splash">
         <div className={styles['splashMain']} data-testid="onboarding-splash-main">
-          <AppLogo accentClassName={styles['logoAccent']} className={styles['logo']} />
+          <AppLogo className={styles['logo']} />
           <div className={styles['splashIdentity']}>
             <h1 ref={renderedStep === step ? headingRef : undefined} tabIndex={-1}>
               {copy.splash.appName}

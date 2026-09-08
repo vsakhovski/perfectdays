@@ -56,16 +56,6 @@
   inline-size: 2.75rem;
   block-size: 2.75rem;
   flex: 0 0 auto;
-  fill: var(--color-surface);
-  stroke: var(--color-accent);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 5;
-}
-
-.lockLogoAccent {
-  fill: var(--color-marker-red);
-  stroke: none;
 }
 
 .lockPinEntry {

@@ -105,7 +105,7 @@ export function LockScreen() {
     <main className={styles['lockPage']}>
       <section className={styles['lockCard']} aria-labelledby="lock-title">
         <div className={styles['lockBrand']}>
-          <AppLogo accentClassName={styles['lockLogoAccent']} className={styles['lockLogo']} />
+          <AppLogo className={styles['lockLogo']} />
           <span>{t(($) => $.vault.lock.eyebrow)}</span>
         </div>
         <h1 id="lock-title">{t(($) => $.vault.lock.title)}</h1>

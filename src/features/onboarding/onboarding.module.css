@@ -222,17 +222,7 @@
 .logo {
   inline-size: clamp(6.5rem, 32vw, 8.5rem);
   block-size: auto;
-  fill: var(--color-surface);
-  stroke: var(--color-accent);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 5;
   filter: drop-shadow(0 0.75rem 1.25rem rgb(70 35 50 / 14%));
-}
-
-.logoAccent {
-  fill: var(--color-marker-red);
-  stroke: none;
 }
 
 .stepBody,
