@@ -203,7 +203,7 @@
   justify-content: center;
   inline-size: 100%;
   min-block-size: 3.25rem;
-  min-inline-size: 2.75rem;
+  min-inline-size: 0;
   padding-block: 0.25rem;
   padding-inline: 0.2rem;
   border: 1px solid transparent;
@@ -221,6 +221,11 @@
 .navigationButton[data-active='true'] {
   color: var(--color-accent);
   font-weight: 600;
+}
+
+.navigationButton > span {
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
 .navigationIcon {

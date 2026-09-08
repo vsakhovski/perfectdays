@@ -19,7 +19,7 @@ function applyTheme(theme: ResolvedTheme): void {
   document.documentElement.dataset['theme'] = theme;
   document
     .querySelector<HTMLMetaElement>('#app-theme-color')
-    ?.setAttribute('content', theme === 'dark' ? '#171316' : '#fbf8f7');
+    ?.setAttribute('content', theme === 'dark' ? '#101b1c' : '#f8fbfa');
 }
 
 export function ThemeProvider({ children, store }: ThemeProviderProps) {

@@ -14,11 +14,10 @@
 
 .panel {
   margin-block-start: 0;
-  padding: clamp(1.25rem, 4vw, 2rem);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-large);
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+  border-radius: 1rem;
   background: var(--color-surface);
-  box-shadow: var(--shadow-soft);
 }
 
 .heading h2,
@@ -36,7 +35,8 @@
 }
 
 .heading h2 {
-  font-size: clamp(1.4rem, 4vw, 1.9rem);
+  font-size: 1.125rem;
+  font-weight: 600;
   letter-spacing: -0.025em;
 }
 
@@ -59,16 +59,20 @@
 }
 
 .cardGrid {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
 }
 
 .card {
   min-inline-size: 0;
-  padding: clamp(1rem, 3vw, 1.35rem);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-small);
-  background: var(--color-surface-subtle);
+  padding: 1rem 0 0;
+  border-block-start: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.card:first-child {
+  padding-block-start: 0;
+  border-block-start: 0;
 }
 
 .dialogBackdrop {
@@ -79,7 +83,7 @@
   place-items: center;
   padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
     max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
-  background: rgb(0 0 0 / 58%);
+  background: var(--dialog-backdrop);
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
@@ -90,7 +94,7 @@
   inline-size: min(100%, 28rem);
   max-block-size: 100%;
   overflow: auto;
-  padding: 1.25rem;
+  padding: var(--dialog-padding);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-large);
   background: var(--color-surface);
@@ -106,6 +110,8 @@
 
 .dialogHeader h3 {
   margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
 }
 
 .closeButton {
@@ -133,7 +139,8 @@
 }
 
 .cardHeader h3 {
-  font-size: 1.15rem;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .cardHeader p,
@@ -148,7 +155,7 @@
 .lockedNotice,
 .warning {
   padding: 0.85rem;
-  border: 2px solid var(--color-border-strong);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-small);
   background: var(--color-background);
   line-height: 1.5;
@@ -168,7 +175,7 @@
 }
 
 .fieldLabel {
-  font-weight: 750;
+  font-weight: 500;
 }
 
 .fieldHint,
@@ -215,9 +222,9 @@
   min-block-size: 2.75rem;
   padding: 0.65rem 1rem;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-small);
   cursor: pointer;
-  font-weight: 750;
+  font-weight: 600;
   line-height: 1.25;
   text-align: center;
 }

@@ -6,7 +6,7 @@
 .introduction {
   margin: 0;
   padding: 0.85rem 1rem;
-  border-inline-start: 0.25rem solid var(--color-accent);
+  border-radius: var(--radius-small);
   background: var(--color-surface-subtle);
   color: var(--color-text-muted);
   line-height: 1.5;
@@ -30,10 +30,9 @@
   display: grid;
   gap: 0.85rem;
   padding: 1rem;
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-small);
   background: var(--color-surface);
-  box-shadow: var(--shadow-soft);
   scroll-margin-block: 0.75rem;
 }
 
@@ -48,7 +47,8 @@
 }
 
 .actionPanelCopy h2 {
-  font-size: 1.05rem;
+  font-size: 1.125rem;
+  font-weight: 600;
 }
 
 .actionPanelCopy p {
@@ -76,10 +76,10 @@
   min-block-size: 2.75rem;
   padding: 0.65rem 1rem;
   border: 1px solid var(--color-border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-small);
   cursor: pointer;
   font: inherit;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .primaryActionButton {
@@ -144,7 +144,7 @@
   place-items: center;
   padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
     max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
-  background: rgb(20 12 17 / 58%);
+  background: var(--dialog-backdrop);
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
@@ -154,7 +154,7 @@
   display: grid;
   gap: 1rem;
   inline-size: min(100%, 28rem);
-  padding: 1.25rem;
+  padding: var(--dialog-padding);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-large);
   background: var(--color-surface);
@@ -171,6 +171,12 @@
 .configureDialog p,
 .deleteDialog p {
   line-height: 1.5;
+}
+
+.configureDialog h2,
+.deleteDialog h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
 }
 
 .configureActions,

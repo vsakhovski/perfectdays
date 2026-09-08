@@ -7,17 +7,18 @@
 
 .legend {
   margin-block-end: 0.75rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .options {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
 .option {
   position: relative;
+  flex: 1 1 auto;
   min-inline-size: 0;
 }
 
@@ -33,18 +34,22 @@
   min-block-size: 2.75rem;
   place-items: center;
   padding-inline: 0.65rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
   background: var(--color-surface-subtle);
   color: var(--color-text);
   cursor: pointer;
-  font-weight: 650;
+  font-weight: 500;
+  text-align: center;
+  overflow-wrap: normal;
 }
 
 .option input:checked + span {
   border-color: var(--color-accent);
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  background: var(--color-surface-subtle);
+  color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+  font-weight: 600;
 }
 
 .option input:focus-visible + span {

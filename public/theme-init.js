@@ -21,5 +21,5 @@
   globalThis.document.documentElement.dataset.theme = resolvedTheme;
   globalThis.document
     .querySelector('#app-theme-color')
-    ?.setAttribute('content', resolvedTheme === 'dark' ? '#171316' : '#fbf8f7');
+    ?.setAttribute('content', resolvedTheme === 'dark' ? '#101b1c' : '#f8fbfa');
 })();

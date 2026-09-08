@@ -31,6 +31,23 @@
   gap: 0.75rem;
 }
 
+.header h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.finding h3,
+.excluded h3 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.header p,
+.finding p,
+.excluded p {
+  line-height: 1.5;
+}
+
 .finding,
 .excluded {
   padding: 0.85rem;
@@ -48,6 +65,26 @@
 .actions button,
 .excluded button {
   min-block-size: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+  color: var(--color-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.actions button:focus-visible,
+.excluded button:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.actions button:disabled,
+.excluded button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
 }
 
 .actions button:first-child {

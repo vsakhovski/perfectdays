@@ -64,10 +64,10 @@
 .settingsCard,
 .informationCard {
   display: grid;
-  gap: 0.85rem;
+  gap: 1rem;
   padding: 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-large);
+  border: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+  border-radius: 1rem;
   background: var(--color-surface);
 }
 
@@ -94,10 +94,12 @@
 
 .informationCard h2,
 .settingsCard h2 {
-  font-size: 1.15rem;
+  font-size: 1.125rem;
+  font-weight: 600;
 }
 
 .informationCard h3 {
+  font-weight: 600;
   margin-block-start: 0.35rem;
   font-size: 1rem;
 }

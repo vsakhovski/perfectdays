@@ -84,7 +84,7 @@ test.describe('English application shell', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     const language = page.getByRole('combobox', { name: 'Select language' });
     await expect(language).toHaveValue('English');
-    await expect(language).toHaveCSS('border-radius', '6px');
+    await expect(language).toHaveCSS('border-radius', '12px');
     const languageControlBounds = await language.boundingBox();
     expect(languageControlBounds).not.toBeNull();
     if (languageControlBounds !== null) {
@@ -855,7 +855,7 @@ test.describe('Phase 5 compact mobile shell', () => {
     await openRootDestination(page, 'Settings');
     const weekStart = page.getByRole('combobox', { name: 'First day of the week' });
     await expect(weekStart).toHaveValue('System default');
-    await expect(weekStart).toHaveCSS('border-radius', '6px');
+    await expect(weekStart).toHaveCSS('border-radius', '12px');
     const weekStartBounds = await weekStart.boundingBox();
     expect(weekStartBounds).not.toBeNull();
     if (weekStartBounds !== null) {

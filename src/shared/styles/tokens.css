@@ -24,6 +24,9 @@
   --shadow-soft: 0 1rem 3rem rgb(8 68 72 / 10%);
   --radius-small: 0.75rem;
   --radius-large: 1.5rem;
+  --dialog-padding: 1rem;
+  --dialog-backdrop: rgb(10 24 25 / 60%);
+  --motion-feedback: 140ms;
 }
 
 :root[data-theme='dark'] {
@@ -45,4 +48,5 @@
   --color-marker-orange: #f7c948;
   --color-marker-green: #85c8a8;
   --shadow-soft: 0 1rem 3rem rgb(0 0 0 / 24%);
+  --dialog-backdrop: rgb(3 10 11 / 72%);
 }

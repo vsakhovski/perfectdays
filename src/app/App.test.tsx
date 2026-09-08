@@ -746,6 +746,8 @@ describe('App', () => {
     expect(nextEstimate.getByText('Most probable start')).toBeVisible();
     expect(nextEstimate.getByText('Confidence')).toBeVisible();
     const explanation = within(sectionWithHeading('Why this estimate?'));
+    expect(explanation.getByText('Based on')).not.toBeVisible();
+    await userEvent.setup().click(screen.getByText('Why this estimate?'));
     expect(explanation.getByText('Based on')).toBeVisible();
     expect(explanation.getByText('1 completed cycle')).toBeVisible();
 
@@ -800,6 +802,8 @@ describe('App', () => {
     expect(nextEstimate.getByText('Confidence')).toBeVisible();
 
     const explanation = within(sectionWithHeading('Why this estimate?'));
+    expect(explanation.getByText('Based on')).not.toBeVisible();
+    await user.click(screen.getByText('Why this estimate?'));
     expect(explanation.getByText('Based on')).toBeVisible();
     expect(explanation.getByText('2 completed cycles')).toBeVisible();
     expect(explanation.getByText('Recent cycle lengths')).toBeVisible();

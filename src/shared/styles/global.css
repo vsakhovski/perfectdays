@@ -5,7 +5,7 @@
 }
 
 html {
-  min-inline-size: 20rem;
+  min-inline-size: 320px;
   background: var(--color-background);
   font-family:
     Inter,
@@ -47,6 +47,21 @@ select {
 
 select option {
   max-inline-size: 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  button:not(:disabled),
+  input[type='radio'] + span {
+    transition:
+      background-color var(--motion-feedback) ease,
+      color var(--motion-feedback) ease,
+      border-color var(--motion-feedback) ease,
+      box-shadow var(--motion-feedback) ease;
+  }
+}
+
+button:active:not(:disabled, [aria-disabled='true']) {
+  filter: brightness(0.94);
 }
 
 /* Browsers with customizable selects can keep the open list exactly aligned
