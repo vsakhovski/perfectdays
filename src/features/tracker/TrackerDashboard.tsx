@@ -1386,15 +1386,15 @@ export function TrackerCalendar({
             </p>
           ) : (
             <dl className={styles['estimateDetails']}>
+              <div className={styles['estimateHighlight']}>
+                <dt>{t(($) => $.tracker.history.estimate.centralStartLabel)}</dt>
+                <dd>{formatLocalDate(nextEstimateCentral, resolvedLanguage)}</dd>
+              </div>
               <div>
                 <dt>{t(($) => $.tracker.history.estimate.rangeLabel)}</dt>
                 <dd>
                   {formatLocalDateRange(nextEstimateEarliest, nextEstimateLatest, resolvedLanguage)}
                 </dd>
-              </div>
-              <div>
-                <dt>{t(($) => $.tracker.history.estimate.centralStartLabel)}</dt>
-                <dd>{formatLocalDate(nextEstimateCentral, resolvedLanguage)}</dd>
               </div>
               {forecast.predictedDuration === undefined ? null : (
                 <div>
@@ -1429,76 +1429,80 @@ export function TrackerCalendar({
         nextEstimateEarliest === undefined ||
         nextEstimateLatest === undefined ? null : (
           <section className={styles['estimateCard']} aria-labelledby="estimate-calculation-title">
-            <header className={styles['estimateHeader']}>
-              <h3 id="estimate-calculation-title">
-                {t(($) => $.tracker.history.estimate.explanationTitle)}
-              </h3>
-              <p>{t(($) => $.tracker.history.estimate.explanation)}</p>
-            </header>
-            <dl className={styles['estimateDetails']}>
-              <div>
-                <dt>{t(($) => $.tracker.history.estimate.basedOnLabel)}</dt>
-                <dd>
-                  {forecast.source === 'recorded'
-                    ? forecast.cycleSamplesAvailable === forecast.completedCyclesUsed
-                      ? t(($) => $.tracker.history.estimate.basedOnRecorded, {
-                          count: forecast.completedCyclesUsed,
-                        })
-                      : t(($) => $.tracker.history.estimate.basedOnReviewed, {
-                          available: forecast.cycleSamplesAvailable,
-                          used: forecast.completedCyclesUsed,
-                        })
-                    : t(($) => $.tracker.history.estimate.basedOnTypical)}
-                </dd>
-              </div>
-              {forecast.recentCycleLengths.length === 0 ? null : (
-                <div>
-                  <dt>{t(($) => $.tracker.history.estimate.recentCycleLengths)}</dt>
-                  <dd>
-                    {t(($) => $.tracker.history.estimate.recentCycleLengthsValue, {
-                      lengths: forecast.recentCycleLengths.join(', '),
-                    })}
-                  </dd>
-                </div>
-              )}
-              {estimatedCycleLengthDays === undefined ? null : (
-                <div>
-                  <dt>{t(($) => $.tracker.history.estimate.estimatedCycleLength)}</dt>
-                  <dd>
-                    {t(($) => $.tracker.insights.cycles.days, {
-                      count: estimatedCycleLengthDays,
-                    })}
-                  </dd>
-                </div>
-              )}
-              {forecast.predictedDuration === undefined ? null : (
-                <div>
-                  <dt>{t(($) => $.tracker.history.estimate.estimatedPeriodLength)}</dt>
-                  <dd>
-                    {t(($) => $.tracker.insights.bleeding.days, {
-                      count: forecast.predictedDuration,
-                    })}
-                  </dd>
-                </div>
-              )}
-            </dl>
-            {forecast.cycleSamplesPendingReview > 0 ? (
+            <details className={styles['estimateExplanation']}>
+              <summary className={styles['explanationSummary']}>
+                <h3 id="estimate-calculation-title">
+                  {t(($) => $.tracker.history.estimate.explanationTitle)}
+                </h3>
+              </summary>
               <p className={styles['estimateMessage']}>
-                {t(($) => $.tracker.history.estimate.pendingReview, {
-                  count: forecast.cycleSamplesPendingReview,
-                })}
+                {t(($) => $.tracker.history.estimate.explanation)}
               </p>
-            ) : null}
-            {forecast.cycleSamplesExcluded > 0 ? (
-              <p className={styles['estimateMessage']}>
-                {t(($) => $.tracker.history.estimate.excluded, {
-                  count: forecast.cycleSamplesExcluded,
-                })}
+              <dl className={styles['estimateDetails']}>
+                <div>
+                  <dt>{t(($) => $.tracker.history.estimate.basedOnLabel)}</dt>
+                  <dd>
+                    {forecast.source === 'recorded'
+                      ? forecast.cycleSamplesAvailable === forecast.completedCyclesUsed
+                        ? t(($) => $.tracker.history.estimate.basedOnRecorded, {
+                            count: forecast.completedCyclesUsed,
+                          })
+                        : t(($) => $.tracker.history.estimate.basedOnReviewed, {
+                            available: forecast.cycleSamplesAvailable,
+                            used: forecast.completedCyclesUsed,
+                          })
+                      : t(($) => $.tracker.history.estimate.basedOnTypical)}
+                  </dd>
+                </div>
+                {forecast.recentCycleLengths.length === 0 ? null : (
+                  <div>
+                    <dt>{t(($) => $.tracker.history.estimate.recentCycleLengths)}</dt>
+                    <dd>
+                      {t(($) => $.tracker.history.estimate.recentCycleLengthsValue, {
+                        lengths: forecast.recentCycleLengths.join(', '),
+                      })}
+                    </dd>
+                  </div>
+                )}
+                {estimatedCycleLengthDays === undefined ? null : (
+                  <div>
+                    <dt>{t(($) => $.tracker.history.estimate.estimatedCycleLength)}</dt>
+                    <dd>
+                      {t(($) => $.tracker.insights.cycles.days, {
+                        count: estimatedCycleLengthDays,
+                      })}
+                    </dd>
+                  </div>
+                )}
+                {forecast.predictedDuration === undefined ? null : (
+                  <div>
+                    <dt>{t(($) => $.tracker.history.estimate.estimatedPeriodLength)}</dt>
+                    <dd>
+                      {t(($) => $.tracker.insights.bleeding.days, {
+                        count: forecast.predictedDuration,
+                      })}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+              {forecast.cycleSamplesPendingReview > 0 ? (
+                <p className={styles['estimateMessage']}>
+                  {t(($) => $.tracker.history.estimate.pendingReview, {
+                    count: forecast.cycleSamplesPendingReview,
+                  })}
+                </p>
+              ) : null}
+              {forecast.cycleSamplesExcluded > 0 ? (
+                <p className={styles['estimateMessage']}>
+                  {t(($) => $.tracker.history.estimate.excluded, {
+                    count: forecast.cycleSamplesExcluded,
+                  })}
+                </p>
+              ) : null}
+              <p className={styles['consistencyNote']}>
+                {t(($) => $.tracker.history.estimate.consistency[cycleConsistency])}
               </p>
-            ) : null}
-            <p className={styles['consistencyNote']}>
-              {t(($) => $.tracker.history.estimate.consistency[cycleConsistency])}
-            </p>
+            </details>
           </section>
         )}
 

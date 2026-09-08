@@ -240,7 +240,9 @@ export function MobileAppShell({
                     }}
                     type="button"
                   >
-                    <DestinationIcon destination={destination} />
+                    <span className={styles['navigationIcon']}>
+                      <DestinationIcon destination={destination} />
+                    </span>
                     <span>{label}</span>
                   </button>
                 </li>

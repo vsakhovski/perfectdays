@@ -28,6 +28,7 @@
   min-inline-size: 0;
   margin: 0;
   font-size: clamp(1.15rem, 5vw, 1.35rem);
+  font-weight: 600;
   line-height: 1.2;
   overflow-wrap: anywhere;
 }
@@ -143,13 +144,12 @@
   position: relative;
   z-index: 1;
   background: var(--color-surface);
-  box-shadow: 0 -0.35rem 1.25rem rgb(70 35 50 / 8%);
+  border-block-start: 1px solid var(--color-border);
 }
 
 .actionDock {
   padding-block: 0.625rem 0.5rem;
   padding-inline: 1rem;
-  border-block-start: 1px solid var(--color-border);
 }
 
 .checkInButton {
@@ -162,8 +162,15 @@
   background: var(--color-accent);
   color: var(--color-on-accent);
   font: inherit;
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
+  transition:
+    filter 140ms ease,
+    transform 140ms ease;
+}
+
+.checkInButton:active {
+  transform: scale(0.985);
 }
 
 .checkInButton:hover {
@@ -171,7 +178,6 @@
 }
 
 .bottomNavigation {
-  border-block-start: 1px solid var(--color-border);
   padding-block: 0.25rem calc(0.25rem + env(safe-area-inset-bottom));
   padding-inline: 0.35rem;
 }
@@ -191,7 +197,8 @@
 
 .navigationButton {
   display: flex;
-  gap: 0.15rem;
+  flex-direction: column;
+  gap: 0.25rem;
   align-items: center;
   justify-content: center;
   inline-size: 100%;
@@ -204,7 +211,7 @@
   background: transparent;
   font: inherit;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.1;
   text-align: center;
   overflow-wrap: anywhere;
@@ -212,8 +219,21 @@
 }
 
 .navigationButton[data-active='true'] {
-  background: var(--color-surface-subtle);
   color: var(--color-accent);
+  font-weight: 600;
+}
+
+.navigationIcon {
+  display: grid;
+  place-items: center;
+  inline-size: min(3rem, 100%);
+  min-block-size: 1.75rem;
+  border-radius: 999px;
+  transition: background-color 140ms ease;
+}
+
+.navigationButton[data-active='true'] .navigationIcon {
+  background: var(--color-surface-subtle);
 }
 
 .navigationButton:hover {
@@ -232,12 +252,6 @@
   stroke-width: 1.8;
 }
 
-@media (min-width: 22rem) {
-  .navigationButton {
-    flex-direction: column;
-  }
-}
-
 @media (max-width: 22rem) {
   .content {
     padding-block: 0.75rem;
@@ -253,6 +267,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .checkInButton,
+  .navigationIcon {
+    transition: none;
+    transform: none;
+  }
+
   .content {
     scroll-behavior: auto;
   }
