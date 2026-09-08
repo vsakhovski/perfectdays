@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 
 import type { AppRootDestination } from '../../app/navigation/app-navigation-types';
+import { AppLogo } from '../../shared/ui/AppLogo';
 import styles from './MobileAppShell.module.css';
 
 export type RootDestination = AppRootDestination;
@@ -189,6 +190,7 @@ export function MobileAppShell({
     <div className={styles['shell']}>
       <header className={styles['topBar']}>
         <div className={styles['headerLeading']}>
+          <AppLogo className={styles['appIcon']} />
           {headerAction?.placement === 'start' ? headerActionButton : null}
         </div>
         <h1 className={styles['screenTitle']} ref={headingRef} tabIndex={-1}>

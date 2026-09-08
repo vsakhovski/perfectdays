@@ -16,7 +16,7 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.25rem;
+  column-gap: 10px;
   min-block-size: 3.5rem;
   padding-block: calc(0.5rem + env(safe-area-inset-top)) 0.5rem;
   padding-inline: 1rem;
@@ -98,8 +98,16 @@
 
 .headerLeading {
   display: flex;
+  gap: 0.25rem;
   align-items: center;
   min-inline-size: 0;
+}
+
+.appIcon {
+  flex: 0 0 auto;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  object-fit: contain;
 }
 
 .headerActionButton:hover:not(:disabled),
