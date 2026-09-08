@@ -122,11 +122,15 @@
   border-radius: 0.65rem;
   background: var(--color-surface);
   color: var(--color-text);
-  cursor: pointer;
+  cursor: default;
   isolation: isolate;
 }
 
-.dayButton:hover:not(:disabled) {
+.dayButton[data-actionable='true'] {
+  cursor: pointer;
+}
+
+.dayButton[data-actionable='true']:hover:not(:disabled) {
   border-color: var(--color-border-strong);
   background-color: var(--color-surface-subtle);
 }
@@ -178,6 +182,11 @@
 
 :global(:root[data-theme='dark']) .dayButton[data-active-month='false'][data-recorded-red='true'] {
   color: var(--color-text-muted);
+}
+
+:global(:root[data-theme='light'])
+  .dayButton[data-actionable='true'][data-recorded-red='true']:hover:not(:disabled) {
+  color: #000;
 }
 
 .dayButton[data-orange='true'] {
@@ -287,6 +296,12 @@
 
 :global(:root[data-theme='dark']) .dayButton[data-recorded-red='true'] .flowMarker {
   color: #fff;
+}
+
+:global(:root[data-theme='light'])
+  .dayButton[data-actionable='true'][data-recorded-red='true']:hover:not(:disabled)
+  .flowMarker {
+  color: #000;
 }
 
 .dayMarkers {

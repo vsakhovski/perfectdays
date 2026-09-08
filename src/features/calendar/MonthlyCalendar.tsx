@@ -642,6 +642,7 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
         <button
           aria-current={isToday ? 'date' : undefined}
           className={styles['dayButton']}
+          data-actionable={!day.disabled && day.disabledDescription === undefined}
           data-active-month={isActiveMonth}
           data-calendar-month={dayMonth}
           data-current-month={isActiveMonth}
