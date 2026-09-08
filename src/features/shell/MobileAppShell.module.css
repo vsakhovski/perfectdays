@@ -15,13 +15,14 @@
 .topBar {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(2.75rem, auto);
   align-items: center;
   column-gap: 10px;
-  min-block-size: 3.5rem;
+  min-block-size: calc(3.75rem + env(safe-area-inset-top));
   padding-block: calc(0.5rem + env(safe-area-inset-top)) 0.5rem;
   padding-inline: 1rem;
-  border-block-end: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: var(--color-header);
+  color: var(--color-on-header);
 }
 
 .screenTitle {
@@ -42,10 +43,14 @@
   outline-offset: 2px;
 }
 
-.headerActionButton,
-.lockButton,
 .navigationButton {
   color: var(--color-text-muted);
+}
+
+.screenTitle:focus-visible,
+.headerActionButton:focus-visible,
+.lockButton:focus-visible {
+  outline-color: var(--color-on-header);
 }
 
 .topActions {
@@ -76,8 +81,10 @@
   cursor: pointer;
 }
 
-.headerActionButton {
-  color: var(--color-accent);
+.headerActionButton,
+.lockButton {
+  color: var(--color-on-header);
+  background: rgb(0 0 0 / 10%);
 }
 
 .headerActionButton[data-icon='close'],
@@ -87,7 +94,7 @@
   padding: 0;
   border-color: transparent;
   border-radius: 50%;
-  color: var(--color-text);
+  color: var(--color-on-header);
 }
 
 .headerActionButton[data-icon='close'] .icon,
@@ -113,13 +120,14 @@
 
 .headerActionButton:hover:not(:disabled),
 .lockButton:hover {
-  border-color: var(--color-border);
-  background: var(--color-surface-subtle);
-  color: var(--color-text);
+  border-color: rgb(255 255 255 / 35%);
+  background: rgb(0 0 0 / 18%);
+  color: var(--color-on-header);
 }
 
 .headerActionButton:disabled {
-  color: var(--color-text-muted);
+  color: var(--color-on-header);
+  background: transparent;
   cursor: default;
   opacity: 0.55;
 }
@@ -144,7 +152,7 @@
   position: relative;
   z-index: 1;
   background: var(--color-surface);
-  border-block-start: 1px solid var(--color-border);
+  border-block-start: 2px solid var(--color-border-strong);
 }
 
 .actionDock {

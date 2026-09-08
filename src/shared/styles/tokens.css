@@ -5,6 +5,8 @@
   --color-brand-red: #ed1728;
   --color-brand-teal: #087b80;
   --color-brand-teal-light: #29a6a2;
+  --color-header: #087b80;
+  --color-on-header: #ffffff;
   --color-background: #f8fbfa;
   --color-surface: #ffffff;
   --color-surface-subtle: #edf7f6;
@@ -31,6 +33,8 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
+  --color-header: #124346;
+  --color-on-header: #f2f8f7;
   --color-background: #101b1c;
   --color-surface: #172829;
   --color-surface-subtle: #1e3132;
