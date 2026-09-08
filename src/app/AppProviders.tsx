@@ -1,6 +1,6 @@
 import type { i18n as I18nInstance } from 'i18next';
 import { useCallback, type ReactNode } from 'react';
-import { I18nextProvider, useTranslation } from 'react-i18next';
+import { I18nextProvider } from 'react-i18next';
 
 import type { LanguageStore } from '../application/ports/language-store';
 import type { SystemLanguageSource } from '../application/ports/system-language-source';
@@ -55,23 +55,6 @@ type AppVaultProviderProps = Pick<
   | 'vaultInitializationFailed'
   | 'vaultInvalidationChannel'
 >;
-
-function LocalizedNavigationProvider({ children }: { readonly children: ReactNode }) {
-  const { t } = useTranslation();
-
-  return (
-    <AppNavigationProvider
-      copy={{
-        title: t(($) => $.navigation.leave.title),
-        description: t(($) => $.navigation.leave.description),
-        stay: t(($) => $.navigation.leave.stay),
-        leave: t(($) => $.navigation.leave.leave),
-      }}
-    >
-      {children}
-    </AppNavigationProvider>
-  );
-}
 
 function AppVaultProvider({
   children,
@@ -150,7 +133,7 @@ export function AppProviders({
         store={languageStore}
         systemLanguageSource={systemLanguageSource}
       >
-        <LocalizedNavigationProvider>
+        <AppNavigationProvider>
           <ThemeProvider store={themeStore}>
             <AppVaultProvider
               autoLockClock={autoLockClock}
@@ -168,7 +151,7 @@ export function AppProviders({
               {children}
             </AppVaultProvider>
           </ThemeProvider>
-        </LocalizedNavigationProvider>
+        </AppNavigationProvider>
       </LanguageProvider>
     </I18nextProvider>
   );

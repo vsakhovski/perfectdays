@@ -3,14 +3,6 @@ export const en = {
     title: 'My Perfect Days',
     description: 'A private, local-first menstrual pattern journal.',
   },
-  navigation: {
-    leave: {
-      title: 'Leave My Perfect Days?',
-      description: 'Your journal stays saved on this device. Do you want to leave the app?',
-      stay: 'Stay in the app',
-      leave: 'Leave app',
-    },
-  },
   tracker: {
     onboarding: {
       splash: {

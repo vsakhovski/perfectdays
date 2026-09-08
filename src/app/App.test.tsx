@@ -496,7 +496,7 @@ describe('App', () => {
     expect(persistentCheckInTodayButton()).toBeVisible();
   }, 10_000);
 
-  it('navigates main screens with browser Back and Forward and confirms before leaving', async () => {
+  it('navigates main screens with browser Back and Forward and stays at the app boundary', async () => {
     const user = userEvent.setup();
     await renderApp({ onboardingCompleted: true });
     const initialUrl = window.location.href;
@@ -526,11 +526,10 @@ describe('App', () => {
     act(() => {
       window.history.back();
     });
-    expect(await screen.findByRole('dialog', { name: 'Leave My Perfect Days?' })).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Stay in the app' }));
-
-    expect(screen.queryByRole('dialog', { name: 'Leave My Perfect Days?' })).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(window.location.href).toBe(initialUrl);
   }, 10_000);
 

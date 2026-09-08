@@ -382,9 +382,20 @@ test.describe('English application shell', () => {
       .first()
       .click();
     await page.getByRole('dialog').getByRole('button', { name: 'Edit dates' }).click();
-    await page.getByRole('button', { name: new RegExp(`^${periodDates.startLabel}`) }).click();
-    await page.getByRole('button', { name: new RegExp(`^${periodDates.endLabel}`) }).click();
+    const startBoundary = page.getByRole('button', {
+      name: new RegExp(`^${periodDates.startLabel}`),
+    });
+    const endBoundary = page.getByRole('button', {
+      name: new RegExp(`^${periodDates.endLabel}`),
+    });
+    await expect(endBoundary).toHaveAttribute('data-selection-animated', 'true');
+    await startBoundary.click();
+    await expect(
+      page.getByText('First boundary selected. Select the other boundary.'),
+    ).toBeVisible();
+    await endBoundary.click();
     const correctionDialog = page.getByRole('dialog', { name: /Configure period/ });
+    await expect(correctionDialog).toBeVisible();
     const accessibilityScan = await new AxeBuilder({ page }).analyze();
     expect(accessibilityScan.violations).toEqual([]);
     await correctionDialog.getByRole('button', { name: 'Save period' }).click();
@@ -569,7 +580,9 @@ test.describe('English application shell', () => {
 test.describe('Phase 5 compact mobile shell', () => {
   test.use({ locale: 'en-US', viewport: { height: 800, width: 320 } });
 
-  test('guards programmatic Back from Calendar after starting without a PIN', async ({ page }) => {
+  test('keeps the app open when Back reaches Calendar after starting without a PIN', async ({
+    page,
+  }) => {
     await page.goto('/');
     await finishOnboarding(page);
     await page.reload();
@@ -577,10 +590,11 @@ test.describe('Phase 5 compact mobile shell', () => {
 
     await page.goBack();
 
-    await expect(page.getByRole('dialog', { name: 'Leave My Perfect Days?' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 
-  test('uses browser Back and Forward and confirms before leaving the initial Calendar', async ({
+  test('uses browser Back and Forward and stays inside the initial Calendar boundary', async ({
     page,
   }) => {
     await page.goto('/');
@@ -599,19 +613,14 @@ test.describe('Phase 5 compact mobile shell', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
 
     await page.goBack();
-    const leaveDialog = page.getByRole('dialog', { name: 'Leave My Perfect Days?' });
-    await expect(leaveDialog).toBeVisible();
-    await expect(leaveDialog.getByRole('button', { name: 'Stay in the app' })).toBeFocused();
-    await leaveDialog.getByRole('button', { name: 'Stay in the app' }).click();
-
-    await expect(leaveDialog).toBeHidden();
     await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     expect(page.url()).toBe(initialUrl);
 
     await page.goBack();
-    await expect(leaveDialog).toBeVisible();
-    await leaveDialog.getByRole('button', { name: 'Leave app' }).click();
-    await expect(leaveDialog).toBeHidden();
+    await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect(page.url()).toBe(initialUrl);
   });
 
   test('defaults to Calendar with four root destinations and a contextual check-in action', async ({

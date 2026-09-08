@@ -13,10 +13,3 @@ export interface AppNavigationValue {
   readonly reset: (route: AppNavigationRoute) => void;
   readonly route: AppNavigationRoute;
 }
-
-export interface LeaveAppCopy {
-  readonly title: string;
-  readonly description: string;
-  readonly stay: string;
-  readonly leave: string;
-}

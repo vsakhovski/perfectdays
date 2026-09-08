@@ -3,14 +3,6 @@ export const ru = {
     title: 'My Perfect Days',
     description: 'Личный дневник менструального цикла с приоритетом локального хранения.',
   },
-  navigation: {
-    leave: {
-      title: 'Выйти из My Perfect Days?',
-      description: 'Ваш дневник останется сохранённым на этом устройстве. Выйти из приложения?',
-      stay: 'Остаться в приложении',
-      leave: 'Выйти из приложения',
-    },
-  },
   tracker: {
     onboarding: {
       splash: {

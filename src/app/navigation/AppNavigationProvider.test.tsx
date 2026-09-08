@@ -5,12 +5,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { AppNavigationProvider } from './AppNavigationProvider';
 import { useAppNavigation } from './use-app-navigation';
 
-const copy = {
-  title: 'Leave My Perfect Days?',
-  description: 'Your journal stays saved on this device. Do you want to leave the app?',
-  stay: 'Stay in the app',
-  leave: 'Leave app',
-};
 const harnessCopy = {
   currentRoute: 'Current route',
   privacy: 'Privacy',
@@ -69,7 +63,7 @@ function NavigationHarness() {
 
 function renderNavigation() {
   return render(
-    <AppNavigationProvider copy={copy}>
+    <AppNavigationProvider>
       <NavigationHarness />
     </AppNavigationProvider>,
   );
@@ -120,58 +114,26 @@ describe('AppNavigationProvider', () => {
     });
   });
 
-  it('asks before leaving from the start route and lets the user stay', async () => {
-    const user = userEvent.setup();
+  it('always restores the app route at the protected start boundary', async () => {
     renderNavigation();
-    const privacyButton = screen.getByRole('button', { name: harnessCopy.privacy });
-    privacyButton.focus();
+    const forward = vi.spyOn(window.history, 'forward').mockImplementation(() => undefined);
 
     act(() => {
       window.history.back();
     });
 
-    const dialog = await screen.findByRole('dialog', { name: copy.title });
-    expect(dialog).toHaveTextContent(copy.description);
-    expect(screen.getByRole('button', { name: copy.stay })).toHaveFocus();
-
-    await user.click(screen.getByRole('button', { name: copy.stay }));
-    expect(screen.queryByRole('dialog', { name: copy.title })).toBeNull();
     await waitFor(() => {
-      expect(privacyButton).toHaveFocus();
+      expect(forward).toHaveBeenCalledTimes(1);
     });
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByRole('status', { name: harnessCopy.currentRoute })).toHaveTextContent(
       'start',
     );
+    forward.mockRestore();
   });
 
-  it('leaves past the guarded app history only after confirmation', async () => {
-    const user = userEvent.setup();
+  it('restores the app route if a guarded entry is shown from page history', () => {
     renderNavigation();
-
-    act(() => {
-      window.history.back();
-    });
-    await screen.findByRole('dialog', { name: copy.title });
-    const go = vi.spyOn(window.history, 'go').mockImplementation(() => undefined);
-
-    await user.click(screen.getByRole('button', { name: copy.leave }));
-
-    expect(go).toHaveBeenCalledWith(-3);
-    go.mockRestore();
-  });
-
-  it('resumes browser navigation after returning to the app with Forward', async () => {
-    const user = userEvent.setup();
-    renderNavigation();
-
-    act(() => {
-      window.history.back();
-    });
-    await screen.findByRole('dialog', { name: copy.title });
-    const go = vi.spyOn(window.history, 'go').mockImplementation(() => undefined);
-    await user.click(screen.getByRole('button', { name: copy.leave }));
-    go.mockRestore();
-
     const routeState = window.history.state as Record<string, unknown>;
     const guardState = {
       marker: routeState['marker'],
@@ -192,12 +154,7 @@ describe('AppNavigationProvider', () => {
     expect(screen.getByRole('status', { name: harnessCopy.currentRoute })).toHaveTextContent(
       'start',
     );
-
-    act(() => {
-      window.dispatchEvent(new PopStateEvent('popstate', { state: guardState }));
-      window.dispatchEvent(new PopStateEvent('popstate', { state: routeState }));
-    });
-    expect(await screen.findByRole('dialog', { name: copy.title })).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
     forward.mockRestore();
   });
 
@@ -214,9 +171,11 @@ describe('AppNavigationProvider', () => {
     act(() => {
       window.history.back();
     });
-    expect(await screen.findByRole('dialog', { name: copy.title })).toBeVisible();
-    expect(screen.getByRole('status', { name: harnessCopy.currentRoute })).toHaveTextContent(
-      'start',
-    );
+    await waitFor(() => {
+      expect(screen.getByRole('status', { name: harnessCopy.currentRoute })).toHaveTextContent(
+        'start',
+      );
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

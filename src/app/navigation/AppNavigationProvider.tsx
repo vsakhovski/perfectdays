@@ -1,18 +1,7 @@
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { AppNavigationContext } from './app-navigation-context';
-import styles from './AppNavigationProvider.module.css';
-import type { AppNavigationRoute, AppNavigationValue, LeaveAppCopy } from './app-navigation-types';
+import type { AppNavigationRoute, AppNavigationValue } from './app-navigation-types';
 
 const HISTORY_MARKER = 'my-perfect-days-navigation';
 const HISTORY_VERSION = 1;
@@ -110,22 +99,15 @@ function guardState(depth: number): GuardHistoryState {
 
 interface AppNavigationProviderProps {
   readonly children: ReactNode;
-  readonly copy: LeaveAppCopy;
 }
 
-export function AppNavigationProvider({ children, copy }: AppNavigationProviderProps) {
+export function AppNavigationProvider({ children }: AppNavigationProviderProps) {
   const [route, setRoute] = useState<AppNavigationRoute>({ kind: 'start' });
-  const [leavePromptOpen, setLeavePromptOpen] = useState(false);
   const routeRef = useRef<AppNavigationRoute>(route);
   const depthRef = useRef(0);
   const initializedRef = useRef(false);
   const userActivatedBoundaryRef = useRef(false);
-  const leavingRef = useRef(false);
-  const restoringAfterLeaveRef = useRef(false);
-  const focusBeforePromptRef = useRef<HTMLElement | null>(null);
-  const stayButtonRef = useRef<HTMLButtonElement>(null);
-  const titleId = useId();
-  const descriptionId = useId();
+  const restoringBoundaryRef = useRef(false);
 
   const publishRoute = useCallback((nextRoute: AppNavigationRoute, depth: number) => {
     depthRef.current = depth;
@@ -147,37 +129,30 @@ export function AppNavigationProvider({ children, copy }: AppNavigationProviderP
     const handlePopState = (event: PopStateEvent): void => {
       const state = parseHistoryState(event.state);
 
-      if (restoringAfterLeaveRef.current) {
-        if (state?.type === 'route') {
-          restoringAfterLeaveRef.current = false;
-          publishRoute(state.route, state.depth);
+      if (state?.type === 'guard') {
+        if (!restoringBoundaryRef.current) {
+          restoringBoundaryRef.current = true;
+          window.history.forward();
         }
         return;
       }
 
-      if (leavingRef.current) return;
-
-      if (state?.type === 'guard') {
-        focusBeforePromptRef.current =
-          document.activeElement instanceof HTMLElement ? document.activeElement : null;
-        setLeavePromptOpen(true);
-        window.history.forward();
-        return;
-      }
-
       if (state?.type === 'route') {
+        restoringBoundaryRef.current = false;
         publishRoute(state.route, state.depth);
       }
     };
 
     const handlePageShow = (): void => {
-      leavingRef.current = false;
       const state = parseHistoryState(window.history.state);
 
       if (state?.type === 'guard') {
-        restoringAfterLeaveRef.current = true;
-        window.history.forward();
+        if (!restoringBoundaryRef.current) {
+          restoringBoundaryRef.current = true;
+          window.history.forward();
+        }
       } else if (state?.type === 'route') {
+        restoringBoundaryRef.current = false;
         publishRoute(state.route, state.depth);
       }
     };
@@ -212,10 +187,6 @@ export function AppNavigationProvider({ children, copy }: AppNavigationProviderP
     };
   }, [publishRoute]);
 
-  useEffect(() => {
-    if (leavePromptOpen) stayButtonRef.current?.focus();
-  }, [leavePromptOpen]);
-
   const navigate = useCallback(
     (nextRoute: AppNavigationRoute): void => {
       if (routesMatch(routeRef.current, nextRoute)) return;
@@ -232,84 +203,14 @@ export function AppNavigationProvider({ children, copy }: AppNavigationProviderP
       window.history.replaceState(guardState(currentDepth), '');
       window.history.pushState(routeState(nextRoute, currentDepth + 1), '');
       publishRoute(nextRoute, currentDepth + 1);
-      setLeavePromptOpen(false);
     },
     [publishRoute],
   );
-
-  const stay = useCallback((): void => {
-    setLeavePromptOpen(false);
-    if (parseHistoryState(window.history.state)?.type === 'guard') {
-      window.history.forward();
-    }
-    const previousFocus = focusBeforePromptRef.current;
-    window.requestAnimationFrame(() => {
-      if (previousFocus?.isConnected) previousFocus.focus();
-    });
-  }, []);
-
-  const leave = useCallback((): void => {
-    setLeavePromptOpen(false);
-    leavingRef.current = true;
-    const currentState = parseHistoryState(window.history.state);
-    const currentDepth = currentState?.depth ?? depthRef.current;
-    window.history.go(-(currentDepth + 1));
-    window.setTimeout(() => {
-      leavingRef.current = false;
-    }, 1000);
-  }, []);
-
-  const handleDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      stay();
-      return;
-    }
-    if (event.key !== 'Tab') return;
-
-    const controls = event.currentTarget.querySelectorAll<HTMLButtonElement>('button');
-    const first = controls.item(0);
-    const last = controls.item(controls.length - 1);
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  };
 
   const value = useMemo<AppNavigationValue>(
     () => ({ navigate, reset, route }),
     [navigate, reset, route],
   );
 
-  return (
-    <AppNavigationContext.Provider value={value}>
-      {children}
-      {leavePromptOpen ? (
-        <div className={styles['backdrop']}>
-          <div
-            aria-describedby={descriptionId}
-            aria-labelledby={titleId}
-            aria-modal="true"
-            className={styles['dialog']}
-            onKeyDown={handleDialogKeyDown}
-            role="dialog"
-          >
-            <h2 id={titleId}>{copy.title}</h2>
-            <p id={descriptionId}>{copy.description}</p>
-            <div className={styles['actions']}>
-              <button className={styles['stay']} onClick={stay} ref={stayButtonRef} type="button">
-                {copy.stay}
-              </button>
-              <button className={styles['leave']} onClick={leave} type="button">
-                {copy.leave}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </AppNavigationContext.Provider>
-  );
+  return <AppNavigationContext.Provider value={value}>{children}</AppNavigationContext.Provider>;
 }
