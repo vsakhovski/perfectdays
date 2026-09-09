@@ -350,6 +350,13 @@
   margin-block-start: auto;
 }
 
+.scrollIndicatorAnchor {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 0;
+  block-size: 0;
+}
+
 .saveButton,
 .deleteButton,
 .secondaryButton,

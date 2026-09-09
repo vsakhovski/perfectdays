@@ -23,6 +23,7 @@
   padding-inline: 1rem;
   background: var(--color-header);
   color: var(--color-on-header);
+  border-block-end: 1px solid #fff;
 }
 
 .screenTitle {
@@ -141,6 +142,7 @@
 }
 
 .content {
+  block-size: 100%;
   min-inline-size: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
@@ -148,11 +150,17 @@
   scrollbar-gutter: stable;
 }
 
+.contentViewport {
+  position: relative;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
 .bottomChrome {
   position: relative;
   z-index: 1;
   background: var(--color-surface);
-  border-block-start: 2px solid var(--color-border-strong);
+  border-block-start: 1px solid var(--color-border-strong);
 }
 
 .actionDock {

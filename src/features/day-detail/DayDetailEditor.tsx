@@ -10,6 +10,7 @@ import {
 
 import type { Flow, LocalDate, Rating } from '../../domain/models';
 import { isLocalDate } from '../../domain/local-date';
+import { ScrollIndicator } from '../../shared/ui/ScrollIndicator';
 import styles from './day-detail.module.css';
 
 export type PeriodQuickAction = 'start' | 'continue' | 'end' | 'remove';
@@ -380,6 +381,7 @@ export function DayDetailEditor({
   const dateId = useId();
   const saveDisabledReasonId = useId();
   const saveDisabledReasonRef = useRef<HTMLParagraphElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const removePeriodButtonRef = useRef<HTMLButtonElement>(null);
   const confirmRemovePeriodButtonRef = useRef<HTMLButtonElement>(null);
@@ -531,7 +533,7 @@ export function DayDetailEditor({
           </button>
         </header>
 
-        <form className={styles['form']} onSubmit={submit}>
+        <form className={styles['form']} onSubmit={submit} ref={formRef}>
           <fieldset className={styles['fieldset']} disabled={busy}>
             <legend>
               {copy.flowLegend}
@@ -711,6 +713,9 @@ export function DayDetailEditor({
             </p>
           ) : null}
           <div className={styles['formActions']}>
+            <div className={styles['scrollIndicatorAnchor']}>
+              <ScrollIndicator scrollRef={formRef} />
+            </div>
             <button
               aria-describedby={showSaveDisabledReason ? saveDisabledReasonId : undefined}
               aria-disabled={saveDisabled}

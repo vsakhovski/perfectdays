@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 
 import type { AppRootDestination } from '../../app/navigation/app-navigation-types';
 import { AppLogo } from '../../shared/ui/AppLogo';
+import { ScrollIndicator } from '../../shared/ui/ScrollIndicator';
 import styles from './MobileAppShell.module.css';
 
 export type RootDestination = AppRootDestination;
@@ -203,9 +204,12 @@ export function MobileAppShell({
         </div>
       </header>
 
-      <main className={styles['content']} ref={contentRef}>
-        {children}
-      </main>
+      <div className={styles['contentViewport']}>
+        <main className={styles['content']} ref={contentRef}>
+          {children}
+        </main>
+        <ScrollIndicator scrollRef={contentRef} />
+      </div>
 
       <div className={styles['bottomChrome']} hidden={hideBottomChrome}>
         {showCheckInAction ? (
