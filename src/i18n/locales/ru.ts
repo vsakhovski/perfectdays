@@ -484,7 +484,7 @@ export const ru = {
         previousMonth: 'Предыдущий месяц',
         nextMonth: 'Следующий месяц',
         today: 'Сегодня',
-        goToToday: 'Перейти к сегодняшнему дню',
+        goToToday: 'Сегодня',
       },
       legend: {
         title: 'Цвета фона',
