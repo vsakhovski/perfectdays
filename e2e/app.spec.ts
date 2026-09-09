@@ -313,7 +313,21 @@ test.describe('English application shell', () => {
     const today = page.locator('button[aria-current="date"]');
     await page.getByRole('button', { name: 'Check in today' }).click();
     const dialog = page.getByRole('dialog', { name: 'Check in today' });
-    await dialog.getByRole('radio', { name: 'Medium' }).check();
+    const startButton = dialog.getByRole('button', { name: 'Period started today' });
+    const startPosition = await startButton.boundingBox();
+    await startButton.click();
+    await expect(startButton).toHaveAttribute('aria-pressed', 'true');
+    const selectedPosition = await startButton.boundingBox();
+    expect(startPosition).not.toBeNull();
+    expect(selectedPosition?.y).toBe(startPosition?.y);
+    const description = dialog.getByText('The period starts on this day.', { exact: true });
+    await expect(description).toBeVisible();
+    const descriptionPosition = await description.boundingBox();
+    if (descriptionPosition === null || selectedPosition === null) {
+      throw new Error('The selected start button and its description must have visible bounds.');
+    }
+    expect(descriptionPosition.y).toBeGreaterThan(selectedPosition.y);
+    await dialog.getByRole('checkbox', { name: 'Medium' }).check();
     await dialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }).check();
     await dialog.getByLabel('Private note').fill('A private browser test check-in.');
     await dialog.getByRole('button', { name: 'Start period and save' }).click();
@@ -330,7 +344,7 @@ test.describe('English application shell', () => {
     await page.getByRole('button', { name: "Edit today's check-in" }).click();
 
     const persistedDialog = page.getByRole('dialog', { name: "Edit today's check-in" });
-    await expect(persistedDialog.getByRole('radio', { name: 'Medium' })).toBeChecked();
+    await expect(persistedDialog.getByRole('checkbox', { name: 'Medium' })).toBeChecked();
     await expect(
       persistedDialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }),
     ).toBeChecked();
@@ -351,7 +365,8 @@ test.describe('English application shell', () => {
 
     await page.getByRole('button', { name: 'Check in today' }).click();
     const dayDialog = page.getByRole('dialog', { name: 'Check in today' });
-    await dayDialog.getByRole('radio', { name: 'Medium' }).check();
+    await dayDialog.getByRole('button', { name: 'Period started today' }).click();
+    await dayDialog.getByRole('checkbox', { name: 'Medium' }).check();
     await dayDialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }).check();
     await dayDialog.getByRole('radio', { name: 'Tension: 4 out of 5' }).check();
     await dayDialog.getByLabel('Private note').fill('Keep this after correcting the dates.');
@@ -414,7 +429,7 @@ test.describe('English application shell', () => {
     await persistedToday.click();
     await page.getByRole('button', { name: "Edit today's check-in" }).click();
     const persistedDayDialog = page.getByRole('dialog', { name: "Edit today's check-in" });
-    await expect(persistedDayDialog.getByRole('radio', { name: 'Medium' })).toBeChecked();
+    await expect(persistedDayDialog.getByRole('checkbox', { name: 'Medium' })).toBeChecked();
     await expect(
       persistedDayDialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }),
     ).toBeChecked();

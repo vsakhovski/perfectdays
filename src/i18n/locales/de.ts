@@ -321,6 +321,20 @@ export const de = {
     },
     dayDetail: {
       quickActionsTitle: 'Periode',
+      boundaryControls: {
+        explanation:
+          'Trage Beginn und Ende deiner Periode ein. Tägliche Angaben zur Blutungsstärke sind optional.',
+        start: 'Periode hat an diesem Tag begonnen',
+        startToday: 'Periode hat heute begonnen',
+        flowLabel: 'Blutungsstärke (optional)',
+        end: 'Periode ist beendet',
+        ongoing: 'Periode läuft · Tag {{count}}',
+        endTitle: 'Wann war der letzte Tag mit Blutung?',
+        endBefore:
+          '{{date}} — keine Blutung am Check-in-Tag. Der Check-in-Tag zählt nicht zur Periode.',
+        endOnDay: '{{date}} — Blutung endete am Check-in-Tag. Dieser Tag zählt zur Periode.',
+        confirm: 'Dieses Enddatum übernehmen',
+      },
       periodActions: {
         start: {
           label: 'Periode beginnen',

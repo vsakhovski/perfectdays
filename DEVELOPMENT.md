@@ -12,6 +12,14 @@ Store packaging, submission requirements, and release-readiness planning are tra
 
 ## Product goal
 
+### Explicit period actions in check-in
+
+- Period start/end are explicit draft actions, saved atomically with observations using **Save and done**. A start does not require or invent a flow intensity.
+- Light, medium, and heavy flow are optional, with no default selection. Selecting the same intensity again clears it; clearing flow does not end a period.
+- **Period has ended** asks for the last bleeding day: the day before the check-in (default, check-in day excluded) or the check-in day itself (included). The first option is unavailable on the period start date. Confirming the dialog updates the draft, not storage.
+- Existing completed-period boundaries supply the day description. Predictions never assign a recorded role or automatically end a period. Nearby-period extension and historical-start end-date safeguards remain in place.
+- Verified with 391 unit tests, production build, four PWA artifact checks, formatting and lint. Browser coverage passes 76 tests with eight platform-specific skips across Chromium, Firefox, mobile Chrome, and mobile WebKit. Firefox required a separate single-worker run outside the sandbox after a page-creation failure in the sandboxed run.
+
 The app should make it easy to:
 
 - record menstruation and spotting;

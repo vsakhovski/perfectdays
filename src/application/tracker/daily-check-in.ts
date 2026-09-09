@@ -58,10 +58,14 @@ function transitionJournal(
     case 'none':
       return { episodes: payload.episodes, logs: payload.logs };
     case 'start':
-      if (!isBleedingFlow(values.flow)) {
+      if (values.flow !== null && !isBleedingFlow(values.flow)) {
         throw new JournalError('invalid-start-flow');
       }
-      return startPeriod(payload, { date, flow: values.flow }, context);
+      return startPeriod(
+        payload,
+        { date, ...(values.flow === null ? {} : { flow: values.flow }) },
+        context,
+      );
     case 'continue':
       return continuePeriod(
         payload,
@@ -91,7 +95,7 @@ export function buildDailyCheckInPayload(
   transition: PeriodTransition,
   context: JournalMutationContext,
 ): VaultPayload {
-  if (transition === 'start' && !isBleedingFlow(values.flow)) {
+  if (transition === 'start' && values.flow !== null && !isBleedingFlow(values.flow)) {
     throw new JournalError('invalid-start-flow');
   }
 
@@ -124,7 +128,7 @@ export function buildExtendedPeriodStartCheckInPayload(
   values: DailyCheckInValues,
   context: JournalMutationContext,
 ): VaultPayload {
-  if (!isBleedingFlow(values.flow)) {
+  if (values.flow !== null && !isBleedingFlow(values.flow)) {
     throw new JournalError('invalid-start-flow');
   }
 
@@ -180,7 +184,7 @@ export function buildExtendedPeriodEndCheckInPayload(
   values: DailyCheckInValues,
   context: JournalMutationContext,
 ): VaultPayload {
-  if (!isBleedingFlow(values.flow)) {
+  if (values.flow !== null && !isBleedingFlow(values.flow)) {
     throw new JournalError('invalid-start-flow');
   }
 
@@ -232,7 +236,7 @@ export function buildHistoricalPeriodCheckInPayload(
   values: DailyCheckInValues,
   context: JournalMutationContext,
 ): VaultPayload {
-  if (!isBleedingFlow(values.flow)) {
+  if (values.flow !== null && !isBleedingFlow(values.flow)) {
     throw new JournalError('invalid-start-flow');
   }
   if (endDate < startDate) {
@@ -246,7 +250,11 @@ export function buildHistoricalPeriodCheckInPayload(
     now: () => timestamp,
     today: () => today,
   };
-  const started = startPeriod(payload, { date: startDate, flow: values.flow }, stableContext);
+  const started = startPeriod(
+    payload,
+    { date: startDate, ...(values.flow === null ? {} : { flow: values.flow }) },
+    stableContext,
+  );
   const ended = endPeriod(started, { date: endDate }, stableContext);
   const journal = upsertDailyCheckIn(ended, checkInInput(startDate, values), stableContext);
 

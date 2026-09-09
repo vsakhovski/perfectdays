@@ -146,30 +146,8 @@ function isBleedingFlow(flow: DayDetailValue['flow']): flow is BleedingFlow {
   return flow === 'light' || flow === 'medium' || flow === 'heavy';
 }
 
-function checkInTransitionForDate(
-  payload: VaultPayload,
-  date: LocalDate,
-  flow: DayDetailValue['flow'],
-): PeriodTransition {
-  const activeEpisode = payload.episodes.find((episode) => episode.endDate === undefined);
-  const coveringEpisode = periodContainingDate(payload, date);
-  if (
-    flow === 'none' &&
-    activeEpisode !== undefined &&
-    coveringEpisode?.id === activeEpisode.id &&
-    date > activeEpisode.startDate
-  ) {
-    return 'end-before';
-  }
-  if (!isBleedingFlow(flow) || coveringEpisode) {
-    return 'none';
-  }
-
-  if (activeEpisode) {
-    return date >= activeEpisode.startDate ? 'continue' : 'none';
-  }
-
-  return payload.episodes.some((episode) => episode.startDate > date) ? 'none' : 'start';
+function checkInTransitionForDate(value: DayDetailValue): PeriodTransition {
+  return value.periodTransition ?? 'none';
 }
 
 interface PeriodExtensionCandidate {
@@ -183,8 +161,13 @@ function periodExtensionCandidateForDate(
   payload: VaultPayload,
   date: LocalDate,
   flow: DayDetailValue['flow'],
+  explicitStart = false,
 ): PeriodExtensionCandidate | undefined {
-  if (!isBleedingFlow(flow) || periodContainingDate(payload, date) !== undefined) return undefined;
+  if (
+    (!explicitStart && !isBleedingFlow(flow)) ||
+    periodContainingDate(payload, date) !== undefined
+  )
+    return undefined;
   const startCandidates = payload.episodes
     .filter((episode) => episode.startDate > date && episode.durationKnown !== false)
     .map((episode): PeriodExtensionCandidate => ({
@@ -923,19 +906,21 @@ export function TrackerCalendar({
   );
 
   const selectedEpisodeForDescription = periodContainingDate(payload, selectedDate);
-  const selectedTransition = checkInTransitionForDate(payload, selectedDate, editorValue.flow);
+  const selectedTransition = checkInTransitionForDate(editorValue);
   const periodDescriptionAction: 'start' | 'continue' | 'end' | 'end-before' | undefined =
     selectedTransition === 'end-before'
       ? 'end-before'
-      : selectedEpisodeForDescription?.startDate === selectedDate
-        ? 'start'
-        : selectedEpisodeForDescription?.endDate === selectedDate
-          ? 'end'
-          : selectedEpisodeForDescription !== undefined
-            ? 'continue'
-            : selectedTransition === 'start' || selectedTransition === 'continue'
-              ? selectedTransition
-              : undefined;
+      : selectedTransition === 'end'
+        ? 'end'
+        : selectedEpisodeForDescription?.startDate === selectedDate
+          ? 'start'
+          : selectedEpisodeForDescription?.endDate === selectedDate
+            ? 'end'
+            : selectedEpisodeForDescription !== undefined
+              ? 'continue'
+              : selectedTransition === 'start' || selectedTransition === 'continue'
+                ? selectedTransition
+                : undefined;
 
   const ratingCopy = (field: RatingField): RatingScaleCopy => {
     const legend = t(($) => $.tracker.dayDetail.ratings[field]);
@@ -988,11 +973,17 @@ export function TrackerCalendar({
       ? {}
       : {
           periodDayDescription:
-            periodDescriptionAction === 'end-before'
-              ? t(($) => $.tracker.dayDetail.periodEndsBeforeDay)
-              : t(($) => $.tracker.dayDetail.periodActions[periodDescriptionAction].description),
+            periodDescriptionAction === 'continue' &&
+            selectedEpisodeForDescription !== undefined &&
+            selectedEpisodeForDescription.endDate === undefined
+              ? t(($) => $.tracker.dayDetail.boundaryControls.ongoing, {
+                  count: daysBetween(selectedEpisodeForDescription.startDate, selectedDate) + 1,
+                })
+              : periodDescriptionAction === 'end-before'
+                ? t(($) => $.tracker.dayDetail.periodEndsBeforeDay)
+                : t(($) => $.tracker.dayDetail.periodActions[periodDescriptionAction].description),
         }),
-    flowLegend: t(($) => $.tracker.dayDetail.flowLegend),
+    flowLegend: t(($) => $.tracker.dayDetail.boundaryControls.flowLabel),
     flowOptions: {
       none: t(($) => $.tracker.dayDetail.flowOptions.none),
       spotting: t(($) => $.tracker.dayDetail.flowOptions.spotting),
@@ -1009,11 +1000,11 @@ export function TrackerCalendar({
     },
     cancel: t(($) => $.mobile.checkIn.actions.cancel),
     save:
-      checkInTransitionForDate(payload, selectedDate, editorValue.flow) === 'start'
+      selectedTransition === 'start'
         ? t(($) => $.mobile.checkIn.actions.startPeriodAndSave)
         : t(($) => $.mobile.checkIn.actions.saveAndDone),
     saving:
-      checkInTransitionForDate(payload, selectedDate, editorValue.flow) === 'start'
+      selectedTransition === 'start'
         ? t(($) => $.mobile.checkIn.actions.startingAndSaving)
         : t(($) => $.mobile.checkIn.actions.saving),
     removePeriodConfirmation: t(($) => $.tracker.dayDetail.removePeriodConfirmation),
@@ -1123,14 +1114,19 @@ export function TrackerCalendar({
 
   const saveCheckIn = (value: DayDetailValue, date: LocalDate): void => {
     try {
-      const extensionCandidate = periodExtensionCandidateForDate(payload, date, value.flow);
+      const extensionCandidate = periodExtensionCandidateForDate(
+        payload,
+        date,
+        value.flow,
+        value.periodTransition === 'start',
+      );
       if (extensionCandidate !== undefined) {
         setPendingPeriodExtension({ ...extensionCandidate, date, value: { ...value } });
         setErrorMessage(undefined);
         setStatusMessage(undefined);
         return;
       }
-      const transition = checkInTransitionForDate(payload, date, value.flow);
+      const transition = checkInTransitionForDate(value);
       const spanDays = daysBetween(date, today) + 1;
       if (transition === 'start' && spanDays > expectedBleedDuration) {
         setPendingHistoricalPeriodEnd({
@@ -1298,15 +1294,17 @@ export function TrackerCalendar({
     payload,
     selectedDate,
     editorValue.flow,
+    editorValue.periodTransition === 'start',
   );
   const selectedFlowCannotStartPeriod =
-    isBleedingFlow(editorValue.flow) &&
+    (editorValue.periodTransition === 'start' || isBleedingFlow(editorValue.flow)) &&
     selectedEpisode === undefined &&
     payload.episodes.some((episode) => episode.startDate > selectedDate) &&
     selectedPeriodExtensionCandidate === undefined;
   const selectedFlowInvalidatesEpisodeStart =
     selectedEpisode?.startDate === selectedDate && editorValue.flow === 'none';
   const editorHasObservation =
+    editorValue.periodTransition !== undefined ||
     editorValue.flow !== undefined ||
     editorValue.confidence !== undefined ||
     editorValue.tension !== undefined ||
@@ -1317,9 +1315,9 @@ export function TrackerCalendar({
     ? t(($) => $.tracker.dayDetail.errors.historicalStart)
     : selectedFlowInvalidatesEpisodeStart
       ? t(($) => $.tracker.dayDetail.errors.startFlow)
-      : editorValue.flow === 'none' && noneRequiresPeriodCorrection
+      : editorValue.periodTransition === 'end-before' && noneRequiresPeriodCorrection
         ? t(($) => $.tracker.dayDetail.errors.noneRequiresPeriodCorrection)
-        : !editorHasObservation
+        : !editorHasObservation && !hasUserEnteredObservation(existingLog)
           ? t(($) => $.mobile.checkIn.guidance.chooseObservation)
           : undefined;
   const nextEstimateCentral =
@@ -1527,6 +1525,29 @@ export function TrackerCalendar({
 
       {editorOpen ? (
         <DayDetailEditor
+          periodControls={{
+            explanation: t(($) => $.tracker.dayDetail.boundaryControls.explanation),
+            start:
+              selectedDate === today
+                ? t(($) => $.tracker.dayDetail.boundaryControls.startToday)
+                : t(($) => $.tracker.dayDetail.boundaryControls.start),
+            end: t(($) => $.tracker.dayDetail.boundaryControls.end),
+            canStart: selectedEpisode === undefined,
+            canEnd:
+              selectedEpisode !== undefined &&
+              selectedEpisode.endDate === undefined &&
+              !selectedDateHasLaterActiveDays,
+            canEndBefore: selectedEpisode !== undefined && selectedDate > selectedEpisode.startDate,
+            hasPeriod: selectedEpisode !== undefined,
+            endTitle: t(($) => $.tracker.dayDetail.boundaryControls.endTitle),
+            endBefore: t(($) => $.tracker.dayDetail.boundaryControls.endBefore, {
+              date: formatLocalDate(addDays(selectedDate, -1), resolvedLanguage),
+            }),
+            endOnDay: t(($) => $.tracker.dayDetail.boundaryControls.endOnDay, {
+              date: formatLocalDate(selectedDate, resolvedLanguage),
+            }),
+            confirm: t(($) => $.tracker.dayDetail.boundaryControls.confirm),
+          }}
           busy={busy}
           copy={dayDetailCopy}
           date={selectedDate}

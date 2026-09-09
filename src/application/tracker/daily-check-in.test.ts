@@ -251,7 +251,20 @@ describe('buildDailyCheckInPayload', () => {
     });
   });
 
-  it.each<DailyCheckInValues>([{ flow: null }, { flow: 'none' }, { flow: 'spotting' }])(
+  it('starts a period without inventing an optional flow intensity', () => {
+    const result = buildDailyCheckInPayload(
+      vaultPayload(),
+      today,
+      { flow: null },
+      'start',
+      mutationContext(),
+    );
+    expect(result.episodes).toHaveLength(1);
+    expect(result.episodes[0]?.startDate).toBe(today);
+    expect(result.logs[0]?.flow).toBeUndefined();
+  });
+
+  it.each<DailyCheckInValues>([{ flow: 'none' }, { flow: 'spotting' }])(
     'rejects a period start without bleeding flow: %o',
     (values) => {
       const source = vaultPayload();

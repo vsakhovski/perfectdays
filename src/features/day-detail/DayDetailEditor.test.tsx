@@ -64,10 +64,12 @@ const copy: DayDetailCopy = {
 };
 
 function ControlledEditor({
+  periodControls,
   onDelete = vi.fn<NonNullable<DayDetailEditorProps['onDelete']>>(),
   onPeriodAction = vi.fn<DayDetailEditorProps['onPeriodAction']>(),
   onSave = vi.fn<DayDetailEditorProps['onSave']>(),
 }: {
+  readonly periodControls?: DayDetailEditorProps['periodControls'];
   readonly onDelete?: NonNullable<DayDetailEditorProps['onDelete']>;
   readonly onPeriodAction?: DayDetailEditorProps['onPeriodAction'];
   readonly onSave?: DayDetailEditorProps['onSave'];
@@ -76,6 +78,7 @@ function ControlledEditor({
 
   return (
     <DayDetailEditor
+      {...(periodControls === undefined ? {} : { periodControls })}
       copy={copy}
       date={asLocalDate('2026-05-12')}
       dateLabel="Tuesday, May 12, 2026"
@@ -96,6 +99,70 @@ function ControlledEditor({
 }
 
 describe('DayDetailEditor', () => {
+  const controls = {
+    explanation: 'Daily flow is optional.',
+    start: 'Period started today',
+    end: 'Period has ended',
+    canStart: true,
+    canEnd: false,
+    canEndBefore: true,
+    hasPeriod: false,
+    endTitle: 'Last bleeding day?',
+    endBefore: 'Yesterday — today is excluded',
+    endOnDay: 'Today — today is included',
+    confirm: 'Use this end date',
+  };
+
+  it('saves an explicit start without flow and allows toggling intensity off', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(<ControlledEditor periodControls={controls} onSave={onSave} />);
+    const light = screen.getByRole('checkbox', { name: copy.flowOptions.light });
+    expect(light).toBeDisabled();
+    expect(screen.queryByRole('checkbox', { name: copy.flowOptions.none })).toBeNull();
+    await user.click(screen.getByRole('button', { name: controls.start }));
+    expect(screen.getByRole('button', { name: controls.start })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await user.click(light);
+    expect(light).toBeChecked();
+    await user.click(light);
+    expect(light).not.toBeChecked();
+    await user.click(screen.getByRole('button', { name: copy.save }));
+    expect(onSave).toHaveBeenCalledWith(
+      { note: '', periodTransition: 'start' },
+      asLocalDate('2026-05-12'),
+    );
+  });
+
+  it.each(['end-before', 'end'] as const)('keeps %s as a draft until Save', async (transition) => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(
+      <ControlledEditor
+        periodControls={{ ...controls, canStart: false, canEnd: true, hasPeriod: true }}
+        onSave={onSave}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: controls.end }));
+    const modal = within(screen.getByRole('alertdialog', { name: controls.endTitle }));
+    expect(modal.getByRole('radio', { name: controls.endBefore })).toBeChecked();
+    if (transition === 'end')
+      await user.click(modal.getByRole('radio', { name: controls.endOnDay }));
+    await user.click(modal.getByRole('button', { name: controls.confirm }));
+    expect(onSave).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: copy.save }));
+    expect(onSave).toHaveBeenCalledWith(
+      {
+        note: '',
+        periodTransition: transition,
+        ...(transition === 'end-before' ? { flow: 'none' } : {}),
+      },
+      asLocalDate('2026-05-12'),
+    );
+  });
+
   it('moves focus into the modal editor and restores an explicit touch opener on unmount', async () => {
     const origin = document.createElement('button');
     const previouslyFocused = document.createElement('button');
@@ -136,8 +203,8 @@ describe('DayDetailEditor', () => {
     expect(onPeriodAction).toHaveBeenCalledWith('end', asLocalDate('2026-05-12'));
     expect(screen.queryByRole('button', { name: copy.periodActions.start.label })).toBeNull();
 
-    expect(screen.getByRole('radio', { name: copy.flowOptions.medium })).not.toBeChecked();
-    await user.click(screen.getByRole('radio', { name: copy.flowOptions.light }));
+    expect(screen.getByRole('checkbox', { name: copy.flowOptions.medium })).not.toBeChecked();
+    await user.click(screen.getByRole('checkbox', { name: copy.flowOptions.light }));
     const confidenceFive = within(
       screen.getByRole('group', { name: copy.ratings.confidence.legend }),
     ).getByRole('radio', { name: ratingOptions[5] });

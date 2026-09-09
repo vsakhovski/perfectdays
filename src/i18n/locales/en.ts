@@ -308,6 +308,18 @@ export const en = {
     },
     dayDetail: {
       quickActionsTitle: 'Period',
+      boundaryControls: {
+        explanation: 'Record when your period starts and ends. Daily flow details are optional.',
+        start: 'Period started on this day',
+        startToday: 'Period started today',
+        flowLabel: 'Flow (optional)',
+        end: 'Period has ended',
+        ongoing: 'Period is ongoing · Day {{count}}',
+        endTitle: 'Which was the last day of bleeding?',
+        endBefore: '{{date}} — no bleeding on the check-in day. The check-in day is not counted.',
+        endOnDay: '{{date}} — bleeding ended on the check-in day. This day is counted.',
+        confirm: 'Use this end date',
+      },
       periodActions: {
         start: {
           label: 'Start period',

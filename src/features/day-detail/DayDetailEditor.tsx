@@ -6,6 +6,7 @@ import {
   type KeyboardEvent,
   type RefObject,
   type SyntheticEvent,
+  type ReactNode,
 } from 'react';
 
 import type { Flow, LocalDate, Rating } from '../../domain/models';
@@ -17,6 +18,7 @@ export type PeriodQuickAction = 'start' | 'continue' | 'end' | 'remove';
 export type RatingField = 'confidence' | 'tension' | 'energy' | 'pain';
 
 export interface DayDetailValue {
+  readonly periodTransition?: 'start' | 'end' | 'end-before';
   readonly flow?: Flow;
   readonly confidence?: Rating;
   readonly tension?: Rating;
@@ -69,6 +71,19 @@ export interface DayDetailCopy {
 }
 
 export interface DayDetailEditorProps {
+  readonly periodControls?: {
+    readonly explanation: string;
+    readonly start: string;
+    readonly end: string;
+    readonly canStart: boolean;
+    readonly canEnd: boolean;
+    readonly canEndBefore: boolean;
+    readonly hasPeriod: boolean;
+    readonly endTitle: string;
+    readonly endBefore: string;
+    readonly endOnDay: string;
+    readonly confirm: string;
+  };
   readonly busy?: boolean;
   readonly copy: DayDetailCopy;
   readonly date: LocalDate;
@@ -113,7 +128,7 @@ export interface DayDetailEditorProps {
 
 type SelectableFlow = Exclude<Flow, 'spotting'>;
 
-const flowValues: readonly SelectableFlow[] = ['light', 'medium', 'heavy', 'none'];
+const flowValues: readonly SelectableFlow[] = ['light', 'medium', 'heavy'];
 const ratingValues: readonly Rating[] = [1, 2, 3, 4, 5];
 const ratingFields: readonly RatingField[] = ['energy', 'confidence', 'tension', 'pain'];
 
@@ -175,6 +190,7 @@ function getFocusableElements(container: HTMLElement): readonly HTMLElement[] {
 }
 
 interface ConfirmationModalProps {
+  readonly children?: ReactNode;
   readonly busy: boolean;
   readonly cancelLabel: string;
   readonly confirmLabel: string;
@@ -187,6 +203,7 @@ interface ConfirmationModalProps {
 }
 
 function ConfirmationModal({
+  children,
   busy,
   cancelLabel,
   confirmLabel,
@@ -235,6 +252,7 @@ function ConfirmationModal({
       >
         <h3 id={messageId}>{title}</h3>
         {description === undefined ? null : <p id={descriptionId}>{description}</p>}
+        {children}
         <div className={styles['confirmationActions']}>
           <button
             className={tone === 'danger' ? styles['deleteButton'] : styles['saveButton']}
@@ -372,6 +390,7 @@ export function DayDetailEditor({
   saveDisabled = false,
   saveDisabledReason,
   periodActions,
+  periodControls,
   rememberedDetailsOpen,
   returnFocusElement,
   statusMessage,
@@ -393,9 +412,18 @@ export function DayDetailEditor({
   const initialReturnFocusElementRef = useRef(returnFocusElement);
   const [confirmingPeriodRemoval, setConfirmingPeriodRemoval] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [choosingEnd, setChoosingEnd] = useState(false);
+  const [endChoice, setEndChoice] = useState<'end' | 'end-before'>('end-before');
+  const endButtonRef = useRef<HTMLButtonElement>(null);
+  const endConfirmRef = useRef<HTMLButtonElement>(null);
+  const flowBeforeEndingRef = useRef<DayDetailValue['flow']>(undefined);
+  useLayoutEffect(() => {
+    if (choosingEnd) endConfirmRef.current?.focus();
+  }, [choosingEnd]);
   const [detailsOpen, setDetailsOpen] = useState(() => rememberedDetailsOpen ?? true);
   const [emptySaveAttempted, setEmptySaveAttempted] = useState(false);
   const hasObservation =
+    value.periodTransition !== undefined ||
     value.flow !== undefined ||
     value.confidence !== undefined ||
     value.tension !== undefined ||
@@ -534,27 +562,115 @@ export function DayDetailEditor({
         </header>
 
         <form className={styles['form']} onSubmit={submit} ref={formRef}>
+          {periodControls ? (
+            <section className={styles['quickActions']}>
+              <h3>{copy.quickActionsTitle}</h3>
+              <p>{periodControls.explanation}</p>
+              {!periodControls.canStart && copy.periodDayDescription ? (
+                <p aria-live="polite">{copy.periodDayDescription}</p>
+              ) : null}
+              {periodControls.canStart ? (
+                <button
+                  type="button"
+                  className={styles['periodActionButton']}
+                  disabled={busy}
+                  aria-pressed={value.periodTransition === 'start'}
+                  onClick={() => {
+                    const next = { ...value };
+                    if (next.periodTransition === 'start') {
+                      delete next.periodTransition;
+                      delete next.flow;
+                    } else {
+                      next.periodTransition = 'start';
+                      if (next.flow === 'none' || next.flow === 'spotting') delete next.flow;
+                    }
+                    onChange(next);
+                  }}
+                >
+                  {periodControls.start}
+                </button>
+              ) : null}
+              {periodControls.canStart && copy.periodDayDescription ? (
+                <p aria-live="polite">{copy.periodDayDescription}</p>
+              ) : null}
+              {periodControls.canEnd ? (
+                <button
+                  type="button"
+                  className={styles['periodActionButton']}
+                  disabled={busy}
+                  ref={endButtonRef}
+                  aria-pressed={
+                    value.periodTransition === 'end' || value.periodTransition === 'end-before'
+                  }
+                  onClick={() => {
+                    if (
+                      value.periodTransition !== 'end' &&
+                      value.periodTransition !== 'end-before'
+                    ) {
+                      flowBeforeEndingRef.current = value.flow;
+                    }
+                    setEndChoice(
+                      value.periodTransition === 'end' || !periodControls.canEndBefore
+                        ? 'end'
+                        : 'end-before',
+                    );
+                    setChoosingEnd(true);
+                  }}
+                >
+                  <FlowIcon flow="none" />
+                  {periodControls.end}
+                </button>
+              ) : null}
+              {value.periodTransition === 'end' || value.periodTransition === 'end-before' ? (
+                <button
+                  type="button"
+                  className={styles['secondaryButton']}
+                  disabled={busy}
+                  onClick={() => {
+                    const next = { ...value };
+                    delete next.periodTransition;
+                    if (flowBeforeEndingRef.current === undefined) delete next.flow;
+                    else next.flow = flowBeforeEndingRef.current;
+                    onChange(next);
+                  }}
+                >
+                  {copy.cancel}
+                </button>
+              ) : null}
+            </section>
+          ) : null}
           <fieldset className={styles['fieldset']} disabled={busy}>
             <legend>
               {copy.flowLegend}
-              {value.flow === undefined ? null : ` (${copy.flowOptions[value.flow]})`}
+              {value.flow === undefined || value.flow === 'none'
+                ? null
+                : ` (${copy.flowOptions[value.flow]})`}
             </legend>
             <div className={styles['flowOptions']}>
               {flowValues.map((flow) => (
                 <label key={flow}>
                   <input
                     checked={value.flow === flow}
-                    disabled={disabledFlows.includes(flow)}
+                    disabled={
+                      disabledFlows.includes(flow) ||
+                      value.periodTransition === 'end-before' ||
+                      (periodControls !== undefined &&
+                        !periodControls.hasPeriod &&
+                        value.periodTransition !== 'start')
+                    }
                     name="flow"
                     onChange={() => {
-                      onChange({ ...value, flow });
+                      const next = { ...value };
+                      if (next.flow === flow) delete next.flow;
+                      else next.flow = flow;
+                      onChange(next);
                     }}
-                    type="radio"
+                    type="checkbox"
                     value={flow}
                   />
                   <span title={copy.flowOptions[flow]}>
                     <FlowIcon flow={flow} />
-                    <span className={styles['visuallyHidden']}>{copy.flowOptions[flow]}</span>
+                    <span className={styles['flowLabel']}>{copy.flowOptions[flow]}</span>
                   </span>
                 </label>
               ))}
@@ -591,7 +707,7 @@ export function DayDetailEditor({
             </button>
           ) : null}
 
-          {copy.periodDayDescription || explicitPeriodActions.length > 0 ? (
+          {!periodControls && (copy.periodDayDescription || explicitPeriodActions.length > 0) ? (
             <section className={styles['quickActions']}>
               <h3>{copy.quickActionsTitle}</h3>
               {copy.periodDayDescription ? (
@@ -737,6 +853,55 @@ export function DayDetailEditor({
           </div>
         </form>
 
+        {choosingEnd && periodControls ? (
+          <ConfirmationModal
+            busy={busy}
+            title={periodControls.endTitle}
+            cancelLabel={copy.cancel}
+            confirmLabel={periodControls.confirm}
+            confirmRef={endConfirmRef}
+            tone="primary"
+            onCancel={() => {
+              setChoosingEnd(false);
+              endButtonRef.current?.focus();
+            }}
+            onConfirm={() => {
+              const next = { ...value, periodTransition: endChoice };
+              if (endChoice === 'end-before') next.flow = 'none';
+              else if (next.flow === 'none') delete next.flow;
+              onChange(next);
+              setChoosingEnd(false);
+              endButtonRef.current?.focus();
+            }}
+          >
+            <div className={styles['endChoices']}>
+              <label>
+                <input
+                  type="radio"
+                  name="last-bleeding-day"
+                  checked={endChoice === 'end-before'}
+                  disabled={busy || !periodControls.canEndBefore}
+                  onChange={() => {
+                    setEndChoice('end-before');
+                  }}
+                />
+                {periodControls.endBefore}
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="last-bleeding-day"
+                  checked={endChoice === 'end'}
+                  disabled={busy}
+                  onChange={() => {
+                    setEndChoice('end');
+                  }}
+                />
+                {periodControls.endOnDay}
+              </label>
+            </div>
+          </ConfirmationModal>
+        ) : null}
         {confirmingPeriodRemoval ? (
           <ConfirmationModal
             busy={busy}

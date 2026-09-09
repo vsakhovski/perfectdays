@@ -642,7 +642,9 @@ describe('App', () => {
     expect(screen.queryByText('Choose at least one observation before saving.')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Save and done' }));
     expect(screen.getByText('Choose at least one observation before saving.')).toBeVisible();
-    await user.click(screen.getByRole('radio', { name: 'None' }));
+    fireEvent.change(screen.getByLabelText('Private note'), {
+      target: { value: 'No period today.' },
+    });
     expect(screen.getByRole('button', { name: 'Save and done' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: /Start period/i })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Save and done' }));
@@ -655,7 +657,7 @@ describe('App', () => {
     if (snapshot.phase === 'unlocked') {
       expect(snapshot.payload.episodes).toHaveLength(0);
       expect(snapshot.payload.logs).toEqual([
-        expect.objectContaining({ date: '2026-08-08', flow: 'none' }),
+        expect.objectContaining({ date: '2026-08-08', note: 'No period today.' }),
       ]);
     }
     expect(screen.getByRole('button', { name: /Saturday, August 8, 2026/u })).not.toHaveAttribute(
@@ -663,7 +665,8 @@ describe('App', () => {
     );
 
     await user.click(screen.getByRole('button', { name: "Edit today's check-in" }));
-    await user.click(screen.getByRole('radio', { name: 'Medium' }));
+    await user.click(screen.getByRole('button', { name: 'Period started today' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Medium' }));
     await user.click(screen.getByRole('radio', { name: 'Confidence: 5 out of 5' }));
     fireEvent.change(screen.getByLabelText('Private note'), {
       target: { value: 'A synthetic test check-in.' },
@@ -778,8 +781,9 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
     fireEvent.click(screen.getByRole('button', { name: /Wednesday, July 15, 2026/i }));
     fireEvent.click(screen.getByRole('button', { name: /^Check in for Jul 15/ }));
-    fireEvent.click(screen.getByRole('radio', { name: 'Medium' }));
-    expect(screen.getByRole('button', { name: 'Save and done' })).toHaveAttribute(
+    fireEvent.click(screen.getByRole('button', { name: 'Period started on this day' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Medium' }));
+    expect(screen.getByRole('button', { name: 'Start period and save' })).toHaveAttribute(
       'aria-disabled',
       'true',
     );
