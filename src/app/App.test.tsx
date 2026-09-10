@@ -256,7 +256,7 @@ async function renderApp({
   try {
     await inspectStartup?.();
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(4000);
+      await vi.advanceTimersByTimeAsync(3000);
     });
   } finally {
     vi.useRealTimers();
@@ -438,7 +438,7 @@ function persistentCheckInTodayButton(): HTMLElement {
 
 describe('App', () => {
   it.each([false, true])(
-    'shows the startup splash for four seconds (onboarding completed: %s)',
+    'shows the startup splash for three seconds (onboarding completed: %s)',
     async (onboardingCompleted) => {
       await renderApp({
         onboardingCompleted,
@@ -450,7 +450,7 @@ describe('App', () => {
             '/icons/app-icon-animated.svg',
           );
           await act(async () => {
-            await vi.advanceTimersByTimeAsync(3999);
+            await vi.advanceTimersByTimeAsync(2999);
           });
           expect(screen.getByText('Version 0.3.0')).toBeVisible();
           await act(async () => {
