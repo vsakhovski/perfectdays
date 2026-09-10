@@ -4,7 +4,7 @@
 
 My Perfect Days is a private, mobile-first menstrual journal. It records bleeding and daily observations, presents personal cycle estimates with visible uncertainty, and works as an installable offline PWA.
 
-> **Development preview — version 0.2.0.** The app is not a medical device, contraceptive tool, ovulation test, pregnancy test, or substitute for professional medical advice.
+> **Development preview — version 0.3.0.** The app is not a medical device, contraceptive tool, ovulation test, pregnancy test, or substitute for professional medical advice.
 
 ## Highlights
 

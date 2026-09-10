@@ -202,7 +202,7 @@ function Harness({
 
   return (
     <TrackerOnboarding
-      appVersion="0.2.0"
+      appVersion="0.3.0"
       copy={copy}
       draft={draft}
       languageControl={
@@ -273,7 +273,7 @@ describe('TrackerOnboarding', () => {
     render(<Harness onSkip={onSkip} />);
 
     expect(screen.getByRole('heading', { name: copy.splash.appName })).toBeVisible();
-    expect(screen.getByText(copy.splash.version('0.2.0'))).toBeVisible();
+    expect(screen.getByText(copy.splash.version('0.3.0'))).toBeVisible();
     expect(screen.getByRole('combobox', { name: languageControlCopy.label })).toBeVisible();
     expect(screen.queryByRole('combobox', { name: 'Theme' })).toBeNull();
     expect(screen.queryByText(copy.actions.progress(1, 6))).toBeNull();

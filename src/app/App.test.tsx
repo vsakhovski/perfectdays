@@ -429,7 +429,7 @@ describe('App', () => {
     await renderApp();
 
     expect(screen.getByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
-    expect(screen.getByText('Version 0.2.0')).toBeVisible();
+    expect(screen.getByText('Version 0.3.0')).toBeVisible();
     const languageSelect = screen.getByRole('combobox', { name: 'Select language' });
     expect(languageSelect).toHaveValue('English');
     fireEvent.click(languageSelect);
