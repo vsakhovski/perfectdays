@@ -25,7 +25,7 @@ export function VaultGate() {
     if (startup !== 'showing') return;
     const timer = window.setTimeout(() => {
       setStartup('done');
-    }, 4000);
+    }, 3000);
     return () => {
       window.clearTimeout(timer);
     };
