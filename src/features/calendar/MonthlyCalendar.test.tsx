@@ -206,8 +206,10 @@ describe('MonthlyCalendar', () => {
 
   it('uses one roving tab stop and retains day and month keyboard navigation', () => {
     renderCalendar();
-    const first = screen.getByRole('button', { name: /Full date 2026-05-01/u });
-    const second = screen.getByRole('button', { name: /Full date 2026-05-02/u });
+    // Visibility is covered separately; skip jsdom's costly visibility walk here.
+    const grid = within(screen.getByRole('grid'));
+    const first = grid.getByRole('button', { hidden: true, name: /Full date 2026-05-01/u });
+    const second = grid.getByRole('button', { hidden: true, name: /Full date 2026-05-02/u });
     const dayButtons = document.querySelectorAll<HTMLButtonElement>('button[data-current-month]');
     expect(Array.from(dayButtons).filter((button) => button.tabIndex === 0)).toHaveLength(1);
 
@@ -215,10 +217,10 @@ describe('MonthlyCalendar', () => {
     fireEvent.keyDown(first, { key: 'ArrowRight' });
     expect(second).toHaveFocus();
     fireEvent.keyDown(second, { key: 'ArrowDown' });
-    expect(screen.getByRole('button', { name: /Full date 2026-05-09/u })).toHaveFocus();
+    expect(grid.getByRole('button', { hidden: true, name: /Full date 2026-05-09/u })).toHaveFocus();
     scrollTo.mockClear();
     fireEvent.keyDown(first, { key: 'PageUp' });
-    expect(screen.getByRole('button', { name: /Full date 2026-04-01/u })).toHaveFocus();
+    expect(grid.getByRole('button', { hidden: true, name: /Full date 2026-04-01/u })).toHaveFocus();
     expect(scrollTo).toHaveBeenLastCalledWith({ behavior: 'smooth', top: 0 });
   });
 

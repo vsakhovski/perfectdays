@@ -7,7 +7,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
-    maxWorkers: 4,
+    // Shared CI runners can be slower with several jsdom suites competing for CPU.
+    maxWorkers: process.env['CI'] ? 1 : 4,
     setupFiles: ['./src/test/setup.ts'],
     restoreMocks: true,
     unstubEnvs: true,

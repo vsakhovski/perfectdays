@@ -255,6 +255,7 @@ async function renderApp({
 
   try {
     await inspectStartup?.();
+    // Advance virtual time only: ordinary interaction tests never wait for the splash.
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3000);
     });
@@ -681,19 +682,20 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
     await user.click(persistentCheckInTodayButton());
-    expect(screen.getByRole('button', { name: 'Save and done' })).toHaveAttribute(
+    const checkIn = within(screen.getByRole('dialog', { name: 'Check in today' }));
+    expect(checkIn.getByRole('button', { name: 'Save and done' })).toHaveAttribute(
       'aria-disabled',
       'true',
     );
     expect(screen.queryByText('Choose at least one observation before saving.')).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Save and done' }));
+    await user.click(checkIn.getByRole('button', { name: 'Save and done' }));
     expect(screen.getByText('Choose at least one observation before saving.')).toBeVisible();
     fireEvent.change(screen.getByLabelText('Private note'), {
       target: { value: 'No period today.' },
     });
-    expect(screen.getByRole('button', { name: 'Save and done' })).toBeEnabled();
+    expect(checkIn.getByRole('button', { name: 'Save and done' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: /Start period/i })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Save and done' }));
+    await user.click(checkIn.getByRole('button', { name: 'Save and done' }));
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'Check in today' })).not.toBeInTheDocument();
     });
@@ -711,13 +713,14 @@ describe('App', () => {
     );
 
     await user.click(screen.getByRole('button', { name: "Edit today's check-in" }));
-    await user.click(screen.getByRole('button', { name: 'Period started today' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Medium' }));
-    await user.click(screen.getByRole('radio', { name: 'Confidence: 5 out of 5' }));
+    const editor = within(screen.getByRole('dialog', { name: "Edit today's check-in" }));
+    await user.click(editor.getByRole('button', { name: 'Period started today' }));
+    await user.click(editor.getByRole('checkbox', { name: 'Medium' }));
+    await user.click(editor.getByRole('radio', { name: 'Confidence: 5 out of 5' }));
     fireEvent.change(screen.getByLabelText('Private note'), {
       target: { value: 'A synthetic test check-in.' },
     });
-    await user.click(screen.getByRole('button', { name: 'Start period and save' }));
+    await user.click(editor.getByRole('button', { name: 'Start period and save' }));
     await waitFor(() => {
       expect(
         screen.queryByRole('dialog', { name: "Edit today's check-in" }),
