@@ -9,10 +9,10 @@ import {
 } from 'react';
 
 import type { AppOnboardingStep } from '../../app/navigation/app-navigation-types';
+import { AppLogo } from '../../shared/ui/AppLogo';
 import type { LocalDate, SupportedLanguage } from '../../domain/models';
 import { integerMedian } from '../../domain/forecast';
 import { daysBetween } from '../../domain/local-date';
-import { AppLogo } from '../../shared/ui/AppLogo';
 import {
   isValidTypicalBleedDuration,
   isValidTypicalCycleLength,
@@ -59,6 +59,7 @@ export interface OnboardingCopy {
     readonly editor: OnboardingPeriodHistoryEditorCopy;
   };
   readonly fallbacks: {
+    readonly fromHistory?: string;
     readonly title: string;
     readonly description: string;
     readonly cycleLength: string;
@@ -108,6 +109,9 @@ export interface OnboardingCopy {
     readonly pinFailed: string;
   };
   readonly actions: {
+    readonly explore?: string;
+    readonly unknownHistory?: string;
+    readonly unknownEstimates?: string;
     readonly back: string;
     readonly skip: string;
     readonly start: string;
@@ -129,6 +133,7 @@ export interface TrackerOnboardingProps {
   readonly draft: OnboardingDraft;
   readonly errorMessage?: string;
   readonly languageControl: ReactNode;
+  readonly themeControl?: ReactNode;
   readonly language: SupportedLanguage;
   readonly onAddHistory: () => void;
   readonly onChange: (draft: OnboardingDraft) => void;
@@ -163,6 +168,23 @@ const SWIPE_AXIS_DOMINANCE = 1.25;
 const SWIPE_FEEDBACK_FACTOR = 0.24;
 const MAXIMUM_SWIPE_FEEDBACK = 42;
 type OptionalEstimateField = 'typicalCycleLength' | 'typicalBleedDuration';
+
+function OnboardingIllustration({
+  scene,
+}: {
+  readonly scene: 'welcome' | 'history' | 'estimates' | 'window' | 'privacy';
+}) {
+  return (
+    <img
+      className={styles['illustration']}
+      src={`/onboarding/${scene}-v1.webp`}
+      alt=""
+      width={640}
+      height={427}
+      draggable={false}
+    />
+  );
+}
 
 interface OptionalEstimateDefinition {
   readonly key: OptionalEstimateField;
@@ -320,13 +342,13 @@ function withHistoryEstimates(draft: OnboardingDraft): OnboardingDraft {
 }
 
 export function TrackerOnboarding({
-  appVersion,
   activeStep,
   busy = false,
   copy,
   draft,
   errorMessage,
   languageControl,
+  themeControl,
   language,
   onAddHistory,
   onChange,
@@ -535,6 +557,7 @@ export function TrackerOnboarding({
 
   const historyContent = (
     <div className={styles['stepBody']}>
+      <OnboardingIllustration scene="history" />
       <div className={styles['stepIntroduction']}>
         <h1 ref={step === 'history' ? headingRef : undefined} tabIndex={-1}>
           {copy.history.title}
@@ -561,11 +584,17 @@ export function TrackerOnboarding({
 
   const fallbackContent = (
     <div className={styles['stepBody']}>
+      <OnboardingIllustration scene="estimates" />
       <div className={styles['stepIntroduction']}>
         <h1 ref={step === 'fallbacks' ? headingRef : undefined} tabIndex={-1}>
           {copy.fallbacks.title}
         </h1>
         <p>{copy.fallbacks.description}</p>
+        {(draft.history.filter((entry) => entry.startDate !== '').length >= 2 ||
+          draft.history.some((entry) => entry.startDate !== '' && entry.endDate !== '')) &&
+        copy.fallbacks.fromHistory ? (
+          <p className={styles['reassurance']}>{copy.fallbacks.fromHistory}</p>
+        ) : null}
       </div>
       <div className={styles['numberFields']}>
         {(
@@ -662,6 +691,7 @@ export function TrackerOnboarding({
 
   const orangeContent = (
     <div className={styles['stepBody']}>
+      <OnboardingIllustration scene="window" />
       <div className={styles['stepIntroduction']}>
         <h1 ref={step === 'orange' ? headingRef : undefined} tabIndex={-1}>
           {copy.orange.title}
@@ -761,6 +791,7 @@ export function TrackerOnboarding({
 
   const pinContent = (
     <div className={styles['stepBody']}>
+      {pinSetupStarted ? null : <OnboardingIllustration scene="privacy" />}
       <div className={styles['stepIntroduction']}>
         <h1 ref={step === 'pin' ? headingRef : undefined} tabIndex={-1}>
           {copy.pin.title}
@@ -809,31 +840,29 @@ export function TrackerOnboarding({
     renderedStep === 'splash' ? (
       <div className={styles['splash']} data-testid="onboarding-splash">
         <div className={styles['splashMain']} data-testid="onboarding-splash-main">
-          <AppLogo className={styles['logo']} />
           <div className={styles['splashIdentity']}>
-            <h1 ref={renderedStep === step ? headingRef : undefined} tabIndex={-1}>
-              {copy.splash.appName}
-            </h1>
+            <div className={styles['brandLine']}>
+              <AppLogo className={styles['logo']} />
+              <h1 ref={renderedStep === step ? headingRef : undefined} tabIndex={-1}>
+                {copy.splash.appName}
+              </h1>
+            </div>
             <p>{copy.splash.tagline}</p>
             <div className={styles['languageControl']}>{languageControl}</div>
+            <div className={styles['languageControl']}>{themeControl}</div>
           </div>
         </div>
-        <p className={styles['version']} data-testid="onboarding-splash-version">
-          {copy.splash.version(appVersion)}
-        </p>
       </div>
     ) : renderedStep === 'introduction' ? (
       <div className={styles['stepBody']}>
+        <OnboardingIllustration scene="welcome" />
         <div className={styles['stepIntroduction']}>
           <h1 ref={renderedStep === step ? headingRef : undefined} tabIndex={-1}>
             {copy.introduction.title}
           </h1>
           <p>{copy.introduction.description}</p>
+          <p className={styles['reassurance']}>{copy.introduction.privacyDescription}</p>
         </div>
-        <section className={styles['privacyCard']}>
-          <h2>{copy.introduction.privacyTitle}</h2>
-          <p>{copy.introduction.privacyDescription}</p>
-        </section>
       </div>
     ) : renderedStep === 'history' ? (
       historyContent
@@ -875,17 +904,7 @@ export function TrackerOnboarding({
             <span aria-hidden="true" data-current={index === stepIndex} key={candidate} />
           ))}
         </div>
-        <button
-          aria-label={copy.actions.skip}
-          className={styles['iconButton']}
-          disabled={controlsDisabled}
-          onClick={onSkip}
-          type="button"
-        >
-          <svg aria-hidden="true" viewBox="0 0 24 24">
-            <path d="m6 6 12 12M18 6 6 18" />
-          </svg>
-        </button>
+        <span aria-hidden="true" className={styles['chromeSpacer']} />
       </header>
 
       <div
@@ -948,6 +967,16 @@ export function TrackerOnboarding({
       ) : null}
 
       <footer className={styles['actions']}>
+        {step !== 'pin' && step !== 'splash' ? (
+          <button
+            className={styles['secondaryButton']}
+            disabled={controlsDisabled}
+            onClick={onSkip}
+            type="button"
+          >
+            {copy.actions.skip}
+          </button>
+        ) : null}
         {step === 'pin' ? (
           pinEnabled || !pinProtectionAvailable ? (
             <button
@@ -989,7 +1018,16 @@ export function TrackerOnboarding({
             onClick={next}
             type="button"
           >
-            {step === 'splash' ? copy.actions.start : copy.actions.next}
+            {step === 'splash'
+              ? copy.actions.start
+              : step === 'history' &&
+                  !draft.history.some((entry) => entry.startDate !== '' || entry.endDate !== '')
+                ? (copy.actions.unknownHistory ?? copy.actions.next)
+                : step === 'fallbacks' &&
+                    draft.typicalCycleLength === undefined &&
+                    draft.typicalBleedDuration === undefined
+                  ? (copy.actions.unknownEstimates ?? copy.actions.next)
+                  : copy.actions.next}
           </button>
         )}
       </footer>

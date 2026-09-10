@@ -4,7 +4,13 @@ import { useTheme } from '../../app/theme/use-theme';
 import type { ThemePreference } from '../../domain/models';
 import styles from './ThemeControl.module.css';
 
-export function ThemeControl({ compact = false }: { readonly compact?: boolean }) {
+export function ThemeControl({
+  compact = false,
+  showLabel = !compact,
+}: {
+  readonly compact?: boolean;
+  readonly showLabel?: boolean;
+}) {
   const { t } = useTranslation();
   const { preference, resolvedTheme, setPreference } = useTheme();
   const themeOptions = [
@@ -18,8 +24,8 @@ export function ThemeControl({ compact = false }: { readonly compact?: boolean }
       : t(($) => $.settings.appearance.resolved.light);
 
   return (
-    <fieldset className={styles['fieldset']}>
-      <legend className={compact ? styles['visuallyHidden'] : styles['legend']}>
+    <fieldset className={styles['fieldset']} data-compact={compact}>
+      <legend className={showLabel ? styles['legend'] : styles['visuallyHidden']}>
         {t(($) => $.settings.appearance.legend)}
       </legend>
       <div className={styles['options']}>

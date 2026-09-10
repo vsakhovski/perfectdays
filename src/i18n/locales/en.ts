@@ -7,21 +7,21 @@ export const en = {
     onboarding: {
       splash: {
         appName: 'My Perfect Days',
-        tagline: 'A private place for your cycle patterns.',
+        tagline: 'A little more prepared.',
         version: 'Version {{version}}',
       },
       introduction: {
-        title: 'Understand your cycle, privately',
+        title: 'Hi! Let’s get to know your cycle.',
         description:
-          'This app can help you track your cycles, estimate when your next period may begin, and keep a private journal of your own observations.',
+          'I’m here to help you estimate when your next period might start and keep a journal of how you feel. Add a few details in the next steps, or explore the app and record your period starts and ends over time.',
         privacyTitle: 'Your data stays under your control',
         privacyDescription:
-          'Your journal stays on this device by default, with no account, advertising, or analytics. An optional PIN can encrypt it at rest; without a PIN, local data is not encrypted.',
+          'Your journal stays on this device. No account, ads, or analytics. You decide what to share.',
       },
       history: {
-        title: 'Previous periods',
+        title: 'Remember your last period?',
         description:
-          'Predictions are based on previous period starts. Add previous periods when that information is available. Add an end date only when you know it.',
+          'Mark when it started and, if you remember, when it ended. You can add more periods too. Don’t remember the dates? That’s okay—you can start recording from today.',
         editor: {
           saveStartOnly: 'Save start date only',
           configureStartOnlyDescription:
@@ -31,34 +31,40 @@ export const en = {
         },
       },
       fallbacks: {
-        title: 'Optional period estimates',
+        fromHistory: 'I’ve filled in the estimates your dates can provide. You can adjust them.',
+        title: 'What’s usual for you?',
         description:
-          'These are used only while there is not enough recorded history. Recorded dates always take priority.',
-        cycleLength: 'Usual cycle length in days',
-        cycleLengthDescription: 'Optional. Use the minus and plus controls or enter another value.',
-        bleedDuration: 'Usual bleeding duration in days',
-        bleedDurationDescription:
-          'Optional. Use the minus and plus controls or enter another value.',
+          'An approximate answer is fine. Leave either answer blank if you’re not sure. Your recorded periods will guide estimates as your history grows.',
+        cycleLength: 'Days between period starts',
+        cycleLengthDescription:
+          'Count from the first day of one period to the first day of the next.',
+        bleedDuration: 'Days of bleeding',
+        bleedDurationDescription: 'About how many days does your period usually last?',
         notSure: 'Not sure',
         decrease: 'Decrease {{field}}',
         increase: 'Increase {{field}}',
         quickChoices: 'Quick choices for {{field}}',
       },
       orange: {
+        title: 'A little heads-up?',
+        description:
+          'Would you like a few days before your estimated period highlighted in the calendar? This is a calendar guide, not a notification or a prediction of how you will feel.',
+        enabled: 'Show pre-period days',
+        days: 'How many days before?',
         daysDescription: 'Use the minus and plus controls or enter from 1 to 14 days.',
         decrease: 'Decrease days before the estimate',
         increase: 'Increase days before the estimate',
         quickChoices: 'Quick choices for days before the estimate',
       },
       pin: {
-        title: 'Protect your private journal',
+        title: 'A little privacy, just for you',
         description:
-          'Optionally choose a six-digit PIN. It encrypts the journal stored in this browser and locks the app when it is closed or left in the background. There is no PIN recovery.',
+          'Your journal is personal. Add a six-digit PIN to encrypt it on this device and lock the app when you leave it. Without a PIN, it is not encrypted. There is no PIN recovery—keep an encrypted backup somewhere safe.',
         pinLabel: 'Enter a six-digit PIN',
         confirmationLabel: 'Please repeat the PIN',
         showPin: 'Show {{field}}',
         hidePin: 'Hide {{field}}',
-        enable: 'Enable PIN',
+        enable: 'Add a PIN',
         keypadLabel: 'PIN number pad',
         deleteDigit: 'Delete the last PIN digit',
         placeholder: '******',
@@ -81,14 +87,17 @@ export const en = {
         pinFailed: 'PIN protection could not be enabled. Your journal was not changed.',
       },
       actions: {
+        explore: 'Explore the app',
+        unknownHistory: 'I don’t remember',
+        unknownEstimates: 'Not sure — continue',
         back: 'Back',
         skip: 'Skip setup',
-        start: 'Get started',
+        start: 'Let’s get started',
         next: 'Continue',
-        finishWithoutPin: 'Finish without PIN',
+        finishWithoutPin: 'Start without a PIN',
         enablePinAndFinish: 'Enable PIN and finish',
         enablingPin: 'Enabling PIN…',
-        finish: 'Finish setup',
+        finish: 'Open my calendar',
         completing: 'Saving setup…',
         progress: 'Step {{current}} of {{total}}',
       },

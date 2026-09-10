@@ -267,13 +267,14 @@ describe('TrackerOnboarding', () => {
     });
   }
 
-  it('starts with a branded splash, version, sequential navigation, and global skip', async () => {
+  it('starts with a branded setup screen and offers skip after getting started', async () => {
     const user = userEvent.setup();
     const onSkip = vi.fn<TrackerOnboardingProps['onSkip']>();
     render(<Harness onSkip={onSkip} />);
 
     expect(screen.getByRole('heading', { name: copy.splash.appName })).toBeVisible();
-    expect(screen.getByText(copy.splash.version('0.3.0'))).toBeVisible();
+    expect(screen.queryByText(copy.splash.version('0.3.0'))).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: copy.actions.skip })).not.toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: languageControlCopy.label })).toBeVisible();
     expect(screen.queryByRole('combobox', { name: 'Theme' })).toBeNull();
     expect(screen.queryByText(copy.actions.progress(1, 6))).toBeNull();
@@ -284,12 +285,13 @@ describe('TrackerOnboarding', () => {
 
     await user.click(screen.getByRole('button', { name: copy.actions.start }));
     expect(screen.getByRole('heading', { name: copy.introduction.title })).toHaveFocus();
-    expect(screen.getByRole('heading', { name: copy.introduction.privacyTitle })).toBeVisible();
+    expect(screen.getByText(copy.introduction.privacyDescription)).toBeVisible();
     expect(screen.queryByText(copy.actions.back)).toBeNull();
-    expect(screen.queryByText(copy.actions.skip)).toBeNull();
+    expect(screen.getByRole('button', { name: copy.actions.skip })).toBeVisible();
     await user.click(screen.getByRole('button', { name: copy.actions.back }));
     expect(screen.getByRole('heading', { name: copy.splash.appName })).toHaveFocus();
 
+    await user.click(screen.getByRole('button', { name: copy.actions.start }));
     await user.click(screen.getByRole('button', { name: copy.actions.skip }));
     expect(onSkip).toHaveBeenCalledOnce();
   });

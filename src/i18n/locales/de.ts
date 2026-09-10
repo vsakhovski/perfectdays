@@ -9,21 +9,21 @@ export const de = {
     onboarding: {
       splash: {
         appName: 'My Perfect Days',
-        tagline: 'Ein privater Ort für deine Zyklusmuster.',
+        tagline: 'Ein bisschen besser vorbereitet.',
         version: 'Version {{version}}',
       },
       introduction: {
-        title: 'Verstehe deinen Zyklus – privat',
+        title: 'Hallo! Lernen wir deinen Zyklus kennen.',
         description:
-          'Diese App hilft dir, deine Zyklen zu erfassen, den möglichen Beginn deiner nächsten Periode einzuschätzen und ein privates Tagebuch deiner eigenen Beobachtungen zu führen.',
+          'Ich helfe dir, den nächsten Periodenbeginn einzuschätzen und festzuhalten, wie du dich fühlst. Ergänze ein paar Angaben in den nächsten Schritten oder entdecke die App und trage Beginn und Ende deiner Perioden nach und nach ein.',
         privacyTitle: 'Du behältst die Kontrolle über deine Daten',
         privacyDescription:
-          'Dein Tagebuch bleibt standardmäßig auf diesem Gerät – ohne Konto, Werbung oder Analyse. Eine optionale PIN kann es im Speicher verschlüsseln; ohne PIN sind lokale Daten nicht verschlüsselt.',
+          'Dein Tagebuch bleibt auf diesem Gerät. Kein Konto, keine Werbung, keine Analyse deines Nutzungsverhaltens. Du entscheidest, was du teilst.',
       },
       history: {
-        title: 'Frühere Perioden',
+        title: 'Erinnerst du dich an deine letzte Periode?',
         description:
-          'Schätzungen beruhen auf früheren Periodenstarts. Füge frühere Perioden hinzu, wenn dir diese Daten vorliegen. Trage ein Enddatum nur ein, wenn du es kennst.',
+          'Markiere den Beginn und, wenn du dich erinnerst, das Ende. Du kannst auch weitere Perioden ergänzen. Du weißt die Daten nicht mehr? Kein Problem—beginne einfach ab heute.',
         editor: {
           saveStartOnly: 'Nur Startdatum speichern',
           configureStartOnlyDescription:
@@ -34,35 +34,41 @@ export const de = {
         },
       },
       fallbacks: {
-        title: 'Optionale Periodenschätzungen',
+        fromHistory:
+          'Ich habe die Schätzungen ergänzt, die deine Daten ermöglichen. Du kannst sie anpassen.',
+        title: 'Was ist bei dir üblich?',
         description:
-          'Sie werden nur verwendet, solange nicht genügend aufgezeichnete Daten vorliegen. Aufzeichnungen haben immer Vorrang.',
-        cycleLength: 'Übliche Zykluslänge in Tagen',
+          'Eine ungefähre Angabe reicht. Lass ein Feld leer, wenn du unsicher bist. Mit der Zeit bilden deine aufgezeichneten Perioden die Grundlage der Schätzungen.',
+        cycleLength: 'Tage zwischen zwei Periodenstarts',
         cycleLengthDescription:
-          'Optional. Verwende Minus und Plus oder gib einen anderen Wert ein.',
-        bleedDuration: 'Übliche Blutungsdauer in Tagen',
-        bleedDurationDescription:
-          'Optional. Verwende Minus und Plus oder gib einen anderen Wert ein.',
+          'Zähle vom ersten Tag einer Periode bis zum ersten Tag der nächsten.',
+        bleedDuration: 'Tage mit Blutung',
+        bleedDurationDescription: 'Wie viele Tage dauert deine Periode ungefähr?',
         notSure: 'Nicht sicher',
         decrease: '{{field}} verringern',
         increase: '{{field}} erhöhen',
         quickChoices: 'Schnellwerte für {{field}}',
       },
       orange: {
+        title: 'Ein kleiner Hinweis vorab?',
+        description:
+          'Möchtest du im Kalender ein paar Tage vor deiner geschätzten Periode hervorheben? Das ist eine Kalenderhilfe, keine Benachrichtigung oder Vorhersage deines Befindens.',
+        enabled: 'Tage vor der Periode anzeigen',
+        days: 'Wie viele Tage vorher?',
         daysDescription: 'Verwende Minus und Plus oder gib 1 bis 14 Tage ein.',
         decrease: 'Tage vor der Schätzung verringern',
         increase: 'Tage vor der Schätzung erhöhen',
         quickChoices: 'Schnellwerte für Tage vor der Schätzung',
       },
       pin: {
-        title: 'Schütze dein privates Tagebuch',
+        title: 'Ein bisschen Privatsphäre, nur für dich',
         description:
-          'Lege optional eine sechsstellige PIN fest. Sie verschlüsselt das in diesem Browser gespeicherte Tagebuch und sperrt die App, wenn sie geschlossen oder im Hintergrund gelassen wird. Die PIN kann nicht wiederhergestellt werden.',
+          'Dein Tagebuch ist persönlich. Mit einer sechsstelligen PIN wird es auf diesem Gerät verschlüsselt und die App beim Verlassen gesperrt. Ohne PIN ist es unverschlüsselt. Eine vergessene PIN lässt sich nicht wiederherstellen—bewahre ein verschlüsseltes Backup sicher auf.',
         pinLabel: 'Gib eine sechsstellige PIN ein',
         confirmationLabel: 'Bitte wiederhole die PIN',
         showPin: '{{field}} anzeigen',
         hidePin: '{{field}} verbergen',
-        enable: 'PIN aktivieren',
+        enable: 'PIN hinzufügen',
         keypadLabel: 'PIN-Ziffernblock',
         deleteDigit: 'Letzte PIN-Ziffer löschen',
         placeholder: '******',
@@ -87,14 +93,17 @@ export const de = {
           'Der PIN-Schutz konnte nicht aktiviert werden. Dein Tagebuch wurde nicht verändert.',
       },
       actions: {
+        explore: 'App entdecken',
+        unknownHistory: 'Ich erinnere mich nicht',
+        unknownEstimates: 'Nicht sicher — weiter',
         back: 'Zurück',
         skip: 'Einrichtung überspringen',
-        start: 'Loslegen',
+        start: 'Los geht’s',
         next: 'Weiter',
-        finishWithoutPin: 'Ohne PIN abschließen',
+        finishWithoutPin: 'Ohne PIN starten',
         enablePinAndFinish: 'PIN aktivieren und abschließen',
         enablingPin: 'PIN wird aktiviert…',
-        finish: 'Einrichtung abschließen',
+        finish: 'Meinen Kalender öffnen',
         completing: 'Einrichtung wird gespeichert…',
         progress: 'Schritt {{current}} von {{total}}',
       },

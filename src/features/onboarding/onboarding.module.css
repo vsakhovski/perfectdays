@@ -170,22 +170,31 @@
 
 .splashMain {
   display: grid;
-  place-content: center;
+  align-content: start;
   justify-items: center;
   min-block-size: 0;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .splashIdentity {
   display: grid;
   gap: 0.6rem;
   justify-items: center;
-  inline-size: min(100%, 19rem);
+  inline-size: 100%;
+}
+
+.brandLine {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
 }
 
 .languageControl {
   inline-size: min(100%, 17rem);
   margin-block-start: 0.45rem;
+  text-align: left;
 }
 
 .splash h1,
@@ -204,7 +213,7 @@
 }
 
 .splash h1 {
-  font-size: clamp(2.1rem, 11vw, 3.4rem);
+  font-size: clamp(1.5rem, 7vw, 2rem);
   letter-spacing: -0.045em;
   line-height: 1;
 }
@@ -220,9 +229,39 @@
 }
 
 .logo {
-  inline-size: clamp(6.5rem, 32vw, 8.5rem);
+  inline-size: 3.25rem;
   block-size: auto;
   filter: drop-shadow(0 0.75rem 1.25rem rgb(70 35 50 / 14%));
+}
+
+.illustration {
+  display: block;
+  inline-size: min(100%, 16.5rem);
+  block-size: auto;
+  aspect-ratio: 640 / 427;
+  object-fit: contain;
+  justify-self: center;
+  border-radius: var(--radius-large);
+  background: #fbf8f7;
+}
+
+.welcomeMessage {
+  display: grid;
+  gap: 0.85rem;
+  text-align: start;
+}
+
+.welcomeMessage h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.reassurance {
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-small);
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
+  font-size: 0.9rem;
 }
 
 .stepBody,

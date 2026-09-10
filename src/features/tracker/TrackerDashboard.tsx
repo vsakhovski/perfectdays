@@ -61,6 +61,7 @@ import {
   type OnboardingDraft,
 } from '../onboarding/TrackerOnboarding';
 import { LanguageControl } from '../settings/LanguageControl';
+import { ThemeControl } from '../settings/ThemeControl';
 import {
   TrackerSettingsPanel,
   type TrackerSettingsCopy,
@@ -329,6 +330,7 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
       },
     },
     fallbacks: {
+      fromHistory: t(($) => $.tracker.onboarding.fallbacks.fromHistory),
       title: t(($) => $.tracker.onboarding.fallbacks.title),
       description: t(($) => $.tracker.onboarding.fallbacks.description),
       cycleLength: t(($) => $.tracker.onboarding.fallbacks.cycleLength),
@@ -341,10 +343,10 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
       quickChoices: (field) => t(($) => $.tracker.onboarding.fallbacks.quickChoices, { field }),
     },
     orange: {
-      title: t(($) => $.mobile.settings.prePeriod.title),
-      description: t(($) => $.mobile.settings.prePeriod.description),
-      enabled: t(($) => $.mobile.settings.prePeriod.enabled),
-      days: t(($) => $.mobile.settings.prePeriod.days),
+      title: t(($) => $.tracker.onboarding.orange.title),
+      description: t(($) => $.tracker.onboarding.orange.description),
+      enabled: t(($) => $.tracker.onboarding.orange.enabled),
+      days: t(($) => $.tracker.onboarding.orange.days),
       daysDescription: t(($) => $.tracker.onboarding.orange.daysDescription),
       decrease: t(($) => $.tracker.onboarding.orange.decrease),
       increase: t(($) => $.tracker.onboarding.orange.increase),
@@ -378,6 +380,9 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
       enabled: t(($) => $.tracker.onboarding.pin.enabled),
     },
     actions: {
+      explore: t(($) => $.tracker.onboarding.actions.explore),
+      unknownHistory: t(($) => $.tracker.onboarding.actions.unknownHistory),
+      unknownEstimates: t(($) => $.tracker.onboarding.actions.unknownEstimates),
       back: t(($) => $.tracker.onboarding.actions.back),
       skip: t(($) => $.tracker.onboarding.actions.skip),
       start: t(($) => $.tracker.onboarding.actions.start),
@@ -454,6 +459,7 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
       draft={draft}
       {...(errorMessage === undefined ? {} : { errorMessage })}
       languageControl={<LanguageControl compact />}
+      themeControl={<ThemeControl compact showLabel />}
       language={resolvedLanguage}
       onAddHistory={() => {
         setDraft((current) => ({

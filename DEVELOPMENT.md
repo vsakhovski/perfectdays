@@ -12,6 +12,10 @@ Store packaging, submission requirements, and release-readiness planning are tra
 
 ## Product goal
 
+### Personal onboarding — first design pass
+
+The splash and introduction are merged into one welcome screen, followed by previous periods, usual lengths, pre-period highlighting, and optional PIN protection. Five matching teal-otter illustrations accompany warmer English, German, and Russian copy. Skipping is a visible text action; empty history/estimate steps offer reassuring continuation labels. Existing date validation, estimate derivation, swipe transitions, and PIN safeguards remain. Legacy introduction routes display the welcome screen. Artwork and generation notes live in `public/onboarding/`; optimized WebP assets are precached for offline use. Tests and production build for this design pass are deferred until requested.
+
 ### Explicit period actions in check-in
 
 - Period start/end are explicit draft actions, saved atomically with observations using **Save and done**. A start does not require or invent a flow intensity.

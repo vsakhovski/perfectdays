@@ -140,6 +140,7 @@ function createSystemLanguageSource(initialLanguages: readonly string[]): TestSy
 }
 
 interface RenderAppOptions {
+  inspectStartup?: () => Promise<void>;
   autoLockDelay?: VaultPayload['settings']['autoLockDelay'];
   languagePreference?: LanguagePreference;
   systemLanguages?: readonly string[];
@@ -153,6 +154,7 @@ interface RenderAppOptions {
 }
 
 async function renderApp({
+  inspectStartup,
   autoLockDelay = 'immediate',
   languagePreference = 'en',
   systemLanguages = ['en-US'],
@@ -224,6 +226,7 @@ async function renderApp({
   const reloadPage = vi.fn();
   const downloadedFiles: TextFileDownload[] = [];
 
+  vi.useFakeTimers();
   const result = render(
     <AppProviders
       autoLockClock={autoLockClock}
@@ -249,6 +252,15 @@ async function renderApp({
       <App />
     </AppProviders>,
   );
+
+  try {
+    await inspectStartup?.();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+  } finally {
+    vi.useRealTimers();
+  }
 
   return {
     ...result,
@@ -425,11 +437,42 @@ function persistentCheckInTodayButton(): HTMLElement {
 }
 
 describe('App', () => {
+  it.each([false, true])(
+    'shows the startup splash for four seconds (onboarding completed: %s)',
+    async (onboardingCompleted) => {
+      await renderApp({
+        onboardingCompleted,
+        inspectStartup: async () => {
+          expect(screen.getByText('Version 0.3.0')).toBeVisible();
+          expect(screen.queryByRole('button')).not.toBeInTheDocument();
+          expect(document.querySelector('img')).toHaveAttribute(
+            'src',
+            '/icons/app-icon-animated.svg',
+          );
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(3999);
+          });
+          expect(screen.getByText('Version 0.3.0')).toBeVisible();
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(1);
+          });
+          expect(screen.queryByText('Version 0.3.0')).not.toBeInTheDocument();
+          expect(
+            screen.getByRole('heading', {
+              name: onboardingCompleted ? 'Calendar' : 'My Perfect Days',
+              level: 1,
+            }),
+          ).toBeVisible();
+        },
+      });
+    },
+  );
+
   it('renders the private local-first foundation in English', async () => {
     await renderApp();
 
     expect(screen.getByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
-    expect(screen.getByText('Version 0.3.0')).toBeVisible();
+    expect(screen.queryByText('Version 0.3.0')).not.toBeInTheDocument();
     const languageSelect = screen.getByRole('combobox', { name: 'Select language' });
     expect(languageSelect).toHaveValue('English');
     fireEvent.click(languageSelect);
@@ -437,7 +480,7 @@ describe('App', () => {
     expect(screen.queryByRole('option', { name: 'Device language' })).toBeNull();
     fireEvent.click(languageSelect);
     expect(screen.queryByRole('listbox')).toBeNull();
-    expect(screen.queryByRole('radio', { name: 'Dark' })).toBeNull();
+    expect(screen.getByRole('radio', { name: 'Dark' })).toBeVisible();
     expect(document.documentElement).toHaveAttribute('lang', 'en');
     expect(document.title).toBe('My Perfect Days');
   });
@@ -449,7 +492,7 @@ describe('App', () => {
     await user.click(screen.getByRole('combobox', { name: 'Select language' }));
     await user.click(screen.getByRole('option', { name: 'Deutsch' }));
 
-    expect(screen.getByText('Ein privater Ort für deine Zyklusmuster.')).toBeVisible();
+    expect(screen.getByText('Ein bisschen besser vorbereitet.')).toBeVisible();
     expect(screen.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveFocus();
     expect(languageStore.read()).toBe('de');
   });
@@ -537,8 +580,10 @@ describe('App', () => {
     const user = userEvent.setup();
     await renderApp();
 
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
-    expect(screen.getByRole('heading', { name: 'Understand your cycle, privately' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Let’s get started' }));
+    expect(
+      screen.getByRole('heading', { name: 'Hi! Let’s get to know your cycle.' }),
+    ).toBeVisible();
 
     act(() => {
       window.history.back();
@@ -549,7 +594,7 @@ describe('App', () => {
       window.history.forward();
     });
     expect(
-      await screen.findByRole('heading', { name: 'Understand your cycle, privately' }),
+      await screen.findByRole('heading', { name: 'Hi! Let’s get to know your cycle.' }),
     ).toBeVisible();
   });
 
@@ -631,6 +676,7 @@ describe('App', () => {
     const { vaultController } = await renderApp();
 
     expect(screen.getByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Let’s get started' }));
     await user.click(screen.getByRole('button', { name: 'Skip setup' }));
 
     expect(await screen.findByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
@@ -704,14 +750,15 @@ describe('App', () => {
     const user = userEvent.setup();
     const { vaultController } = await renderApp();
 
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
-    for (let step = 0; step < 4; step += 1) {
-      await user.click(screen.getByRole('button', { name: 'Continue' }));
-    }
-    expect(screen.getByRole('heading', { name: 'Protect your private journal' })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Let’s get started' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'I don’t remember' }));
+    await user.click(screen.getByRole('button', { name: 'Not sure — continue' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByRole('heading', { name: 'A little privacy, just for you' })).toHaveFocus();
     const finishWithPin = screen.getByRole('button', { name: 'Enable PIN and finish' });
     expect(finishWithPin).toBeDisabled();
-    await user.click(screen.getByRole('button', { name: 'Enable PIN' }));
+    await user.click(screen.getByRole('button', { name: 'Add a PIN' }));
     const keypad = screen.getByRole('group', { name: 'PIN number pad' });
     for (const digit of '246810246810') {
       await user.click(within(keypad).getByRole('button', { name: digit }));
@@ -732,14 +779,14 @@ describe('App', () => {
   it('imports start-only history without inventing durations and derives a forecast range', async () => {
     const { vaultController } = await renderApp();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Get started' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s get started' }));
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     addStartOnlyOnboardingPeriod(/Wednesday, July 1, 2026/);
     addStartOnlyOnboardingPeriod(/Wednesday, July 29, 2026/);
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Finish without PIN' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start without a PIN' }));
 
     expect(
       await screen.findByRole('heading', { name: 'Your recorded days and estimates' }),
@@ -977,7 +1024,7 @@ describe('App', () => {
   it('uses the supported base language from the device preference', async () => {
     await renderApp({ languagePreference: 'system', systemLanguages: ['de-DE', 'en-US'] });
 
-    expect(screen.getByText('Ein privater Ort für deine Zyklusmuster.')).toBeVisible();
+    expect(screen.getByText('Ein bisschen besser vorbereitet.')).toBeVisible();
     expect(screen.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveValue('Deutsch');
     expect(document.documentElement).toHaveAttribute('lang', 'de');
     expect(document.documentElement).toHaveAttribute('dir', 'ltr');
@@ -987,7 +1034,7 @@ describe('App', () => {
   it('uses Russian from the device preference', async () => {
     await renderApp({ languagePreference: 'system', systemLanguages: ['ru-RU', 'en-US'] });
 
-    expect(screen.getByText('Личное пространство для наблюдения за вашим циклом.')).toBeVisible();
+    expect(screen.getByText('Чуть больше спокойствия.')).toBeVisible();
     expect(screen.getByRole('combobox', { name: 'Выберите язык' })).toHaveValue('Русский');
     expect(document.documentElement).toHaveAttribute('lang', 'ru');
     expect(document.documentElement).toHaveAttribute('dir', 'ltr');

@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 async function finishOnboarding(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Let’s get started' }).click();
   await page.getByRole('button', { name: 'Skip setup' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
 }
@@ -121,17 +122,11 @@ test.describe('English application shell', () => {
     await germanLanguage.click();
     await page.getByRole('option', { name: 'English' }).click();
     await expect(page.getByRole('combobox', { name: 'Select language' })).toBeFocused();
-    await expect(page.getByRole('radio', { name: /light|dark|system/i })).toHaveCount(0);
-    const version = page.getByText('Version 0.3.0');
-    const getStarted = page.getByRole('button', { name: 'Get started' });
-    await expect(version).toBeInViewport();
-    const versionBounds = await version.boundingBox();
-    const getStartedBounds = await getStarted.boundingBox();
-    expect(versionBounds).not.toBeNull();
-    expect(getStartedBounds).not.toBeNull();
-    if (versionBounds !== null && getStartedBounds !== null) {
-      expect(versionBounds.y + versionBounds.height).toBeLessThanOrEqual(getStartedBounds.y);
-    }
+    await expect(page.getByRole('radio', { name: /light|dark|system/i })).toHaveCount(3);
+    const getStarted = page.getByRole('button', { name: 'Let’s get started' });
+    await expect(page.getByText('Version 0.3.0')).toHaveCount(0);
+    await expect(getStarted).toBeInViewport();
+    await expect(page.getByRole('button', { name: 'Skip setup' })).toHaveCount(0);
     await expect(page.getByText('Step 1 of 6')).toHaveCount(0);
     await expect(page.getByRole('progressbar', { name: 'Step 1 of 6' })).toHaveAttribute(
       'aria-valuenow',
@@ -139,7 +134,7 @@ test.describe('English application shell', () => {
     );
     await swipeOnboarding(page, 'left');
     const introductionHeading = page.getByRole('heading', {
-      name: 'Understand your cycle, privately',
+      name: 'Hi! Let’s get to know your cycle.',
     });
     await expect(introductionHeading).toBeFocused();
     await expect(introductionHeading).toHaveCSS('outline-style', 'none');
@@ -149,10 +144,8 @@ test.describe('English application shell', () => {
     await expect(splashHeading).toHaveCSS('outline-style', 'none');
     const splashBeforeTransition = page.getByTestId('onboarding-splash');
     const splashMainBeforeTransition = page.getByTestId('onboarding-splash-main');
-    const splashVersionBeforeTransition = page.getByTestId('onboarding-splash-version');
     const splashBoundsBeforeTransition = await splashBeforeTransition.boundingBox();
     const splashMainBoundsBeforeTransition = await splashMainBeforeTransition.boundingBox();
-    const splashVersionBoundsBeforeTransition = await splashVersionBeforeTransition.boundingBox();
 
     await getStarted.dispatchEvent('click');
     const departingSplash = page
@@ -161,77 +154,61 @@ test.describe('English application shell', () => {
     const departingSplashMain = page
       .getByTestId('onboarding-departing-screen')
       .getByTestId('onboarding-splash-main');
-    const departingSplashVersion = page
-      .getByTestId('onboarding-departing-screen')
-      .getByTestId('onboarding-splash-version');
     await expect(departingSplash).toBeVisible();
     const departingSplashBounds = await departingSplash.boundingBox();
     const departingSplashMainBounds = await departingSplashMain.boundingBox();
-    const departingSplashVersionBounds = await departingSplashVersion.boundingBox();
 
     expect(splashBoundsBeforeTransition).not.toBeNull();
     expect(splashMainBoundsBeforeTransition).not.toBeNull();
-    expect(splashVersionBoundsBeforeTransition).not.toBeNull();
     expect(departingSplashBounds).not.toBeNull();
     expect(departingSplashMainBounds).not.toBeNull();
-    expect(departingSplashVersionBounds).not.toBeNull();
     if (
       splashBoundsBeforeTransition &&
       splashMainBoundsBeforeTransition &&
-      splashVersionBoundsBeforeTransition &&
       departingSplashBounds &&
-      departingSplashMainBounds &&
-      departingSplashVersionBounds
+      departingSplashMainBounds
     ) {
-      expect(departingSplashBounds.height).toBeCloseTo(splashBoundsBeforeTransition.height, 0);
       expect(departingSplashMainBounds.y).toBeCloseTo(splashMainBoundsBeforeTransition.y, 0);
-      expect(departingSplashMainBounds.height).toBeCloseTo(
-        splashMainBoundsBeforeTransition.height,
-        0,
-      );
-      expect(departingSplashVersionBounds.y).toBeCloseTo(splashVersionBoundsBeforeTransition.y, 0);
     }
     await expect(
-      page.getByRole('heading', { name: 'Understand your cycle, privately' }),
+      page.getByRole('heading', { name: 'Hi! Let’s get to know your cycle.' }),
     ).toBeFocused();
-    await expect(
-      page.getByRole('heading', { name: 'Your data stays under your control' }),
-    ).toBeVisible();
+    await expect(page.getByText(/Your journal stays on this device/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Back' }).locator('svg')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Skip setup' }).locator('svg')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Skip setup' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Continue' }).click();
-    await expect(page.getByRole('heading', { name: 'Previous periods' })).toBeFocused();
+    await expect(page.getByRole('heading', { name: 'Remember your last period?' })).toBeFocused();
     await page.getByRole('button', { name: 'Back' }).click();
     await expect(
-      page.getByRole('heading', { name: 'Understand your cycle, privately' }),
+      page.getByRole('heading', { name: 'Hi! Let’s get to know your cycle.' }),
     ).toBeFocused();
     await page.getByRole('button', { name: 'Continue' }).click();
     const historyCalendar = page.getByRole('grid', { name: 'Recorded periods calendar' });
     await expect(historyCalendar).toBeVisible();
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'I don’t remember' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Optional period estimates' })).toBeFocused();
-    await page.getByRole('button', { name: 'Increase Usual cycle length in days' }).click();
-    await page.getByRole('button', { name: 'Increase Usual bleeding duration in days' }).click();
+    await expect(page.getByRole('heading', { name: 'What’s usual for you?' })).toBeFocused();
+    await page.getByRole('button', { name: 'Increase Days between period starts' }).click();
+    await page.getByRole('button', { name: 'Increase Days of bleeding' }).click();
     await expect(
-      page.getByRole('spinbutton', { name: 'Usual cycle length in days', exact: true }),
+      page.getByRole('spinbutton', { name: 'Days between period starts', exact: true }),
     ).toHaveValue('28');
     await expect(
-      page.getByRole('spinbutton', { name: 'Usual bleeding duration in days', exact: true }),
+      page.getByRole('spinbutton', { name: 'Days of bleeding', exact: true }),
     ).toHaveValue('5');
     await page.getByRole('button', { name: 'Continue' }).click();
-    await expect(page.getByRole('heading', { name: 'Pre-period window' })).toBeFocused();
-    await expect(page.getByRole('spinbutton', { name: 'Number of pre-period days' })).toHaveValue(
-      '5',
-    );
+    await expect(page.getByRole('heading', { name: 'A little heads-up?' })).toBeFocused();
+    await expect(page.getByRole('spinbutton', { name: 'How many days before?' })).toHaveValue('5');
     await page.getByRole('button', { name: 'Continue' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Protect your private journal' })).toBeFocused();
+    await expect(
+      page.getByRole('heading', { name: 'A little privacy, just for you' }),
+    ).toBeFocused();
     const finishWithPin = page.getByRole('button', { name: 'Enable PIN and finish' });
     await expect(finishWithPin).toBeDisabled();
     await expect(page.getByLabel('Enter a six-digit PIN')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Enable PIN', exact: true }).click();
+    await page.getByRole('button', { name: 'Add a PIN', exact: true }).click();
     const keypad = page.getByRole('group', { name: 'PIN number pad' });
     const pinDisplay = page.getByRole('textbox', {
       name: 'Enter a six-digit PIN',
@@ -285,7 +262,7 @@ test.describe('English application shell', () => {
       'document.documentElement.scrollWidth <= document.documentElement.clientWidth',
     );
     expect(hasNoHorizontalOverflow).toBe(true);
-    await page.getByRole('button', { name: 'Finish without PIN' }).click();
+    await page.getByRole('button', { name: 'Start without a PIN' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
   });
 
@@ -975,7 +952,7 @@ test.describe('device language detection', () => {
   test('uses the supported base language on first visit', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByText('Ein privater Ort für deine Zyklusmuster.')).toBeVisible();
+    await expect(page.getByText('Ein bisschen besser vorbereitet.')).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Sprache auswählen' })).toHaveValue('Deutsch');
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
   });
@@ -987,9 +964,7 @@ test.describe('Russian device language detection', () => {
   test('uses the supported Russian base language on first visit', async ({ page }) => {
     await page.goto('/');
 
-    await expect(
-      page.getByText('Личное пространство для наблюдения за вашим циклом.'),
-    ).toBeVisible();
+    await expect(page.getByText('Чуть больше спокойствия.')).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Выберите язык' })).toHaveValue('Русский');
     await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
   });
@@ -1009,6 +984,7 @@ test.describe('narrow dark German shell', () => {
       globalThis.localStorage.setItem('perfect-days:theme', 'dark');
     });
     await page.goto('/');
+    await page.getByRole('button', { name: 'Los geht’s' }).click();
     await page.getByRole('button', { name: 'Einrichtung überspringen' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Kalender' })).toBeVisible();
     await page

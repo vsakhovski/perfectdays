@@ -57,7 +57,7 @@ export default defineConfig({
       workbox: {
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        globPatterns: ['**/*.{css,html,js,svg}'],
+        globPatterns: ['**/*.{css,html,js,svg}', 'onboarding/*.webp'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api(?:\/|$)/],
         runtimeCaching: [],

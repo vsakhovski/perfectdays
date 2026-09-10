@@ -97,6 +97,7 @@ async function ensureGeneratedServiceWorkerControls(page: Page): Promise<void> {
 }
 
 async function finishOnboarding(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Let’s get started' }).click();
   await page.getByRole('button', { name: 'Skip setup' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
 }

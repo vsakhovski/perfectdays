@@ -1,0 +1,38 @@
+.splash {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  box-sizing: border-box;
+  min-block-size: 100dvh;
+  max-inline-size: 32rem;
+  margin-inline: auto;
+  padding: max(1.5rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1.5rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  background: var(--color-background);
+  color: var(--color-text);
+  text-align: center;
+}
+
+.identity {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1.25rem;
+}
+
+.logo {
+  inline-size: 7rem;
+  block-size: 7rem;
+}
+
+.identity h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 7vw, 2rem);
+  letter-spacing: -0.045em;
+  line-height: 1.2;
+}
+
+.version {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
