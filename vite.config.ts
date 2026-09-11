@@ -20,7 +20,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 1024,
   },
   define: {
-    __APP_VERSION__: JSON.stringify(process.env['npm_package_version'] ?? '0.3.0'),
+    __APP_VERSION__: JSON.stringify(process.env['npm_package_version'] ?? '0.4.0'),
   },
   plugins: [
     react(),

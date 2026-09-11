@@ -75,7 +75,7 @@ test.describe('English application shell', () => {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
-    await expect(page.getByText(/Version 0\.3\.0/)).toBeVisible();
+    await expect(page.getByText(/Version 0\.4\.0/)).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 
     const accessibilityScan = await new AxeBuilder({ page }).analyze();
@@ -129,7 +129,7 @@ test.describe('English application shell', () => {
     await expect(page.getByRole('combobox', { name: 'Select language' })).toBeFocused();
     await expect(page.getByRole('radio', { name: /light|dark|system/i })).toHaveCount(3);
     const getStarted = page.getByRole('button', { name: 'Let’s get started' });
-    await expect(page.getByText('Version 0.3.0')).toHaveCount(0);
+    await expect(page.getByText('Version 0.4.0')).toHaveCount(0);
     await expect(getStarted).toBeInViewport();
     await expect(page.getByRole('button', { name: 'Skip setup' })).toHaveCount(0);
     await expect(page.getByText('Step 1 of 7')).toHaveCount(0);

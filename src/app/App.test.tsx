@@ -444,7 +444,7 @@ describe('App', () => {
       await renderApp({
         onboardingCompleted,
         inspectStartup: async () => {
-          expect(screen.getByText('Version 0.3.0')).toBeVisible();
+          expect(screen.getByText('Version 0.4.0')).toBeVisible();
           expect(screen.queryByRole('button')).not.toBeInTheDocument();
           expect(document.querySelector('img')).toHaveAttribute(
             'src',
@@ -453,11 +453,11 @@ describe('App', () => {
           await act(async () => {
             await vi.advanceTimersByTimeAsync(2999);
           });
-          expect(screen.getByText('Version 0.3.0')).toBeVisible();
+          expect(screen.getByText('Version 0.4.0')).toBeVisible();
           await act(async () => {
             await vi.advanceTimersByTimeAsync(1);
           });
-          expect(screen.queryByText('Version 0.3.0')).not.toBeInTheDocument();
+          expect(screen.queryByText('Version 0.4.0')).not.toBeInTheDocument();
           expect(
             screen.getByRole('heading', {
               name: onboardingCompleted ? 'Calendar' : 'My Perfect Days',
@@ -473,7 +473,7 @@ describe('App', () => {
     await renderApp();
 
     expect(screen.getByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
-    expect(screen.queryByText('Version 0.3.0')).not.toBeInTheDocument();
+    expect(screen.queryByText('Version 0.4.0')).not.toBeInTheDocument();
     const languageSelect = screen.getByRole('combobox', { name: 'Select language' });
     expect(languageSelect).toHaveValue('English');
     fireEvent.click(languageSelect);
