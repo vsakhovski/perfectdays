@@ -3,7 +3,12 @@ import { expect, test, type Page } from '@playwright/test';
 
 async function finishOnboarding(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Let’s get started' }).click();
-  await page.getByRole('button', { name: 'Skip setup' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'I don’t remember' }).click();
+  await page.getByRole('button', { name: 'Not sure — continue' }).click();
+  await page.getByRole('button', { name: 'Not sure — continue' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Start without a PIN' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
 }
 
@@ -127,8 +132,8 @@ test.describe('English application shell', () => {
     await expect(page.getByText('Version 0.3.0')).toHaveCount(0);
     await expect(getStarted).toBeInViewport();
     await expect(page.getByRole('button', { name: 'Skip setup' })).toHaveCount(0);
-    await expect(page.getByText('Step 1 of 6')).toHaveCount(0);
-    await expect(page.getByRole('progressbar', { name: 'Step 1 of 6' })).toHaveAttribute(
+    await expect(page.getByText('Step 1 of 7')).toHaveCount(0);
+    await expect(page.getByRole('progressbar', { name: 'Step 1 of 7' })).toHaveAttribute(
       'aria-valuenow',
       '1',
     );
@@ -175,7 +180,7 @@ test.describe('English application shell', () => {
     ).toBeFocused();
     await expect(page.getByText(/Your journal stays on this device/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Back' }).locator('svg')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Skip setup' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Skip setup' })).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page.getByRole('heading', { name: 'Remember your last period?' })).toBeFocused();
@@ -188,15 +193,24 @@ test.describe('English application shell', () => {
     await expect(historyCalendar).toBeVisible();
     await page.getByRole('button', { name: 'I don’t remember' }).click();
 
-    await expect(page.getByRole('heading', { name: 'What’s usual for you?' })).toBeFocused();
-    await page.getByRole('button', { name: 'Increase Days between period starts' }).click();
-    await page.getByRole('button', { name: 'Increase Days of bleeding' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'How long does your bleeding usually last?' }),
+    ).toBeFocused();
     await expect(
       page.getByRole('spinbutton', { name: 'Days between period starts', exact: true }),
-    ).toHaveValue('28');
+    ).toHaveCount(0);
+    await page.getByRole('button', { name: 'Increase Days of bleeding' }).click();
     await expect(
       page.getByRole('spinbutton', { name: 'Days of bleeding', exact: true }),
     ).toHaveValue('5');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'When does your next period usually start?' }),
+    ).toBeFocused();
+    await page.getByRole('button', { name: 'Increase Days between period starts' }).click();
+    await expect(
+      page.getByRole('spinbutton', { name: 'Days between period starts', exact: true }),
+    ).toHaveValue('28');
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page.getByRole('heading', { name: 'A little heads-up?' })).toBeFocused();
     await expect(page.getByRole('spinbutton', { name: 'How many days before?' })).toHaveValue('5');
@@ -646,17 +660,9 @@ test.describe('Phase 5 compact mobile shell', () => {
     await expect(unavailableEstimate).toBeInViewport();
     await expect(page.getByRole('heading', { name: 'Why this estimate?' })).toHaveCount(0);
 
-    const monthToolbar = page.getByRole('group', { name: 'Calendar month navigation' });
-    const toolbarChildren = monthToolbar.locator(':scope > *');
-    const toolbarCenters: number[] = [];
-    for (let index = 0; index < (await toolbarChildren.count()); index += 1) {
-      const box = await toolbarChildren.nth(index).boundingBox();
-      if (box !== null) toolbarCenters.push(box.y + box.height / 2);
-    }
-    expect(toolbarCenters).toHaveLength(3);
-    const toolbarCenterSpread = Math.max(...toolbarCenters) - Math.min(...toolbarCenters);
-    expect(toolbarCenterSpread).toBeLessThanOrEqual(1);
-
+    await expect(page.getByRole('group', { name: 'Calendar month navigation' })).toHaveCount(0);
+    const monthBlocks = page.getByTestId('calendar-month-scroller').getByRole('rowgroup');
+    expect(await monthBlocks.count()).toBeGreaterThan(1);
     for (const destination of ['Calendar', 'History', 'Privacy', 'Settings']) {
       await expect(
         navigation.getByRole('button', { exact: true, name: destination }),
@@ -761,87 +767,40 @@ test.describe('Phase 5 compact mobile shell', () => {
     await page.setViewportSize({ height: 800, width: 320 });
     await assertSquareDayCells();
 
-    const monthHeading = page
-      .getByRole('group', { name: 'Calendar month navigation' })
-      .getByRole('heading');
     const monthScroller = page.getByTestId('calendar-month-scroller');
     await expect(monthScroller).toHaveCSS('overflow-y', 'auto');
-    const initialScrollTop = await page.evaluate<number>(
-      `document.querySelector('[data-testid="calendar-month-scroller"]')?.scrollTop ?? 0`,
-    );
-    await page.evaluate(`(() => {
-      const element = document.querySelector('[data-testid="calendar-month-scroller"]');
-      if (element instanceof HTMLElement) element.scrollBy({ top: 140, behavior: 'auto' });
-    })()`);
-    await expect
-      .poll(async () =>
-        page.evaluate<number>(
-          `document.querySelector('[data-testid="calendar-month-scroller"]')?.scrollTop ?? 0`,
-        ),
-      )
-      .toBeGreaterThan(initialScrollTop);
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    const monthBeforeButtonNavigation = await monthHeading.textContent();
-    expect(monthBeforeButtonNavigation).not.toBeNull();
-
-    for (const label of ['Previous month', 'Next month']) {
-      const navigationButton = page.getByRole('button', { name: label });
-      const buttonBox = await navigationButton.boundingBox();
-      const iconBox = await navigationButton.locator('svg').boundingBox();
-      expect(buttonBox).not.toBeNull();
-      expect(iconBox).not.toBeNull();
-      if (buttonBox !== null && iconBox !== null) {
-        expect(
-          Math.abs(buttonBox.x + buttonBox.width / 2 - (iconBox.x + iconBox.width / 2)),
-        ).toBeLessThanOrEqual(0.5);
-        expect(
-          Math.abs(buttonBox.y + buttonBox.height / 2 - (iconBox.y + iconBox.height / 2)),
-        ).toBeLessThanOrEqual(0.5);
-      }
-    }
-
-    await expect(
-      page.getByRole('button', { name: 'Previous month' }).locator('path'),
-    ).toHaveAttribute('d', 'm5 15 7-7 7 7');
-    await expect(page.getByRole('button', { name: 'Next month' }).locator('path')).toHaveAttribute(
-      'd',
-      'm5 9 7 7 7-7',
-    );
-
-    await page.evaluate(`(() => {
-      const element = document.querySelector('[data-testid="calendar-month-scroller"]');
-      if (!(element instanceof HTMLElement)) return;
-      window.calendarScrollSamples = [];
-      element.addEventListener('scroll', () => window.calendarScrollSamples.push(element.scrollTop));
-    })()`);
-    await page.getByRole('button', { name: 'Next month' }).click();
-    await expect(monthHeading).not.toHaveText(monthBeforeButtonNavigation ?? '');
-    await expect
-      .poll(async () =>
-        page.evaluate<number>(
-          `Array.isArray(window.calendarScrollSamples) ? window.calendarScrollSamples.length : 0`,
-        ),
-      )
-      .toBeGreaterThan(1);
-    // Start the reverse-direction assertion from a settled calendar. WebKit can coalesce
-    // immediately reversed smooth-scroll requests, which is not representative of a fresh tap.
-    await page.reload();
-    const monthAfterReload = await monthHeading.textContent();
-    expect(monthAfterReload).not.toBeNull();
-    await page.getByRole('button', { name: 'Previous month' }).click();
-    await expect(monthHeading).not.toHaveText(monthAfterReload ?? '');
-    await goToToday.click();
-    await expect(monthHeading).toHaveText(monthAfterReload ?? '');
-
+    await expect(page.getByRole('button', { name: 'Previous month' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Next month' })).toHaveCount(0);
+    expect(await monthScroller.getByRole('heading', { level: 2 }).count()).toBeGreaterThan(1);
+    await expect(monthScroller.getByRole('heading').first()).toHaveText(/\d{4}/);
+    const weekdayBox = await page.getByTestId('calendar-weekday-header').boundingBox();
     const todayCell = page.locator('button[aria-current="date"]');
-    await expect(todayCell).not.toHaveAttribute('aria-pressed');
-    await expect(todayCell).not.toHaveAttribute('data-selected');
-    await page.getByRole('button', { name: 'Next month' }).click();
+    await expect(todayCell).toBeInViewport();
+    const initialScroll = await page.evaluate<number>(
+      'document.querySelector("[data-testid=calendar-month-scroller]").scrollTop',
+    );
+    // Initial positioning can still be settling after the viewport resize.
+    // Retry the scroll action until the calendar accepts user scrolling.
+    await expect(async () => {
+      await page.evaluate(
+        `document.querySelector('[data-testid="calendar-month-scroller"]').scrollTo({ top: ${String(initialScroll + 700)}, behavior: 'instant' })`,
+      );
+      await expect(goToToday).toBeEnabled({ timeout: 1000 });
+    }).toPass({ timeout: 5000 });
+    await expect
+      .poll(() =>
+        page.evaluate<number>(
+          'document.querySelector("[data-testid=calendar-month-scroller]").scrollTop',
+        ),
+      )
+      .toBeGreaterThan(initialScroll);
     await expect(goToToday).toBeEnabled();
+    expect(await page.getByTestId('calendar-weekday-header').boundingBox()).toEqual(weekdayBox);
     await goToToday.click();
     await expect(goToToday).toBeDisabled();
     await expect(todayCell).toBeFocused();
-
+    await expect(todayCell).toBeInViewport();
+    await expect(todayCell).not.toHaveAttribute('aria-pressed');
     const firstWeekday = page.getByTestId('calendar-weekday-header').locator('abbr').first();
     await expect(firstWeekday).toHaveText(/Sun/u);
     await openRootDestination(page, 'Settings');
@@ -985,7 +944,12 @@ test.describe('narrow dark German shell', () => {
     });
     await page.goto('/');
     await page.getByRole('button', { name: 'Los geht’s' }).click();
-    await page.getByRole('button', { name: 'Einrichtung überspringen' }).click();
+    await page.getByRole('button', { name: 'Weiter', exact: true }).click();
+    await page.getByRole('button', { name: 'Ich erinnere mich nicht' }).click();
+    await page.getByRole('button', { name: 'Nicht sicher — weiter' }).click();
+    await page.getByRole('button', { name: 'Nicht sicher — weiter' }).click();
+    await page.getByRole('button', { name: 'Weiter', exact: true }).click();
+    await page.getByRole('button', { name: 'Ohne PIN starten' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Kalender' })).toBeVisible();
     await page
       .getByRole('navigation', { name: 'Hauptnavigation' })

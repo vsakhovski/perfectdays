@@ -6,8 +6,11 @@ import { resolve } from 'node:path';
 import { chromium } from 'playwright';
 
 // Pass the five generated PNGs in this order. Originals are left untouched.
-const scenes = ['welcome', 'history', 'estimates', 'window', 'privacy'];
-const inputs = process.argv.slice(2);
+const splitEstimates = process.argv[2] === '--period-estimates';
+const scenes = splitEstimates
+  ? ['bleeding', 'cycle']
+  : ['welcome', 'history', 'estimates', 'window', 'privacy'];
+const inputs = process.argv.slice(splitEstimates ? 3 : 2);
 if (inputs.length !== scenes.length) throw new Error(`Provide PNG paths for: ${scenes.join(', ')}`);
 const output = resolve('public/onboarding');
 await mkdir(output, { recursive: true });

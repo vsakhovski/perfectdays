@@ -201,19 +201,6 @@ function finishScrollAtTarget(scroller: HTMLElement, target: HTMLElement): void 
   if (Math.abs(scroller.scrollTop - top) > 1) scroller.scrollTop = top;
 }
 
-function continuousDays(months: readonly CalendarMonth[]): readonly CalendarDay[] {
-  const daysByDate = new Map<LocalDate, CalendarDay>();
-  for (const month of months) {
-    for (const day of month.days) {
-      const existing = daysByDate.get(day.date);
-      if (!existing || (!existing.isCurrentMonth && day.isCurrentMonth)) {
-        daysByDate.set(day.date, day);
-      }
-    }
-  }
-  return [...daysByDate.values()].sort((left, right) => left.date.localeCompare(right.date));
-}
-
 function chooseDayInMonth(
   days: readonly CalendarDay[],
   month: LocalDate,
@@ -221,14 +208,6 @@ function chooseDayInMonth(
 ): CalendarDay | undefined {
   const monthDays = days.filter((day) => startOfMonth(day.date) === month && !day.disabled);
   return monthDays.find((day) => dayOfMonth(day.date) === requestedDay) ?? monthDays.at(-1);
-}
-
-function MonthChevron({ direction }: { readonly direction: 'next' | 'previous' }) {
-  return (
-    <svg aria-hidden="true" className={styles['navigationIcon']} viewBox="0 0 24 24">
-      <path d={direction === 'previous' ? 'm5 15 7-7 7 7' : 'm5 9 7 7 7-7'} />
-    </svg>
-  );
 }
 
 export function CalendarLegend({
@@ -279,11 +258,10 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
   visibleMonth,
   weekdays,
 }: MonthlyCalendarProps) {
-  const headingId = useId();
   const calendarRef = useRef<HTMLElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const monthsRef = useRef(months);
-  const monthAnchorRefs = useRef(new Map<LocalDate, HTMLButtonElement>());
+  const monthAnchorRefs = useRef(new Map<LocalDate, HTMLHeadingElement>());
   const buttonRefs = useRef(new Map<LocalDate, HTMLButtonElement>());
   const lastReportedMonthRef = useRef<LocalDate | undefined>(undefined);
   const positionedInitialMonthRef = useRef(false);
@@ -303,20 +281,22 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
   const scrollFrameRef = useRef<number | undefined>(undefined);
   const [focusedDate, setFocusedDate] = useState<LocalDate>(today);
 
+  const displayedMonths = useMemo(
+    () => months.filter((month) => maxMonth === undefined || month.month <= maxMonth),
+    [maxMonth, months],
+  );
   const days = useMemo(
     () =>
-      continuousDays(months).filter(
-        (day) => maxMonth === undefined || startOfMonth(day.date) <= maxMonth,
+      displayedMonths.flatMap((month) =>
+        month.days.filter((day) => startOfMonth(day.date) === month.month),
       ),
-    [maxMonth, months],
+    [displayedMonths],
   );
   const enabledDays = useMemo(() => days.filter((day) => !day.disabled), [days]);
   const effectiveFocusedDate =
     enabledDays.find((day) => day.date === focusedDate)?.date ??
     enabledDays.find((day) => day.date === today)?.date ??
     enabledDays[0]?.date;
-  const visibleLabel =
-    months.find((month) => month.month === visibleMonth)?.label ?? months[0]?.label ?? '';
 
   const reportVisibleMonth = useCallback(
     (month: LocalDate) => {
@@ -593,7 +573,8 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
   const handleDayKeyDown = (event: KeyboardEvent<HTMLButtonElement>, date: LocalDate): void => {
     const currentIndex = enabledDays.findIndex((day) => day.date === date);
     if (currentIndex < 0) return;
-    const weekIndex = currentIndex % 7;
+    const sourceMonth = displayedMonths.find((month) => month.month === startOfMonth(date));
+    const weekIndex = (sourceMonth?.days.findIndex((day) => day.date === date) ?? 0) % 7;
     let target: CalendarDay | undefined;
     switch (event.key) {
       case 'ArrowLeft':
@@ -633,10 +614,16 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
   const renderDay = (day: CalendarDay, week: readonly CalendarDay[], dayIndex: number) => {
     const isToday = day.date === today;
     const dayMonth = startOfMonth(day.date);
-    const isActiveMonth = dayMonth === visibleMonth;
+    const isActiveMonth = true;
     const hasMarkers = markerIsPresent(day.markers) || day.flow !== undefined;
-    const previousDay = week[dayIndex - 1];
-    const nextDay = week[dayIndex + 1];
+    const previousCandidate = week[dayIndex - 1];
+    const nextCandidate = week[dayIndex + 1];
+    const previousDay =
+      previousCandidate && startOfMonth(previousCandidate.date) === dayMonth
+        ? previousCandidate
+        : undefined;
+    const nextDay =
+      nextCandidate && startOfMonth(nextCandidate.date) === dayMonth ? nextCandidate : undefined;
     return (
       <div className={styles['dayCell']} key={day.date} role="gridcell">
         <button
@@ -673,10 +660,8 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
           ref={(node) => {
             if (node) {
               buttonRefs.current.set(day.date, node);
-              if (dayOfMonth(day.date) === 1) monthAnchorRefs.current.set(dayMonth, node);
             } else {
               buttonRefs.current.delete(day.date);
-              if (dayOfMonth(day.date) === 1) monthAnchorRefs.current.delete(dayMonth);
             }
           }}
           tabIndex={day.date === effectiveFocusedDate ? 0 : -1}
@@ -728,41 +713,8 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
     );
   };
 
-  const navigateMonth = (direction: -1 | 1): void => {
-    const targetMonth = addMonths(visibleMonth, direction);
-    if (maxMonth !== undefined && targetMonth > maxMonth) return;
-    scrollToMonth(targetMonth, 'smooth');
-  };
-
   return (
-    <section className={styles['calendar']} aria-labelledby={headingId} ref={calendarRef}>
-      <div aria-label={copy.navigationLabel} className={styles['calendarHeader']} role="group">
-        <button
-          aria-label={copy.previousMonth}
-          className={styles['navigationButton']}
-          onClick={() => {
-            navigateMonth(-1);
-          }}
-          type="button"
-        >
-          <MonthChevron direction="previous" />
-        </button>
-        <h2 id={headingId} aria-live="polite">
-          {visibleLabel}
-        </h2>
-        <button
-          aria-label={copy.nextMonth}
-          className={styles['navigationButton']}
-          disabled={maxMonth !== undefined && visibleMonth >= maxMonth}
-          onClick={() => {
-            navigateMonth(1);
-          }}
-          type="button"
-        >
-          <MonthChevron direction="next" />
-        </button>
-      </div>
-
+    <section className={styles['calendar']} aria-label={copy.calendarLabel} ref={calendarRef}>
       <div
         aria-hidden="true"
         className={styles['weekdayHeader']}
@@ -785,9 +737,34 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
         tabIndex={0}
       >
         <div className={styles['dayStream']}>
-          {groupIntoWeeks(days).map((week) => (
-            <div className={styles['weekRow']} key={week[0]?.date} role="row">
-              {week.map((day, index) => renderDay(day, week, index))}
+          {displayedMonths.map((month) => (
+            <div className={styles['monthBlock']} key={month.month} role="rowgroup">
+              <div role="row">
+                <div role="gridcell" aria-colspan={7}>
+                  <h2
+                    className={styles['monthHeading']}
+                    ref={(node) => {
+                      if (node) monthAnchorRefs.current.set(month.month, node);
+                      else monthAnchorRefs.current.delete(month.month);
+                    }}
+                  >
+                    {month.label}
+                  </h2>
+                </div>
+              </div>
+              {groupIntoWeeks(month.days)
+                .filter((week) => week.some((day) => startOfMonth(day.date) === month.month))
+                .map((week) => (
+                  <div className={styles['weekRow']} key={week[0]?.date} role="row">
+                    {week.map((day, index) =>
+                      startOfMonth(day.date) === month.month ? (
+                        renderDay(day, week, index)
+                      ) : (
+                        <div className={styles['dayCell']} key={day.date} role="gridcell" />
+                      ),
+                    )}
+                  </div>
+                ))}
             </div>
           ))}
         </div>

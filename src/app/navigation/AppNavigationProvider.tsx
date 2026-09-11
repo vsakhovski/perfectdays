@@ -33,6 +33,7 @@ function isOnboardingStep(value: unknown): boolean {
     value === 'introduction' ||
     value === 'history' ||
     value === 'fallbacks' ||
+    value === 'bleeding' ||
     value === 'orange' ||
     value === 'pin'
   );

@@ -330,6 +330,8 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
       },
     },
     fallbacks: {
+      bleedingTitle: t(($) => $.tracker.onboarding.fallbacks.bleedingTitle),
+      bleedingDescription: t(($) => $.tracker.onboarding.fallbacks.bleedingDescription),
       fromHistory: t(($) => $.tracker.onboarding.fallbacks.fromHistory),
       title: t(($) => $.tracker.onboarding.fallbacks.title),
       description: t(($) => $.tracker.onboarding.fallbacks.description),

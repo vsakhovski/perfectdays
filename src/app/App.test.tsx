@@ -608,15 +608,8 @@ describe('App', () => {
     expect(goToToday.closest('header')).toContainElement(
       screen.getByRole('heading', { name: 'Calendar', level: 1 }),
     );
-    expect(
-      within(screen.getByRole('group', { name: 'Calendar month navigation' })).queryByRole(
-        'button',
-        { name: 'Go to today' },
-      ),
-    ).toBeNull();
-
-    await user.click(screen.getByRole('button', { name: 'Next month' }));
-    expect(screen.getByRole('heading', { name: 'September 2026', level: 2 })).toBeVisible();
+    expect(screen.queryByRole('group', { name: 'Calendar month navigation' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Friday, August 7, 2026/u }));
     expect(goToToday).toBeEnabled();
 
     await user.click(goToToday);
@@ -678,7 +671,12 @@ describe('App', () => {
 
     expect(screen.getByRole('heading', { name: 'My Perfect Days' })).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Let’s get started' }));
-    await user.click(screen.getByRole('button', { name: 'Skip setup' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'I don’t remember' }));
+    await user.click(screen.getByRole('button', { name: 'Not sure — continue' }));
+    await user.click(screen.getByRole('button', { name: 'Not sure — continue' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'Start without a PIN' }));
 
     expect(await screen.findByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
     await user.click(persistentCheckInTodayButton());
@@ -757,6 +755,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await user.click(screen.getByRole('button', { name: 'I don’t remember' }));
     await user.click(screen.getByRole('button', { name: 'Not sure — continue' }));
+    await user.click(screen.getByRole('button', { name: 'Not sure — continue' }));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     expect(screen.getByRole('heading', { name: 'A little privacy, just for you' })).toHaveFocus();
     const finishWithPin = screen.getByRole('button', { name: 'Enable PIN and finish' });
@@ -787,6 +786,7 @@ describe('App', () => {
     addStartOnlyOnboardingPeriod(/Wednesday, July 1, 2026/);
     addStartOnlyOnboardingPeriod(/Wednesday, July 29, 2026/);
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Not sure — continue' }));
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     fireEvent.click(screen.getByRole('button', { name: 'Start without a PIN' }));
@@ -828,7 +828,6 @@ describe('App', () => {
     fireEvent.click(predictedStart);
     expect(screen.queryByRole('dialog', { name: 'Daily check-in' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
     fireEvent.click(screen.getByRole('button', { name: /Wednesday, July 15, 2026/i }));
     fireEvent.click(screen.getByRole('button', { name: /^Check in for Jul 15/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Period started on this day' }));

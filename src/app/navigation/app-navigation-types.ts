@@ -1,5 +1,5 @@
 export type AppOnboardingStep =
-  'splash' | 'introduction' | 'history' | 'fallbacks' | 'orange' | 'pin';
+  'splash' | 'introduction' | 'history' | 'bleeding' | 'fallbacks' | 'orange' | 'pin';
 
 export type AppRootDestination = 'calendar' | 'history' | 'privacy' | 'settings';
 

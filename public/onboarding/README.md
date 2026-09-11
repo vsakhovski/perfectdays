@@ -4,6 +4,17 @@ Generated with the built-in imagegen tool, then resized to 640 pixels wide and e
 
 Final assets: `welcome-v1.webp`, `history-v1.webp`, `estimates-v1.webp`, `window-v1.webp`, `privacy-v1.webp`.
 
+## Separate period estimates
+
+The bleeding step now uses `bleeding-v1.webp`; the following cycle-length step uses `cycle-v1.webp`. Both are generated with built-in imagegen using `estimates-v1.webp` as the character/style reference. The older illustration is retained for reference.
+
+Final prompts:
+
+- Bleeding: matching friendly teal otter holding a calendar with five adjacent coral cells, each marked with a small drop; other cells neutral. Communicate consecutive bleeding days, not cycle length. Flat vector-like style, warm ivory #fbf8f7 background, landscape 3:2, generous margins, minimal shading, no text or numerals, readable at 264px wide.
+- Cycle: matching friendly teal otter beside a calendar with two separated coral drop-marked start cells connected by a teal curved arrow across neutral days. Communicate one period start to the next, not just the bleeding-free gap. Same flat style, palette, background, aspect ratio, margins, and no text or numerals.
+
+Prepare these two PNGs with `node scripts/prepare-onboarding-art.mjs --period-estimates <bleeding.png> <cycle.png>`.
+
 ## Prompt set
 
 Character anchor: friendly abstract teal sea otter sitting upright and gently waving; rounded silhouette, small expressive dark eyes, pale teal muzzle and belly, reassuring smile. Deep teal #087b80, light teal #bce5dd, small coral #ee806e accents. Mature yet approachable; no baby styling, eyelashes, clothing, text, numbers, logo, or watermark. Clean vector-like filled shapes, minimal shading. The initial transparent-background attempt had an unwanted dark glow and was not shipped.

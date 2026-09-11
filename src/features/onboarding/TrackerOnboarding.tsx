@@ -59,6 +59,8 @@ export interface OnboardingCopy {
     readonly editor: OnboardingPeriodHistoryEditorCopy;
   };
   readonly fallbacks: {
+    readonly bleedingTitle?: string;
+    readonly bleedingDescription?: string;
     readonly fromHistory?: string;
     readonly title: string;
     readonly description: string;
@@ -149,7 +151,7 @@ export interface TrackerOnboardingProps {
 }
 
 type OnboardingStep = AppOnboardingStep;
-type ValidatedStep = Extract<OnboardingStep, 'history' | 'fallbacks' | 'orange'>;
+type ValidatedStep = Extract<OnboardingStep, 'history' | 'bleeding' | 'fallbacks' | 'orange'>;
 type TransitionDirection = 'backward' | 'forward';
 type PinEntryStep = 'first' | 'confirmation';
 type FieldErrors = ReadonlyMap<string, string>;
@@ -158,6 +160,7 @@ const onboardingSteps = [
   'splash',
   'introduction',
   'history',
+  'bleeding',
   'fallbacks',
   'orange',
   'pin',
@@ -172,7 +175,7 @@ type OptionalEstimateField = 'typicalCycleLength' | 'typicalBleedDuration';
 function OnboardingIllustration({
   scene,
 }: {
-  readonly scene: 'welcome' | 'history' | 'estimates' | 'window' | 'privacy';
+  readonly scene: 'welcome' | 'history' | 'estimates' | 'bleeding' | 'cycle' | 'window' | 'privacy';
 }) {
   return (
     <img
@@ -284,7 +287,9 @@ function validateDraftStep(
     ) {
       errors.set('typicalCycleLength', copy.validation.cycleRange);
     }
+  }
 
+  if (step === 'bleeding') {
     if (
       draft.typicalBleedDuration !== undefined &&
       (!Number.isInteger(draft.typicalBleedDuration) || draft.typicalBleedDuration <= 0)
@@ -356,7 +361,6 @@ export function TrackerOnboarding({
   onEnablePin,
   onRemoveHistory,
   onStepChange,
-  onSkip,
   pinEnabled,
   pinProtectionAvailable,
   today,
@@ -411,7 +415,7 @@ export function TrackerOnboarding({
   };
 
   const next = (): void => {
-    if (step === 'history' || step === 'fallbacks' || step === 'orange') {
+    if (step === 'history' || step === 'bleeding' || step === 'fallbacks' || step === 'orange') {
       const nextErrors = validateDraftStep(draft, copy, step);
       if (nextErrors.size > 0) {
         setErrors(nextErrors);
@@ -582,16 +586,23 @@ export function TrackerOnboarding({
     </div>
   );
 
-  const fallbackContent = (
+  const fallbackContent = (renderedStep: 'bleeding' | 'fallbacks') => (
     <div className={styles['stepBody']}>
-      <OnboardingIllustration scene="estimates" />
+      <OnboardingIllustration scene={renderedStep === 'bleeding' ? 'bleeding' : 'cycle'} />
       <div className={styles['stepIntroduction']}>
-        <h1 ref={step === 'fallbacks' ? headingRef : undefined} tabIndex={-1}>
-          {copy.fallbacks.title}
+        <h1 ref={step === renderedStep ? headingRef : undefined} tabIndex={-1}>
+          {renderedStep === 'bleeding'
+            ? (copy.fallbacks.bleedingTitle ?? copy.fallbacks.bleedDuration)
+            : copy.fallbacks.title}
         </h1>
-        <p>{copy.fallbacks.description}</p>
-        {(draft.history.filter((entry) => entry.startDate !== '').length >= 2 ||
-          draft.history.some((entry) => entry.startDate !== '' && entry.endDate !== '')) &&
+        <p>
+          {renderedStep === 'bleeding'
+            ? (copy.fallbacks.bleedingDescription ?? copy.fallbacks.bleedDurationDescription)
+            : copy.fallbacks.description}
+        </p>
+        {(renderedStep === 'fallbacks'
+          ? draft.history.filter((entry) => entry.startDate !== '').length >= 2
+          : draft.history.some((entry) => entry.startDate !== '' && entry.endDate !== '')) &&
         copy.fallbacks.fromHistory ? (
           <p className={styles['reassurance']}>{copy.fallbacks.fromHistory}</p>
         ) : null}
@@ -616,75 +627,80 @@ export function TrackerOnboarding({
               max: MAX_TYPICAL_BLEED_DURATION,
             },
           ] as const satisfies readonly OptionalEstimateDefinition[]
-        ).map(({ key, label, description, value, initialValue, max }) => {
-          const descriptionId = `${idPrefix}-${key}-description`;
-          const errorId = `${idPrefix}-${key}-error`;
-          const inputId = `${idPrefix}-${key}`;
-          const fieldError = errors.get(key);
-          const setValue = (nextValue: number | undefined): void => {
-            updateDraft({ ...draft, [key]: nextValue });
-          };
-          return (
-            <div className={styles['numberField']} key={key}>
-              <label htmlFor={inputId}>{label}</label>
-              <span className={styles['fieldDescription']} id={descriptionId}>
-                {description}
-              </span>
-              <div className={styles['numberSpinner']}>
-                <button
-                  aria-label={copy.fallbacks.decrease(label)}
-                  disabled={controlsDisabled || (value !== undefined && value <= 1)}
-                  onClick={() => {
-                    setValue(value === undefined ? initialValue : Math.max(1, value - 1));
-                  }}
-                  type="button"
-                >
-                  <svg aria-hidden="true" viewBox="0 0 24 24">
-                    <path d="M5 12h14" />
-                  </svg>
-                </button>
-                <input
-                  aria-describedby={describedBy(errorId, descriptionId, fieldError !== undefined)}
-                  aria-invalid={fieldError !== undefined}
-                  disabled={controlsDisabled}
-                  id={inputId}
-                  inputMode="numeric"
-                  max={max}
-                  min={1}
-                  onChange={(event) => {
-                    const nextValue = event.currentTarget.valueAsNumber;
-                    setValue(Number.isNaN(nextValue) ? undefined : nextValue);
-                  }}
-                  placeholder={copy.fallbacks.notSure}
-                  ref={(node) => {
-                    if (node) fieldRefs.current.set(key, node);
-                    else fieldRefs.current.delete(key);
-                  }}
-                  step={1}
-                  type="number"
-                  value={value ?? ''}
-                />
-                <button
-                  aria-label={copy.fallbacks.increase(label)}
-                  disabled={controlsDisabled || (value !== undefined && value >= max)}
-                  onClick={() => {
-                    setValue(value === undefined ? initialValue : Math.min(max, value + 1));
-                  }}
-                  type="button"
-                >
-                  <svg aria-hidden="true" viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5v14" />
-                  </svg>
-                </button>
-              </div>
-              {fieldError ? (
-                <span className={styles['fieldError']} id={errorId}>
-                  {fieldError}
+        )
+          .filter(
+            ({ key }) =>
+              key === (renderedStep === 'bleeding' ? 'typicalBleedDuration' : 'typicalCycleLength'),
+          )
+          .map(({ key, label, description, value, initialValue, max }) => {
+            const descriptionId = `${idPrefix}-${key}-description`;
+            const errorId = `${idPrefix}-${key}-error`;
+            const inputId = `${idPrefix}-${key}`;
+            const fieldError = errors.get(key);
+            const setValue = (nextValue: number | undefined): void => {
+              updateDraft({ ...draft, [key]: nextValue });
+            };
+            return (
+              <div className={styles['numberField']} key={key}>
+                <label htmlFor={inputId}>{label}</label>
+                <span className={styles['fieldDescription']} id={descriptionId}>
+                  {description}
                 </span>
-              ) : null}
-            </div>
-          );
-        })}
+                <div className={styles['numberSpinner']}>
+                  <button
+                    aria-label={copy.fallbacks.decrease(label)}
+                    disabled={controlsDisabled || (value !== undefined && value <= 1)}
+                    onClick={() => {
+                      setValue(value === undefined ? initialValue : Math.max(1, value - 1));
+                    }}
+                    type="button"
+                  >
+                    <svg aria-hidden="true" viewBox="0 0 24 24">
+                      <path d="M5 12h14" />
+                    </svg>
+                  </button>
+                  <input
+                    aria-describedby={describedBy(errorId, descriptionId, fieldError !== undefined)}
+                    aria-invalid={fieldError !== undefined}
+                    disabled={controlsDisabled}
+                    id={inputId}
+                    inputMode="numeric"
+                    max={max}
+                    min={1}
+                    onChange={(event) => {
+                      const nextValue = event.currentTarget.valueAsNumber;
+                      setValue(Number.isNaN(nextValue) ? undefined : nextValue);
+                    }}
+                    placeholder={copy.fallbacks.notSure}
+                    ref={(node) => {
+                      if (node) fieldRefs.current.set(key, node);
+                      else fieldRefs.current.delete(key);
+                    }}
+                    step={1}
+                    type="number"
+                    value={value ?? ''}
+                  />
+                  <button
+                    aria-label={copy.fallbacks.increase(label)}
+                    disabled={controlsDisabled || (value !== undefined && value >= max)}
+                    onClick={() => {
+                      setValue(value === undefined ? initialValue : Math.min(max, value + 1));
+                    }}
+                    type="button"
+                  >
+                    <svg aria-hidden="true" viewBox="0 0 24 24">
+                      <path d="M5 12h14M12 5v14" />
+                    </svg>
+                  </button>
+                </div>
+                {fieldError ? (
+                  <span className={styles['fieldError']} id={errorId}>
+                    {fieldError}
+                  </span>
+                ) : null}
+              </div>
+            );
+          })}
       </div>
     </div>
   );
@@ -866,8 +882,8 @@ export function TrackerOnboarding({
       </div>
     ) : renderedStep === 'history' ? (
       historyContent
-    ) : renderedStep === 'fallbacks' ? (
-      fallbackContent
+    ) : renderedStep === 'fallbacks' || renderedStep === 'bleeding' ? (
+      fallbackContent(renderedStep)
     ) : renderedStep === 'orange' ? (
       orangeContent
     ) : (
@@ -967,16 +983,6 @@ export function TrackerOnboarding({
       ) : null}
 
       <footer className={styles['actions']}>
-        {step !== 'pin' && step !== 'splash' ? (
-          <button
-            className={styles['secondaryButton']}
-            disabled={controlsDisabled}
-            onClick={onSkip}
-            type="button"
-          >
-            {copy.actions.skip}
-          </button>
-        ) : null}
         {step === 'pin' ? (
           pinEnabled || !pinProtectionAvailable ? (
             <button
@@ -1023,9 +1029,8 @@ export function TrackerOnboarding({
               : step === 'history' &&
                   !draft.history.some((entry) => entry.startDate !== '' || entry.endDate !== '')
                 ? (copy.actions.unknownHistory ?? copy.actions.next)
-                : step === 'fallbacks' &&
-                    draft.typicalCycleLength === undefined &&
-                    draft.typicalBleedDuration === undefined
+                : (step === 'fallbacks' && draft.typicalCycleLength === undefined) ||
+                    (step === 'bleeding' && draft.typicalBleedDuration === undefined)
                   ? (copy.actions.unknownEstimates ?? copy.actions.next)
                   : copy.actions.next}
           </button>

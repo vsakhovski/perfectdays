@@ -34,16 +34,20 @@ export const de = {
         },
       },
       fallbacks: {
+        bleedingDescription:
+          'Wie viele Tage blutest du normalerweise? Eine ungefähre Angabe hilft, die Dauer deiner Periode zu schätzen. Wenn du unsicher bist, lass das Feld leer und geh weiter.',
+        bleedingTitle: 'Wie lange dauert deine Blutung normalerweise?',
         fromHistory:
           'Ich habe die Schätzungen ergänzt, die deine Daten ermöglichen. Du kannst sie anpassen.',
-        title: 'Was ist bei dir üblich?',
+        title: 'Wann beginnt deine nächste Periode normalerweise?',
         description:
-          'Eine ungefähre Angabe reicht. Lass ein Feld leer, wenn du unsicher bist. Mit der Zeit bilden deine aufgezeichneten Perioden die Grundlage der Schätzungen.',
+          'Dein Zyklus reicht vom ersten Tag einer Periode bis zum ersten Tag der nächsten. Das hilft, den nächsten Beginn zu schätzen. Wenn du unsicher bist, lass das Feld leer.',
         cycleLength: 'Tage zwischen zwei Periodenstarts',
         cycleLengthDescription:
-          'Zähle vom ersten Tag einer Periode bis zum ersten Tag der nächsten.',
+          'Zähle die Blutungstage mit, nicht nur die Pause dazwischen. Zwischen einem Beginn am 1. Juni und am 29. Juni liegen 28 Tage.',
         bleedDuration: 'Tage mit Blutung',
-        bleedDurationDescription: 'Wie viele Tage dauert deine Periode ungefähr?',
+        bleedDurationDescription:
+          'Zähle den ersten und letzten Blutungstag mit. Montag bis Freitag sind 5 Tage.',
         notSure: 'Nicht sicher',
         decrease: '{{field}} verringern',
         increase: '{{field}} erhöhen',

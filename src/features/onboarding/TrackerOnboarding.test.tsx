@@ -267,7 +267,7 @@ describe('TrackerOnboarding', () => {
     });
   }
 
-  it('starts with a branded setup screen and offers skip after getting started', async () => {
+  it('starts with a branded setup screen and has no skip setup action', async () => {
     const user = userEvent.setup();
     const onSkip = vi.fn<TrackerOnboardingProps['onSkip']>();
     render(<Harness onSkip={onSkip} />);
@@ -277,8 +277,8 @@ describe('TrackerOnboarding', () => {
     expect(screen.queryByRole('button', { name: copy.actions.skip })).not.toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: languageControlCopy.label })).toBeVisible();
     expect(screen.queryByRole('combobox', { name: 'Theme' })).toBeNull();
-    expect(screen.queryByText(copy.actions.progress(1, 6))).toBeNull();
-    expect(screen.getByRole('progressbar', { name: copy.actions.progress(1, 6) })).toHaveAttribute(
+    expect(screen.queryByText(copy.actions.progress(1, 7))).toBeNull();
+    expect(screen.getByRole('progressbar', { name: copy.actions.progress(1, 7) })).toHaveAttribute(
       'aria-valuenow',
       '1',
     );
@@ -287,13 +287,12 @@ describe('TrackerOnboarding', () => {
     expect(screen.getByRole('heading', { name: copy.introduction.title })).toHaveFocus();
     expect(screen.getByText(copy.introduction.privacyDescription)).toBeVisible();
     expect(screen.queryByText(copy.actions.back)).toBeNull();
-    expect(screen.getByRole('button', { name: copy.actions.skip })).toBeVisible();
+    expect(screen.queryByRole('button', { name: copy.actions.skip })).toBeNull();
     await user.click(screen.getByRole('button', { name: copy.actions.back }));
     expect(screen.getByRole('heading', { name: copy.splash.appName })).toHaveFocus();
 
     await user.click(screen.getByRole('button', { name: copy.actions.start }));
-    await user.click(screen.getByRole('button', { name: copy.actions.skip }));
-    expect(onSkip).toHaveBeenCalledOnce();
+    expect(onSkip).not.toHaveBeenCalled();
   });
 
   it('validates only the current history step and focuses the calendar editor', async () => {
@@ -370,44 +369,30 @@ describe('TrackerOnboarding', () => {
     expect(onRemoveHistory).not.toHaveBeenCalled();
   });
 
-  it('offers compact estimate spinners with a useful unset-state default', async () => {
+  it('offers independent bleeding then cycle spinners and retains answers on Back', async () => {
     const user = userEvent.setup();
     render(<Harness />);
     await goToHistory(user);
     await user.click(screen.getByRole('button', { name: copy.actions.next }));
-
-    const cycleInput = screen.getByLabelText(copy.fallbacks.cycleLength);
-    const bleedInput = screen.getByLabelText(copy.fallbacks.bleedDuration);
-    expect(cycleInput).toHaveValue(null);
-    expect(cycleInput).toHaveAttribute('placeholder', copy.fallbacks.notSure);
-    expect(bleedInput).toHaveValue(null);
-    expect(
-      screen.getByRole('button', { name: copy.fallbacks.decrease(copy.fallbacks.cycleLength) }),
-    ).toBeEnabled();
-    await user.click(
-      screen.getByRole('button', { name: copy.fallbacks.increase(copy.fallbacks.cycleLength) }),
-    );
+    expect(screen.queryByLabelText(copy.fallbacks.cycleLength)).toBeNull();
+    const bleeding = screen.getByLabelText(copy.fallbacks.bleedDuration);
+    expect(bleeding).toHaveValue(null);
     await user.click(
       screen.getByRole('button', { name: copy.fallbacks.decrease(copy.fallbacks.bleedDuration) }),
     );
-    expect(cycleInput).toHaveValue(28);
-    expect(bleedInput).toHaveValue(5);
-
-    await user.clear(cycleInput);
-    expect(cycleInput).toHaveValue(null);
+    expect(bleeding).toHaveValue(5);
+    fireEvent.change(bleeding, { target: { value: '12' } });
+    await user.click(screen.getByRole('button', { name: copy.actions.next }));
+    expect(screen.queryByRole('spinbutton', { name: copy.fallbacks.bleedDuration })).toBeNull();
+    const cycle = screen.getByLabelText(copy.fallbacks.cycleLength);
+    expect(cycle).toHaveValue(null);
+    expect(cycle).toHaveAttribute('placeholder', copy.fallbacks.notSure);
     await user.click(
       screen.getByRole('button', { name: copy.fallbacks.increase(copy.fallbacks.cycleLength) }),
     );
-    expect(cycleInput).toHaveValue(28);
-
-    await user.clear(bleedInput);
-    await user.click(
-      screen.getByRole('button', { name: copy.fallbacks.decrease(copy.fallbacks.bleedDuration) }),
-    );
-    expect(bleedInput).toHaveValue(5);
-    await user.clear(bleedInput);
-    await user.type(bleedInput, '12');
-    expect(bleedInput).toHaveValue(12);
+    expect(cycle).toHaveValue(28);
+    await user.click(screen.getByRole('button', { name: copy.actions.back }));
+    expect(screen.getByLabelText(copy.fallbacks.bleedDuration)).toHaveValue(12);
   });
 
   it('shows the pre-period spinner only while the window is enabled', async () => {
@@ -417,6 +402,7 @@ describe('TrackerOnboarding', () => {
     await user.click(screen.getByRole('button', { name: copy.actions.next }));
     await user.click(screen.getByRole('button', { name: copy.actions.next }));
 
+    await user.click(screen.getByRole('button', { name: copy.actions.next }));
     const daysInput = screen.getByLabelText(copy.orange.days);
     expect(daysInput).toHaveValue(5);
     await user.click(screen.getByRole('button', { name: copy.orange.increase }));
@@ -513,11 +499,12 @@ describe('TrackerOnboarding', () => {
     await goToHistory(user);
     await user.click(screen.getByRole('button', { name: copy.actions.next }));
 
-    fireEvent.change(screen.getByLabelText(copy.fallbacks.cycleLength), {
-      target: { value: '29' },
-    });
     fireEvent.change(screen.getByLabelText(copy.fallbacks.bleedDuration), {
       target: { value: '5' },
+    });
+    await user.click(screen.getByRole('button', { name: copy.actions.next }));
+    fireEvent.change(screen.getByLabelText(copy.fallbacks.cycleLength), {
+      target: { value: '29' },
     });
     await user.click(screen.getByRole('button', { name: copy.actions.next }));
     fireEvent.change(screen.getByLabelText(copy.orange.days), { target: { value: '6' } });
@@ -549,6 +536,7 @@ describe('TrackerOnboarding', () => {
     await user.click(screen.getByRole('button', { name: copy.actions.next }));
     await user.click(screen.getByRole('button', { name: copy.actions.next }));
 
+    await user.click(screen.getByRole('button', { name: copy.actions.next }));
     const finishWithPin = screen.getByRole('button', { name: copy.actions.enablePinAndFinish });
     expect(finishWithPin).toBeDisabled();
     expect(screen.queryByLabelText(copy.pin.pinLabel)).not.toBeInTheDocument();

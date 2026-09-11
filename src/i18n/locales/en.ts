@@ -31,15 +31,19 @@ export const en = {
         },
       },
       fallbacks: {
+        bleedingDescription:
+          'About how many days do you usually bleed? A rough answer helps estimate your period length. If you’re not sure, leave this blank and keep going.',
+        bleedingTitle: 'How long does your bleeding usually last?',
         fromHistory: 'I’ve filled in the estimates your dates can provide. You can adjust them.',
-        title: 'What’s usual for you?',
+        title: 'When does your next period usually start?',
         description:
-          'An approximate answer is fine. Leave either answer blank if you’re not sure. Your recorded periods will guide estimates as your history grows.',
+          'Your cycle runs from the first day of one period to the first day of the next. This helps estimate your next start date. If you’re not sure, leave this blank.',
         cycleLength: 'Days between period starts',
         cycleLengthDescription:
-          'Count from the first day of one period to the first day of the next.',
+          'Include the bleeding days, not just the gap between periods. Starts on June 1 and June 29 are 28 days apart.',
         bleedDuration: 'Days of bleeding',
-        bleedDurationDescription: 'About how many days does your period usually last?',
+        bleedDurationDescription:
+          'Count the first and last bleeding days too. Monday through Friday is 5 days.',
         notSure: 'Not sure',
         decrease: 'Decrease {{field}}',
         increase: 'Increase {{field}}',

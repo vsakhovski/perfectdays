@@ -141,7 +141,7 @@ function renderCalendar(
 }
 
 describe('MonthlyCalendar', () => {
-  it('renders a single continuous day grid with weekdays outside the scroller', () => {
+  it('renders separate month blocks with weekdays outside the scroller', () => {
     renderCalendar();
 
     const scroller = screen.getByTestId('calendar-month-scroller');
@@ -155,7 +155,10 @@ describe('MonthlyCalendar', () => {
     const activeDay = screen.getByRole('button', { name: /Full date 2026-05-12/u });
     const inactiveDay = screen.getByRole('button', { name: /Full date 2026-04-12/u });
     expect(activeDay).toHaveAttribute('data-active-month', 'true');
-    expect(inactiveDay).toHaveAttribute('data-active-month', 'false');
+    expect(inactiveDay).toHaveAttribute('data-active-month', 'true');
+    expect(within(scroller).getAllByRole('rowgroup')).toHaveLength(5);
+    expect(screen.queryByRole('button', { name: copy.previousMonth })).toBeNull();
+    expect(screen.queryByRole('button', { name: copy.nextMonth })).toBeNull();
 
     const today = screen.getByRole('button', {
       name: /Full date 2026-05-01.*Today.*Heavy flow.*Recorded period.*medium confidence.*Higher confidence.*Spotting recorded/u,
@@ -173,35 +176,22 @@ describe('MonthlyCalendar', () => {
     expect(within(legend).getByText(essentialLegend.predicted)).toBeVisible();
   });
 
-  it('smoothly scrolls to adjacent months with vertically oriented controls', async () => {
-    const user = userEvent.setup();
-    const onVisibleMonthChange = vi.fn();
-    const { rerender } = renderCalendar({ onVisibleMonthChange });
+  it('smoothly scrolls to a requested month heading', () => {
+    const { rerender } = renderCalendar();
     scrollTo.mockClear();
-
-    const previous = screen.getByRole('button', { name: copy.previousMonth });
-    expect(previous.querySelector('path')).toHaveAttribute('d', 'm5 15 7-7 7 7');
-    await user.click(previous);
-    expect(scrollTo).toHaveBeenLastCalledWith({ behavior: 'smooth', top: 0 });
-    expect(onVisibleMonthChange).toHaveBeenCalledWith(asLocalDate('2026-04-01'));
-
     rerender(
       <MonthlyCalendar
         copy={copy}
         months={months}
         onRequestMonth={vi.fn()}
         onSelectDate={vi.fn()}
-        onVisibleMonthChange={onVisibleMonthChange}
+        onVisibleMonthChange={vi.fn()}
         today={asLocalDate('2026-05-01')}
         visibleMonth={asLocalDate('2026-04-01')}
         weekdays={weekdays}
       />,
     );
-    const next = screen.getByRole('button', { name: copy.nextMonth });
-    expect(next.querySelector('path')).toHaveAttribute('d', 'm5 9 7 7 7-7');
-    await waitFor(() => expect(next).toBeEnabled());
-    await user.click(next);
-    expect(onVisibleMonthChange).toHaveBeenCalledWith(asLocalDate('2026-05-01'));
+    expect(scrollTo).toHaveBeenLastCalledWith({ behavior: 'smooth', top: 0 });
   });
 
   it('uses one roving tab stop and retains day and month keyboard navigation', () => {
