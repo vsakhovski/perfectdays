@@ -863,65 +863,67 @@ export function TrackerHistorySection({
         </div>
       ) : null}
 
-      <CycleChecksPanel
-        copy={cycleChecksCopy}
-        excludedSamples={estimateDataset.excludedCycleSamples}
-        findings={cycleCheckFindings}
-        formatDate={(date) => formatLocalDate(date, resolvedLanguage)}
-        onAddMissingPeriod={showPossibleMissingRange}
-        onAcknowledgeActive={acknowledgeActivePeriod}
-        onExclude={(finding) => {
-          persistCycleDecision(
-            finding.sampleId,
-            finding.sampleFingerprint,
-            'exclude',
-            finding.rule === 'possible-missing-period' ? 'missing-entry' : 'recording-artifact',
-          );
-        }}
-        onInclude={(finding) => {
-          persistCycleDecision(
-            finding.sampleId,
-            finding.sampleFingerprint,
-            'include',
-            'confirmed-correct',
-          );
-        }}
-        onReviewDates={(finding, trigger) => {
-          const episodeId =
-            finding.rule === 'possibly-stale-active-period'
-              ? finding.episodeId
-              : finding.nextEpisodeId;
-          const entry = entries.find((candidate) => candidate.id === episodeId);
-          if (entry !== undefined) selectPeriod(entry, trigger);
-        }}
-        onUseAgain={(sample) => {
-          persistCycleDecision(sample.id, sample.fingerprint, 'include', 'confirmed-correct');
-        }}
-        {...(reviewBusySampleId === undefined ? {} : { busySampleId: reviewBusySampleId })}
-        {...(reviewErrorMessage === undefined ? {} : { errorMessage: reviewErrorMessage })}
-        {...(reviewStatusMessage === undefined ? {} : { statusMessage: reviewStatusMessage })}
-      />
+      <div className={styles['historyColumn']}>
+        <CycleChecksPanel
+          copy={cycleChecksCopy}
+          excludedSamples={estimateDataset.excludedCycleSamples}
+          findings={cycleCheckFindings}
+          formatDate={(date) => formatLocalDate(date, resolvedLanguage)}
+          onAddMissingPeriod={showPossibleMissingRange}
+          onAcknowledgeActive={acknowledgeActivePeriod}
+          onExclude={(finding) => {
+            persistCycleDecision(
+              finding.sampleId,
+              finding.sampleFingerprint,
+              'exclude',
+              finding.rule === 'possible-missing-period' ? 'missing-entry' : 'recording-artifact',
+            );
+          }}
+          onInclude={(finding) => {
+            persistCycleDecision(
+              finding.sampleId,
+              finding.sampleFingerprint,
+              'include',
+              'confirmed-correct',
+            );
+          }}
+          onReviewDates={(finding, trigger) => {
+            const episodeId =
+              finding.rule === 'possibly-stale-active-period'
+                ? finding.episodeId
+                : finding.nextEpisodeId;
+            const entry = entries.find((candidate) => candidate.id === episodeId);
+            if (entry !== undefined) selectPeriod(entry, trigger);
+          }}
+          onUseAgain={(sample) => {
+            persistCycleDecision(sample.id, sample.fingerprint, 'include', 'confirmed-correct');
+          }}
+          {...(reviewBusySampleId === undefined ? {} : { busySampleId: reviewBusySampleId })}
+          {...(reviewErrorMessage === undefined ? {} : { errorMessage: reviewErrorMessage })}
+          {...(reviewStatusMessage === undefined ? {} : { statusMessage: reviewStatusMessage })}
+        />
 
-      <PeriodHistory
-        busy={busy}
-        copy={historyCopy}
-        entries={entries}
-        formatDate={(date) => formatLocalDate(date, resolvedLanguage)}
-        formatDateRange={(startDate, endDate) =>
-          formatLocalDateRange(startDate, endDate, resolvedLanguage)
-        }
-        onEdit={(entry, trigger) => {
-          selectPeriod(entry, trigger);
-        }}
-        onDelete={(entry, trigger) => {
-          deleteTriggerRef.current = trigger;
-          setDeleteCandidate(entry);
-          setErrorMessage(undefined);
-          setStatusMessage(undefined);
-        }}
-        showSectionLabel={showSectionLabel}
-        {...(selectedEntryId === undefined ? {} : { selectedEntryId })}
-      />
+        <PeriodHistory
+          busy={busy}
+          copy={historyCopy}
+          entries={entries}
+          formatDate={(date) => formatLocalDate(date, resolvedLanguage)}
+          formatDateRange={(startDate, endDate) =>
+            formatLocalDateRange(startDate, endDate, resolvedLanguage)
+          }
+          onEdit={(entry, trigger) => {
+            selectPeriod(entry, trigger);
+          }}
+          onDelete={(entry, trigger) => {
+            deleteTriggerRef.current = trigger;
+            setDeleteCandidate(entry);
+            setErrorMessage(undefined);
+            setStatusMessage(undefined);
+          }}
+          showSectionLabel={showSectionLabel}
+          {...(selectedEntryId === undefined ? {} : { selectedEntryId })}
+        />
+      </div>
 
       {draft?.stage !== 'confirming' ||
       draft.startDate === undefined ||

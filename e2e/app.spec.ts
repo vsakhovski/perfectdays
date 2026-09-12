@@ -71,6 +71,64 @@ async function enterLockPin(page: Page, pin: string): Promise<void> {
 test.describe('English application shell', () => {
   test.use({ locale: 'en-US' });
 
+  test('adapts the sidebar and paired calendar layout between desktop and mobile', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1200, height: 900 });
+    await page.goto('/');
+    await finishOnboarding(page);
+    const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
+    const calendar = page.getByTestId('calendar-month-scroller').locator('..');
+    const estimate = page.locator('section[aria-labelledby="next-estimate-title"]');
+    const navBox = await navigation.boundingBox();
+    const calendarBox = await calendar.boundingBox();
+    const estimateBox = await estimate.boundingBox();
+    expect(navBox).not.toBeNull();
+    expect(calendarBox).not.toBeNull();
+    expect(estimateBox).not.toBeNull();
+    if (!navBox || !calendarBox || !estimateBox) throw new Error('Desktop layout is missing');
+    expect(calendarBox.width).toBeLessThanOrEqual(301);
+    expect(navBox.x + navBox.width).toBeLessThanOrEqual(calendarBox.x);
+    expect(calendarBox.x + calendarBox.width).toBeLessThanOrEqual(estimateBox.x);
+    expect(Math.abs(calendarBox.y - estimateBox.y)).toBeLessThanOrEqual(1);
+    const buttons = navigation.getByRole('button');
+    let previousBottom = navBox.y;
+    for (const button of await buttons.all()) {
+      const box = await button.boundingBox();
+      if (!box) throw new Error('Navigation button is missing');
+      expect(Math.abs(box.width - box.height)).toBeLessThanOrEqual(1);
+      expect(box.y).toBeGreaterThanOrEqual(previousBottom);
+      expect(navBox.width - box.width).toBeLessThanOrEqual(26);
+      previousBottom = box.y + box.height;
+    }
+    const checkIn = page.getByRole('button', { name: 'Check in today', exact: true });
+    await expect(checkIn).toBeInViewport();
+    const dockBox = await checkIn.boundingBox();
+    expect(dockBox?.y).toBeGreaterThan(800);
+    await openRootDestination(page, 'History');
+    const historyList = page.getByRole('region', { name: 'Periods history' });
+    const historyBox = await historyList.boundingBox();
+    const historyCalendar = await calendar.boundingBox();
+    expect(historyBox).not.toBeNull();
+    expect(historyCalendar).not.toBeNull();
+    if (historyBox && historyCalendar) {
+      expect(historyCalendar.x + historyCalendar.width).toBeLessThanOrEqual(historyBox.x);
+    }
+    await openRootDestination(page, 'Calendar');
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobileNav = await navigation.boundingBox();
+    const mobileCalendar = await calendar.boundingBox();
+    const mobileEstimate = await estimate.boundingBox();
+    if (!mobileNav || !mobileCalendar || !mobileEstimate)
+      throw new Error('Mobile layout is missing');
+    expect(mobileNav.y).toBeGreaterThan(700);
+    expect(mobileEstimate.y).toBeGreaterThanOrEqual(mobileCalendar.y + mobileCalendar.height);
+    expect(mobileCalendar.width).toBeLessThanOrEqual(370);
+    expect(await page.evaluate<boolean>('document.documentElement.scrollWidth <= innerWidth')).toBe(
+      true,
+    );
+  });
+
   test('loads and passes an automated accessibility scan', async ({ page }) => {
     await page.goto('/');
 

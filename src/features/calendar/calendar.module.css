@@ -1,11 +1,17 @@
 .calendar {
   display: grid;
   gap: 1rem;
-  inline-size: min(100%, 48rem);
+  inline-size: min(100%, 370px);
   padding: clamp(0.5rem, 2vw, 0.75rem);
   border: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
   border-radius: 1rem;
   background: var(--color-surface);
+}
+
+@media (min-width: 48rem) {
+  .calendar {
+    inline-size: min(100%, 300px);
+  }
 }
 
 .calendarHeader {

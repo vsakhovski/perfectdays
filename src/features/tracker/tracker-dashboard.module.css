@@ -7,6 +7,24 @@
   scroll-margin-block-start: 0.75rem;
 }
 
+.estimateColumn {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  min-inline-size: 0;
+}
+
+@media (min-width: 48rem) {
+  .tracker {
+    grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .estimateColumn .estimateCard {
+    padding: 1rem;
+  }
+}
+
 .header,
 .estimateCard {
   padding: clamp(1.25rem, 4vw, 2rem);

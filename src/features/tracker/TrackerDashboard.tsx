@@ -1375,114 +1375,41 @@ export function TrackerCalendar({
           />
         </div>
 
-        <section className={styles['estimateCard']} aria-labelledby="next-estimate-title">
-          <header className={styles['estimateHeader']}>
-            <h3 id="next-estimate-title">{t(($) => $.tracker.history.estimate.title)}</h3>
-          </header>
-          {forecast === null ||
-          nextEstimateCentral === undefined ||
-          nextEstimateEarliest === undefined ||
-          nextEstimateLatest === undefined ? (
-            <p className={styles['estimateMessage']}>
-              {payload.settings.forecastingPaused
-                ? t(($) => $.mobile.calendar.forecast.states.paused.description)
-                : recentPendingReviewCount > 0
-                  ? t(($) => $.tracker.history.estimate.reviewRequired)
-                  : t(($) => $.tracker.insights.forecast.unavailable, { count: 2 })}
-            </p>
-          ) : (
-            <dl className={styles['estimateDetails']}>
-              <div className={styles['estimateHighlight']}>
-                <dt>{t(($) => $.tracker.history.estimate.centralStartLabel)}</dt>
-                <dd>{formatLocalDate(nextEstimateCentral, resolvedLanguage)}</dd>
-              </div>
-              <div>
-                <dt>{t(($) => $.tracker.history.estimate.rangeLabel)}</dt>
-                <dd>
-                  {formatLocalDateRange(nextEstimateEarliest, nextEstimateLatest, resolvedLanguage)}
-                </dd>
-              </div>
-              {forecast.predictedDuration === undefined ? null : (
-                <div>
-                  <dt>{t(($) => $.tracker.history.estimate.durationLabel)}</dt>
-                  <dd>
-                    {t(($) => $.tracker.insights.bleeding.days, {
-                      count: forecast.predictedDuration,
-                    })}
-                  </dd>
-                </div>
-              )}
-              <div>
-                <dt>{t(($) => $.tracker.insights.forecast.confidenceLabel)}</dt>
-                <dd>{t(($) => $.tracker.forecast.confidence[forecast.confidence])}</dd>
-              </div>
-            </dl>
-          )}
-          {forecast?.calendarMarkersSuppressed ? (
-            <p className={styles['estimateMessage']}>
-              {t(($) => $.mobile.calendar.forecast.states.variable.description)}
-            </p>
-          ) : null}
-          {forecast?.isLate && activeEpisode === undefined ? (
-            <p className={styles['estimateMessage']}>
-              {t(($) => $.mobile.calendar.forecast.states.late.description)}
-            </p>
-          ) : null}
-        </section>
-
-        {forecast === null ||
-        nextEstimateCentral === undefined ||
-        nextEstimateEarliest === undefined ||
-        nextEstimateLatest === undefined ? null : (
-          <section className={styles['estimateCard']} aria-labelledby="estimate-calculation-title">
-            <details className={styles['estimateExplanation']}>
-              <summary className={styles['explanationSummary']}>
-                <h3 id="estimate-calculation-title">
-                  {t(($) => $.tracker.history.estimate.explanationTitle)}
-                </h3>
-              </summary>
+        <div className={styles['estimateColumn']}>
+          <section className={styles['estimateCard']} aria-labelledby="next-estimate-title">
+            <header className={styles['estimateHeader']}>
+              <h3 id="next-estimate-title">{t(($) => $.tracker.history.estimate.title)}</h3>
+            </header>
+            {forecast === null ||
+            nextEstimateCentral === undefined ||
+            nextEstimateEarliest === undefined ||
+            nextEstimateLatest === undefined ? (
               <p className={styles['estimateMessage']}>
-                {t(($) => $.tracker.history.estimate.explanation)}
+                {payload.settings.forecastingPaused
+                  ? t(($) => $.mobile.calendar.forecast.states.paused.description)
+                  : recentPendingReviewCount > 0
+                    ? t(($) => $.tracker.history.estimate.reviewRequired)
+                    : t(($) => $.tracker.insights.forecast.unavailable, { count: 2 })}
               </p>
+            ) : (
               <dl className={styles['estimateDetails']}>
+                <div className={styles['estimateHighlight']}>
+                  <dt>{t(($) => $.tracker.history.estimate.centralStartLabel)}</dt>
+                  <dd>{formatLocalDate(nextEstimateCentral, resolvedLanguage)}</dd>
+                </div>
                 <div>
-                  <dt>{t(($) => $.tracker.history.estimate.basedOnLabel)}</dt>
+                  <dt>{t(($) => $.tracker.history.estimate.rangeLabel)}</dt>
                   <dd>
-                    {forecast.source === 'recorded'
-                      ? forecast.cycleSamplesAvailable === forecast.completedCyclesUsed
-                        ? t(($) => $.tracker.history.estimate.basedOnRecorded, {
-                            count: forecast.completedCyclesUsed,
-                          })
-                        : t(($) => $.tracker.history.estimate.basedOnReviewed, {
-                            available: forecast.cycleSamplesAvailable,
-                            used: forecast.completedCyclesUsed,
-                          })
-                      : t(($) => $.tracker.history.estimate.basedOnTypical)}
+                    {formatLocalDateRange(
+                      nextEstimateEarliest,
+                      nextEstimateLatest,
+                      resolvedLanguage,
+                    )}
                   </dd>
                 </div>
-                {forecast.recentCycleLengths.length === 0 ? null : (
-                  <div>
-                    <dt>{t(($) => $.tracker.history.estimate.recentCycleLengths)}</dt>
-                    <dd>
-                      {t(($) => $.tracker.history.estimate.recentCycleLengthsValue, {
-                        lengths: forecast.recentCycleLengths.join(', '),
-                      })}
-                    </dd>
-                  </div>
-                )}
-                {estimatedCycleLengthDays === undefined ? null : (
-                  <div>
-                    <dt>{t(($) => $.tracker.history.estimate.estimatedCycleLength)}</dt>
-                    <dd>
-                      {t(($) => $.tracker.insights.cycles.days, {
-                        count: estimatedCycleLengthDays,
-                      })}
-                    </dd>
-                  </div>
-                )}
                 {forecast.predictedDuration === undefined ? null : (
                   <div>
-                    <dt>{t(($) => $.tracker.history.estimate.estimatedPeriodLength)}</dt>
+                    <dt>{t(($) => $.tracker.history.estimate.durationLabel)}</dt>
                     <dd>
                       {t(($) => $.tracker.insights.bleeding.days, {
                         count: forecast.predictedDuration,
@@ -1490,45 +1417,127 @@ export function TrackerCalendar({
                     </dd>
                   </div>
                 )}
+                <div>
+                  <dt>{t(($) => $.tracker.insights.forecast.confidenceLabel)}</dt>
+                  <dd>{t(($) => $.tracker.forecast.confidence[forecast.confidence])}</dd>
+                </div>
               </dl>
-              {forecast.cycleSamplesPendingReview > 0 ? (
-                <p className={styles['estimateMessage']}>
-                  {t(($) => $.tracker.history.estimate.pendingReview, {
-                    count: forecast.cycleSamplesPendingReview,
-                  })}
-                </p>
-              ) : null}
-              {forecast.cycleSamplesExcluded > 0 ? (
-                <p className={styles['estimateMessage']}>
-                  {t(($) => $.tracker.history.estimate.excluded, {
-                    count: forecast.cycleSamplesExcluded,
-                  })}
-                </p>
-              ) : null}
-              <p className={styles['consistencyNote']}>
-                {t(($) => $.tracker.history.estimate.consistency[cycleConsistency])}
+            )}
+            {forecast?.calendarMarkersSuppressed ? (
+              <p className={styles['estimateMessage']}>
+                {t(($) => $.mobile.calendar.forecast.states.variable.description)}
               </p>
-            </details>
+            ) : null}
+            {forecast?.isLate && activeEpisode === undefined ? (
+              <p className={styles['estimateMessage']}>
+                {t(($) => $.mobile.calendar.forecast.states.late.description)}
+              </p>
+            ) : null}
           </section>
-        )}
 
-        {onOpenInsights || onOpenHistory ? (
-          <nav
-            aria-label={t(($) => $.mobile.calendar.context.navigationLabel)}
-            className={styles['contextLinks']}
-          >
-            {onOpenInsights ? (
-              <button onClick={onOpenInsights} ref={insightsTriggerRef} type="button">
-                {t(($) => $.mobile.calendar.context.insights)}
-              </button>
-            ) : null}
-            {onOpenHistory ? (
-              <button onClick={onOpenHistory} ref={historyTriggerRef} type="button">
-                {t(($) => $.mobile.calendar.context.periodHistory)}
-              </button>
-            ) : null}
-          </nav>
-        ) : null}
+          {forecast === null ||
+          nextEstimateCentral === undefined ||
+          nextEstimateEarliest === undefined ||
+          nextEstimateLatest === undefined ? null : (
+            <section
+              className={styles['estimateCard']}
+              aria-labelledby="estimate-calculation-title"
+            >
+              <details className={styles['estimateExplanation']}>
+                <summary className={styles['explanationSummary']}>
+                  <h3 id="estimate-calculation-title">
+                    {t(($) => $.tracker.history.estimate.explanationTitle)}
+                  </h3>
+                </summary>
+                <p className={styles['estimateMessage']}>
+                  {t(($) => $.tracker.history.estimate.explanation)}
+                </p>
+                <dl className={styles['estimateDetails']}>
+                  <div>
+                    <dt>{t(($) => $.tracker.history.estimate.basedOnLabel)}</dt>
+                    <dd>
+                      {forecast.source === 'recorded'
+                        ? forecast.cycleSamplesAvailable === forecast.completedCyclesUsed
+                          ? t(($) => $.tracker.history.estimate.basedOnRecorded, {
+                              count: forecast.completedCyclesUsed,
+                            })
+                          : t(($) => $.tracker.history.estimate.basedOnReviewed, {
+                              available: forecast.cycleSamplesAvailable,
+                              used: forecast.completedCyclesUsed,
+                            })
+                        : t(($) => $.tracker.history.estimate.basedOnTypical)}
+                    </dd>
+                  </div>
+                  {forecast.recentCycleLengths.length === 0 ? null : (
+                    <div>
+                      <dt>{t(($) => $.tracker.history.estimate.recentCycleLengths)}</dt>
+                      <dd>
+                        {t(($) => $.tracker.history.estimate.recentCycleLengthsValue, {
+                          lengths: forecast.recentCycleLengths.join(', '),
+                        })}
+                      </dd>
+                    </div>
+                  )}
+                  {estimatedCycleLengthDays === undefined ? null : (
+                    <div>
+                      <dt>{t(($) => $.tracker.history.estimate.estimatedCycleLength)}</dt>
+                      <dd>
+                        {t(($) => $.tracker.insights.cycles.days, {
+                          count: estimatedCycleLengthDays,
+                        })}
+                      </dd>
+                    </div>
+                  )}
+                  {forecast.predictedDuration === undefined ? null : (
+                    <div>
+                      <dt>{t(($) => $.tracker.history.estimate.estimatedPeriodLength)}</dt>
+                      <dd>
+                        {t(($) => $.tracker.insights.bleeding.days, {
+                          count: forecast.predictedDuration,
+                        })}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+                {forecast.cycleSamplesPendingReview > 0 ? (
+                  <p className={styles['estimateMessage']}>
+                    {t(($) => $.tracker.history.estimate.pendingReview, {
+                      count: forecast.cycleSamplesPendingReview,
+                    })}
+                  </p>
+                ) : null}
+                {forecast.cycleSamplesExcluded > 0 ? (
+                  <p className={styles['estimateMessage']}>
+                    {t(($) => $.tracker.history.estimate.excluded, {
+                      count: forecast.cycleSamplesExcluded,
+                    })}
+                  </p>
+                ) : null}
+                <p className={styles['consistencyNote']}>
+                  {t(($) => $.tracker.history.estimate.consistency[cycleConsistency])}
+                </p>
+              </details>
+            </section>
+          )}
+
+          {onOpenInsights || onOpenHistory ? (
+            <nav
+              aria-label={t(($) => $.mobile.calendar.context.navigationLabel)}
+              className={styles['contextLinks']}
+            >
+              {onOpenInsights ? (
+                <button onClick={onOpenInsights} ref={insightsTriggerRef} type="button">
+                  {t(($) => $.mobile.calendar.context.insights)}
+                </button>
+              ) : null}
+              {onOpenHistory ? (
+                <button onClick={onOpenHistory} ref={historyTriggerRef} type="button">
+                  {t(($) => $.mobile.calendar.context.periodHistory)}
+                </button>
+              ) : null}
+            </nav>
+          ) : null}
+        </div>
       </section>
 
       {editorOpen ? (
