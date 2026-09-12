@@ -834,6 +834,22 @@ test.describe('Phase 5 compact mobile shell', () => {
     const weekdayBox = await page.getByTestId('calendar-weekday-header').boundingBox();
     const todayCell = page.locator('button[aria-current="date"]');
     await expect(todayCell).toBeInViewport();
+    let lastScrollPosition = -1;
+    let stableScrollSamples = 0;
+    await expect
+      .poll(
+        async () => {
+          const position = await page.evaluate<number>(
+            'document.querySelector("[data-testid=calendar-month-scroller]").scrollTop',
+          );
+          stableScrollSamples =
+            Math.abs(position - lastScrollPosition) < 1 ? stableScrollSamples + 1 : 0;
+          lastScrollPosition = position;
+          return stableScrollSamples;
+        },
+        { intervals: [200], timeout: 5000 },
+      )
+      .toBeGreaterThanOrEqual(4);
     const initialScroll = await page.evaluate<number>(
       'document.querySelector("[data-testid=calendar-month-scroller]").scrollTop',
     );
