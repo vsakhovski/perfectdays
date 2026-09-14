@@ -128,9 +128,15 @@
 
 .dayCell {
   min-inline-size: 0;
+  container-type: inline-size;
 }
 
 .dayButton {
+  user-select: none;
+  -webkit-touch-callout: none;
+  --day-unit: clamp(0.7rem, 35cqi, 1rem);
+
+  font-size: var(--day-unit);
   position: relative;
   display: grid;
   grid-template-rows: auto 1fr;
@@ -151,9 +157,11 @@
   cursor: pointer;
 }
 
-.dayButton[data-actionable='true']:hover:not(:disabled) {
-  border-color: var(--color-border-strong);
-  background-color: var(--color-surface-subtle);
+@media (hover: hover) {
+  .dayButton[data-actionable='true']:hover:not(:disabled) {
+    border-color: var(--color-border-strong);
+    background-color: var(--color-surface-subtle);
+  }
 }
 
 .dayButton:disabled {
@@ -205,9 +213,11 @@
   color: var(--color-text-muted);
 }
 
-:global(:root[data-theme='light'])
-  .dayButton[data-actionable='true'][data-recorded-red='true']:hover:not(:disabled) {
-  color: #000;
+@media (hover: hover) {
+  :global(:root[data-theme='light'])
+    .dayButton[data-actionable='true'][data-recorded-red='true']:hover:not(:disabled) {
+    color: #000;
+  }
 }
 
 .dayButton[data-orange='true'] {
@@ -219,32 +229,41 @@
   );
 }
 
-.dayButton[data-today='true']::before {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  border: 3px solid var(--color-focus);
-  border-radius: inherit;
-  content: '';
-  pointer-events: none;
-}
-
 .dayButton[data-today='true'] .dayNumber {
+  color: var(--color-accent);
   font-weight: 900;
 }
 
+.dayButton[data-today='true'][data-recorded-red='true'] .dayNumber {
+  color: #d1f4ec;
+}
+
+@media (hover: hover) {
+  :global(:root[data-theme='light'])
+    .dayButton[data-actionable='true'][data-today='true'][data-recorded-red='true']:hover:not(
+      :disabled
+    )
+    .dayNumber {
+    color: #000;
+  }
+}
+
 .dayButton[data-selection='range'] {
-  box-shadow: inset 0 0 0 2px var(--color-focus);
+  box-shadow: inset 0 0 0 2px var(--color-accent);
 }
 
 .dayButton[data-selection='start'],
 .dayButton[data-selection='end'],
 .dayButton[data-selection='single'] {
-  box-shadow: inset 0 0 0 3px var(--color-focus);
+  box-shadow: inset 0 0 0 3px var(--color-accent);
 }
 
 .dayButton[data-recorded-red='true'][data-selection] {
   background: var(--color-marker-red);
+}
+
+.dayButton[data-today='true'][data-recorded-red='true'] {
+  background: #b92e49;
 }
 
 .dayButton[data-selection-animated='true'] {
@@ -277,31 +296,31 @@
 
 .dayNumber {
   justify-self: start;
-  min-inline-size: 1.45rem;
-  min-block-size: 1.45rem;
+  min-inline-size: calc(1.45 * var(--day-unit));
+  min-block-size: calc(1.45 * var(--day-unit));
   font-weight: 750;
-  line-height: 1.45rem;
+  line-height: calc(1.45 * var(--day-unit));
   text-align: center;
 }
 
 .flowIcon {
-  inline-size: 0.9rem;
-  block-size: 0.9rem;
+  inline-size: calc(0.9 * var(--day-unit));
+  block-size: calc(0.9 * var(--day-unit));
   overflow: visible;
   fill: currentColor;
   pointer-events: none;
 }
 
 .flowIconHeavy {
-  inline-size: 1.5rem;
+  inline-size: calc(1.5 * var(--day-unit));
 }
 
 .flowMarker {
   display: inline-grid;
   place-items: center;
   flex: 0 0 auto;
-  min-inline-size: 1rem;
-  block-size: 1rem;
+  min-inline-size: var(--day-unit);
+  block-size: var(--day-unit);
   color: var(--color-marker-red);
 }
 
@@ -319,10 +338,12 @@
   color: #fff;
 }
 
-:global(:root[data-theme='light'])
-  .dayButton[data-actionable='true'][data-recorded-red='true']:hover:not(:disabled)
-  .flowMarker {
-  color: #000;
+@media (hover: hover) {
+  :global(:root[data-theme='light'])
+    .dayButton[data-actionable='true'][data-recorded-red='true']:hover:not(:disabled)
+    .flowMarker {
+    color: #000;
+  }
 }
 
 .dayMarkers {
@@ -330,7 +351,18 @@
   align-self: end;
   justify-content: flex-end;
   gap: 0.13rem;
-  min-block-size: 1rem;
+  min-block-size: var(--day-unit);
+}
+
+.dayButton .marker {
+  inline-size: var(--day-unit);
+  block-size: var(--day-unit);
+  font-size: calc(0.82 * var(--day-unit));
+}
+
+.dayButton .marker svg {
+  inline-size: calc(0.7 * var(--day-unit));
+  block-size: calc(0.9 * var(--day-unit));
 }
 
 .marker,
@@ -537,7 +569,8 @@
 }
 
 @media (forced-colors: active) {
-  .dayButton[data-recorded-red='true'] {
+  .dayButton[data-recorded-red='true'],
+  .dayButton[data-today='true'][data-recorded-red='true'] {
     border: 3px double CanvasText;
     background: Canvas;
     color: CanvasText;
@@ -557,8 +590,9 @@
     background: Canvas;
   }
 
-  .dayButton[data-today='true']::before {
-    border-color: Highlight;
+  .dayButton[data-today='true'] .dayNumber,
+  .dayButton[data-today='true'][data-recorded-red='true'] .dayNumber {
+    color: Highlight;
   }
 
   .dayButton[data-selection] {

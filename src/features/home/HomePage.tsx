@@ -17,8 +17,12 @@ import {
   type MobileAppShellCopy,
   type RootDestination,
 } from '../shell/MobileAppShell';
-import { TrackerDashboard, TrackerOnboardingFlow } from '../tracker/TrackerDashboard';
-import { TrackerHistorySection } from '../tracker/TrackerHistorySection';
+import {
+  TrackerCalendar,
+  TrackerDashboard,
+  TrackerOnboardingFlow,
+} from '../tracker/TrackerDashboard';
+import { JournalView } from '../journal/JournalView';
 import styles from './HomePage.module.css';
 
 function OnboardingHome({ payload }: { readonly payload: VaultPayload }) {
@@ -159,6 +163,7 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   const pinSetupRequestCounterRef = useRef(0);
   const today = journalEnvironment.today();
   const [calendarCheckInDate, setCalendarCheckInDate] = useState<LocalDate>(today);
+  const [journalEntryDate, setJournalEntryDate] = useState<LocalDate>(today);
   const hasTodayCheckIn = payload.logs.some((log) => log.date === today);
   const selectedDateHasCheckIn = payload.logs.some((log) => log.date === calendarCheckInDate);
   const selectedDateLabel = formatLocalDate(calendarCheckInDate, resolvedLanguage, {
@@ -166,7 +171,7 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
     month: 'short',
   });
   const checkInActionLabel =
-    calendarCheckInDate === today
+    destination === 'history' || calendarCheckInDate === today
       ? hasTodayCheckIn
         ? t(($) => $.mobile.shell.actions.editTodayCheckIn)
         : t(($) => $.mobile.shell.actions.checkInToday)
@@ -226,7 +231,31 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
         rememberedDetailsOpen={checkInDetailsOpen}
       />
     ) : destination === 'history' ? (
-      <TrackerHistorySection payload={payload} showSectionLabel={false} />
+      <>
+        <JournalView
+          payload={payload}
+          today={today}
+          onOpenEntry={(date, trigger) => {
+            setJournalEntryDate(date);
+            setCheckInReturnFocusElement(trigger);
+            checkInRequestCounterRef.current += 1;
+            setCheckInRequest(checkInRequestCounterRef.current);
+          }}
+        />
+        <TrackerCalendar
+          editorOnly
+          payload={payload}
+          checkInRequest={checkInRequest ?? 0}
+          checkInRequestDate={journalEntryDate}
+          checkInReturnFocusElement={checkInReturnFocusElement}
+          onCheckInRequestHandled={(request) => {
+            setCheckInRequest((current) => (current === request ? undefined : current));
+          }}
+          onEditorOpenChange={setEditorOpen}
+          onDetailsOpenChange={setCheckInDetailsOpen}
+          rememberedDetailsOpen={checkInDetailsOpen}
+        />
+      </>
     ) : destination === 'privacy' ? (
       <PrivacyDestination
         {...(snapshot.pinEnabled ? { onLock: lock } : {})}
@@ -264,14 +293,12 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
         : {})}
       onCheckIn={(trigger) => {
         setCheckInReturnFocusElement(trigger);
-        if (destination !== 'calendar') {
-          navigateHistory({ kind: 'root', destination: 'calendar' });
-        }
+        if (destination === 'history') setJournalEntryDate(today);
         checkInRequestCounterRef.current += 1;
         setCheckInRequest(checkInRequestCounterRef.current);
       }}
       onNavigate={navigate}
-      showCheckInAction={destination === 'calendar'}
+      showCheckInAction={destination === 'calendar' || destination === 'history'}
       screenTitle={screenTitle}
       screenKey={destination}
     >

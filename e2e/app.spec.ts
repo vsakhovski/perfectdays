@@ -52,13 +52,15 @@ async function swipeOnboarding(page: Page, direction: 'left' | 'right'): Promise
 
 async function openRootDestination(
   page: Page,
-  destination: 'Calendar' | 'History' | 'Privacy' | 'Settings',
+  destination: 'Calendar' | 'Journal' | 'Privacy' | 'Settings',
 ): Promise<void> {
   const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
   await navigation.getByRole('button', { exact: true, name: destination }).click();
   await expect(
     page.getByRole('heading', { exact: true, level: 1, name: destination }),
   ).toBeVisible();
+  if (destination === 'Journal')
+    await page.getByRole('button', { name: 'Periods', exact: true }).click();
 }
 
 async function enterLockPin(page: Page, pin: string): Promise<void> {
@@ -70,6 +72,36 @@ async function enterLockPin(page: Page, pin: string): Promise<void> {
 
 test.describe('English application shell', () => {
   test.use({ locale: 'en-US' });
+
+  test('adds and edits journal entries without leaving the daily list', async ({ page }) => {
+    await page.goto('/');
+    await finishOnboarding(page);
+    await page.getByRole('navigation').getByRole('button', { name: 'Journal' }).click();
+    await expect(page.getByRole('button', { name: 'Daily entries', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    const entry = page.locator('article').getByRole('button', { name: 'Add today’s entry' });
+    await entry.click();
+    const dialog = page.getByRole('dialog', { name: 'Add today’s entry' });
+    await dialog.getByLabel('Private note').fill('A peaceful day in my journal.');
+    await dialog.getByRole('button', { name: 'Save and done' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Journal', exact: true })).toBeVisible();
+    await expect(
+      page.locator('article').getByText('A peaceful day in my journal.', { exact: true }),
+    ).toBeVisible();
+    await page.locator('article').getByRole('button', { name: 'Edit today’s entry' }).click();
+    const editor = page.getByRole('dialog', { name: 'Edit today’s entry' });
+    await expect(editor.getByLabel('Private note')).toHaveValue('A peaceful day in my journal.');
+    await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.getByRole('checkbox', { name: 'All days' }).check();
+    await expect(page.locator('article')).toHaveCount(30);
+    await page.getByRole('button', { name: 'Load older entries' }).click();
+    await expect(page.locator('article')).toHaveCount(60);
+    await page.getByRole('button', { name: 'Periods', exact: true }).click();
+    await expect(page.getByRole('grid', { name: 'Recorded periods calendar' })).toBeVisible();
+  });
 
   test('adapts the sidebar and paired calendar layout between desktop and mobile', async ({
     page,
@@ -101,11 +133,11 @@ test.describe('English application shell', () => {
       expect(navBox.width - box.width).toBeLessThanOrEqual(26);
       previousBottom = box.y + box.height;
     }
-    const checkIn = page.getByRole('button', { name: 'Check in today', exact: true });
+    const checkIn = page.getByRole('button', { name: 'Add today’s entry', exact: true });
     await expect(checkIn).toBeInViewport();
     const dockBox = await checkIn.boundingBox();
     expect(dockBox?.y).toBeGreaterThan(800);
-    await openRootDestination(page, 'History');
+    await openRootDestination(page, 'Journal');
     const historyList = page.getByRole('region', { name: 'Periods history' });
     const historyBox = await historyList.boundingBox();
     const historyCalendar = await calendar.boundingBox();
@@ -113,6 +145,26 @@ test.describe('English application shell', () => {
     expect(historyCalendar).not.toBeNull();
     if (historyBox && historyCalendar) {
       expect(historyCalendar.x + historyCalendar.width).toBeLessThanOrEqual(historyBox.x);
+    }
+    for (const [destination, first, second] of [
+      ['Settings', 'Theme', 'Language'],
+      ['Privacy', 'PIN protection', 'Journal data'],
+    ] as const) {
+      await openRootDestination(page, destination);
+      const firstCard = page
+        .getByRole('heading', { name: first, exact: true })
+        .locator('xpath=ancestor::section[1]');
+      const secondCard = page
+        .getByRole('heading', { name: second, exact: true })
+        .locator('xpath=ancestor::section[1]');
+      const left = await firstCard.boundingBox();
+      const right = await secondCard.boundingBox();
+      if (!left || !right) throw new Error('Settings or privacy card is missing');
+      expect(Math.abs(left.y - right.y)).toBeLessThanOrEqual(1);
+      expect(left.x + left.width).toBeLessThanOrEqual(right.x);
+      expect(
+        await page.evaluate<boolean>('document.documentElement.scrollWidth <= innerWidth'),
+      ).toBe(true);
     }
     await openRootDestination(page, 'Calendar');
     await page.setViewportSize({ width: 390, height: 844 });
@@ -360,8 +412,8 @@ test.describe('English application shell', () => {
     await finishOnboarding(page);
 
     const today = page.locator('button[aria-current="date"]');
-    await page.getByRole('button', { name: 'Check in today' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Check in today' });
+    await page.getByRole('button', { name: 'Add today’s entry' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Add today’s entry' });
     const startButton = dialog.getByRole('button', { name: 'Period started today' });
     const startPosition = await startButton.boundingBox();
     await startButton.click();
@@ -381,7 +433,7 @@ test.describe('English application shell', () => {
     await dialog.getByLabel('Private note').fill('A private browser test check-in.');
     await dialog.getByRole('button', { name: 'Start period and save' }).click();
     await expect(dialog).not.toBeVisible();
-    await expect(page.getByRole('button', { name: "Edit today's check-in" })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Edit today’s entry' })).toBeVisible();
 
     await expect(today).toHaveAccessibleName(/Recorded period day/);
     await expect(today).toHaveAccessibleName(/Higher confidence recorded/);
@@ -390,9 +442,9 @@ test.describe('English application shell', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
     const persistedToday = page.locator('button[aria-current="date"]');
     await expect(persistedToday).toHaveAccessibleName(/Recorded period day/);
-    await page.getByRole('button', { name: "Edit today's check-in" }).click();
+    await page.getByRole('button', { name: 'Edit today’s entry' }).click();
 
-    const persistedDialog = page.getByRole('dialog', { name: "Edit today's check-in" });
+    const persistedDialog = page.getByRole('dialog', { name: 'Edit today’s entry' });
     await expect(persistedDialog.getByRole('checkbox', { name: 'Medium' })).toBeChecked();
     await expect(
       persistedDialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }),
@@ -412,8 +464,8 @@ test.describe('English application shell', () => {
     await page.goto('/');
     await finishOnboarding(page);
 
-    await page.getByRole('button', { name: 'Check in today' }).click();
-    const dayDialog = page.getByRole('dialog', { name: 'Check in today' });
+    await page.getByRole('button', { name: 'Add today’s entry' }).click();
+    const dayDialog = page.getByRole('dialog', { name: 'Add today’s entry' });
     await dayDialog.getByRole('button', { name: 'Period started today' }).click();
     await dayDialog.getByRole('checkbox', { name: 'Medium' }).check();
     await dayDialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }).check();
@@ -440,7 +492,7 @@ test.describe('English application shell', () => {
       return { endLabel: formatter.format(end), startLabel: formatter.format(start) };
     });
 
-    await openRootDestination(page, 'History');
+    await openRootDestination(page, 'Journal');
     await page
       .getByRole('button', { name: /Select period starting/ })
       .first()
@@ -467,7 +519,7 @@ test.describe('English application shell', () => {
 
     await page.reload();
     await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
-    await openRootDestination(page, 'History');
+    await openRootDestination(page, 'Journal');
     await expect(
       page.getByRole('button', { name: /Select period starting/ }).first(),
     ).toHaveAccessibleName(/Select period starting .*–.*/u);
@@ -476,8 +528,8 @@ test.describe('English application shell', () => {
     const persistedToday = page.locator('button[aria-current="date"]');
     await expect(persistedToday).toHaveAccessibleName(/Recorded period day/);
     await persistedToday.click();
-    await page.getByRole('button', { name: "Edit today's check-in" }).click();
-    const persistedDayDialog = page.getByRole('dialog', { name: "Edit today's check-in" });
+    await page.getByRole('button', { name: 'Edit today’s entry' }).click();
+    const persistedDayDialog = page.getByRole('dialog', { name: 'Edit today’s entry' });
     await expect(persistedDayDialog.getByRole('checkbox', { name: 'Medium' })).toBeChecked();
     await expect(
       persistedDayDialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }),
@@ -696,7 +748,7 @@ test.describe('Phase 5 compact mobile shell', () => {
 
     const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
     const destinationButtons = navigation.getByRole('button');
-    const checkInAction = page.getByRole('button', { name: 'Check in today' });
+    const checkInAction = page.getByRole('button', { name: 'Add today’s entry' });
 
     await expect(destinationButtons).toHaveCount(4);
     await expect(navigation.getByRole('button', { exact: true, name: 'Calendar' })).toHaveAttribute(
@@ -705,7 +757,7 @@ test.describe('Phase 5 compact mobile shell', () => {
     );
     await expect(navigation.getByRole('button', { exact: true, name: 'Privacy' })).toBeVisible();
     await expect(navigation.getByRole('button', { exact: true, name: 'Settings' })).toBeVisible();
-    await expect(navigation.getByRole('button', { exact: true, name: 'History' })).toBeVisible();
+    await expect(navigation.getByRole('button', { exact: true, name: 'Journal' })).toBeVisible();
     await expect(checkInAction).toBeVisible();
     await expect(checkInAction).toBeInViewport();
     await expect(page.getByRole('heading', { name: 'Next period' })).toBeInViewport();
@@ -721,7 +773,7 @@ test.describe('Phase 5 compact mobile shell', () => {
     await expect(page.getByRole('group', { name: 'Calendar month navigation' })).toHaveCount(0);
     const monthBlocks = page.getByTestId('calendar-month-scroller').getByRole('rowgroup');
     expect(await monthBlocks.count()).toBeGreaterThan(1);
-    for (const destination of ['Calendar', 'History', 'Privacy', 'Settings']) {
+    for (const destination of ['Calendar', 'Journal', 'Privacy', 'Settings']) {
       await expect(
         navigation.getByRole('button', { exact: true, name: destination }),
       ).toBeInViewport();
@@ -733,9 +785,9 @@ test.describe('Phase 5 compact mobile shell', () => {
     await expect(checkInAction).toBeHidden();
     await openRootDestination(page, 'Calendar');
 
-    await openRootDestination(page, 'History');
+    await openRootDestination(page, 'Journal');
     await expect(page.getByRole('region', { name: 'Periods history' })).toBeVisible();
-    await expect(checkInAction).toBeHidden();
+    await expect(checkInAction).toBeVisible();
     await openRootDestination(page, 'Calendar');
 
     const calendarUsesOnlyVerticalInnerScrolling = await page.evaluate<boolean>(
@@ -749,7 +801,7 @@ test.describe('Phase 5 compact mobile shell', () => {
     expect(calendarUsesOnlyVerticalInnerScrolling).toBe(true);
 
     await checkInAction.click();
-    const checkIn = page.getByRole('dialog', { name: 'Check in today' });
+    const checkIn = page.getByRole('dialog', { name: 'Add today’s entry' });
     const saveAndDone = checkIn.getByRole('button', { name: 'Save and done' });
     await expect(saveAndDone).toBeInViewport();
     const saveButtonBox = await saveAndDone.boundingBox();
@@ -908,11 +960,11 @@ test.describe('Phase 5 compact mobile shell', () => {
   }) => {
     await page.goto('/');
     await finishOnboarding(page);
-    await page.getByRole('button', { name: 'Check in today' }).click();
+    await page.getByRole('button', { name: 'Add today’s entry' }).click();
 
-    const dialog = page.getByRole('dialog', { name: 'Check in today' });
+    const dialog = page.getByRole('dialog', { name: 'Add today’s entry' });
     const header = dialog.locator('header');
-    const close = dialog.getByRole('button', { name: 'Close check-in' });
+    const close = dialog.getByRole('button', { name: 'Close entry' });
     const closeIcon = close.locator('svg');
     const save = dialog.getByRole('button', { name: 'Save and done' });
     const actionPanel = save.locator('..');
@@ -970,9 +1022,9 @@ test.describe('Phase 5 compact mobile shell', () => {
     }
 
     await dialog.getByRole('button', { name: 'Cancel' }).click();
-    await page.getByRole('button', { name: 'Check in today' }).click();
+    await page.getByRole('button', { name: 'Add today’s entry' }).click();
     await expect(
-      page.getByRole('dialog', { name: 'Check in today' }).getByRole('button', {
+      page.getByRole('dialog', { name: 'Add today’s entry' }).getByRole('button', {
         name: 'Hide note and details',
       }),
     ).toBeVisible();

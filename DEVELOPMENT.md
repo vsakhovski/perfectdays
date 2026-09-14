@@ -12,6 +12,10 @@ Store packaging, submission requirements, and release-readiness planning are tra
 
 ## Product goal
 
+### Journal and entry discoverability
+
+The former History destination is now **Journal**, with **Daily entries** as its initial view and **Periods** retaining the recorded-period calendar and editing tools. Daily entries show today first, followed by saved entries grouped by month, with compact observations and expandable notes. **All days** includes unrecorded dates; older entries or days load in batches of 30. Selecting a row opens the existing entry dialog without leaving Journal. Calendar and Journal both expose a prominent add/edit entry action; Journal's action always targets today. English, German, and Russian copy is included. No calendar hint is added. Validation now includes updated App and offline/backup test selectors, browser coverage for Journal entry creation/editing and pagination, and desktop two-column Settings/Privacy layouts. Calendar hover effects apply only to hover-capable devices; today's recorded-period date uses contrasting light teal with forced-colors support.
+
 ### Personal onboarding — first design pass
 
 The splash and introduction are merged into one welcome screen, followed by previous periods, usual lengths, pre-period highlighting, and optional PIN protection. Five matching teal-otter illustrations accompany warmer English, German, and Russian copy. Skipping is a visible text action; empty history/estimate steps offer reassuring continuation labels. Existing date validation, estimate derivation, swipe transitions, and PIN safeguards remain. Legacy introduction routes display the welcome screen. Artwork and generation notes live in `public/onboarding/`; optimized WebP assets are precached for offline use. Tests and production build for this design pass are deferred until requested.

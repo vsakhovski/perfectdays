@@ -1,0 +1,97 @@
+.journal,
+.entries {
+  display: grid;
+  gap: 1rem;
+  min-inline-size: 0;
+}
+.switcher {
+  display: flex;
+  gap: 0.5rem;
+}
+.switcher button,
+.more {
+  min-block-size: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.switcher button[aria-pressed='true'] {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+.filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-block-size: 2.75rem;
+}
+.entries h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.row {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.entry {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  inline-size: 100%;
+  padding: 1rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  text-align: start;
+  cursor: pointer;
+}
+.date,
+.record {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  min-inline-size: 0;
+}
+.date strong,
+.action {
+  color: var(--color-accent);
+}
+.observations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.flow {
+  --day-unit: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--color-marker-red);
+}
+.note {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.action {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.expand {
+  margin: 0 1rem 0.5rem;
+  min-block-size: 2.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+.journal button:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: -3px;
+}

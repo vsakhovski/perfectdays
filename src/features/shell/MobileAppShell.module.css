@@ -169,6 +169,10 @@
 }
 
 .checkInButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   inline-size: 100%;
   min-block-size: 3rem;
   padding-block: 0.65rem;

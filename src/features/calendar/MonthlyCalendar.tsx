@@ -101,7 +101,7 @@ function markerIsPresent(markers: CalendarDayMarkers): boolean {
 
 type LegendMarker = CalendarMarker | 'neutral' | 'today';
 
-function CalendarFlowIcon({ flow }: { readonly flow: CalendarFlow }) {
+export function CalendarFlowIcon({ flow }: { readonly flow: CalendarFlow }) {
   const clipId = useId();
   const dropPath = 'M12 2.5C10 6.2 6.5 9.4 6.5 13.5a5.5 5.5 0 0 0 11 0C17.5 9.4 14 6.2 12 2.5Z';
 
@@ -280,6 +280,13 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
   }>({ first: undefined, last: undefined });
   const scrollFrameRef = useRef<number | undefined>(undefined);
   const [focusedDate, setFocusedDate] = useState<LocalDate>(today);
+  const pressRef = useRef<{ timer: number; x: number; y: number } | undefined>(undefined);
+  const consumedPressRef = useRef<LocalDate | undefined>(undefined);
+  const cancelPress = useCallback(() => {
+    if (pressRef.current) window.clearTimeout(pressRef.current.timer);
+    pressRef.current = undefined;
+  }, []);
+  useEffect(() => cancelPress, [cancelPress]);
 
   const displayedMonths = useMemo(
     () => months.filter((month) => maxMonth === undefined || month.month <= maxMonth),
@@ -647,7 +654,43 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
           data-spotting={day.markers.spotting}
           data-today={isToday}
           disabled={day.disabled}
+          onContextMenu={(event) => {
+            event.preventDefault();
+          }}
+          onPointerDown={(event) => {
+            cancelPress();
+            consumedPressRef.current = undefined;
+            if (!event.isPrimary || event.button !== 0 || day.disabled || day.disabledDescription)
+              return;
+            const trigger = event.currentTarget;
+            pressRef.current = {
+              x: event.clientX,
+              y: event.clientY,
+              timer: window.setTimeout(() => {
+                pressRef.current = undefined;
+                consumedPressRef.current = day.date;
+                setFocusedDate(day.date);
+                onSelectDate(day.date, trigger);
+              }, 500),
+            };
+          }}
+          onPointerMove={(event) => {
+            const press = pressRef.current;
+            if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10) {
+              consumedPressRef.current = day.date;
+              cancelPress();
+            }
+          }}
+          onPointerUp={cancelPress}
+          onPointerCancel={cancelPress}
+          onPointerLeave={cancelPress}
           onClick={(event) => {
+            if (event.detail !== 0 && consumedPressRef.current === day.date) {
+              event.preventDefault();
+              consumedPressRef.current = undefined;
+              return;
+            }
+            if (day.disabled || day.disabledDescription) return;
             setFocusedDate(day.date);
             onSelectDate(day.date, event.currentTarget);
           }}
@@ -731,7 +774,10 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
         aria-label={copy.calendarLabel}
         className={styles['monthScroller']}
         data-testid="calendar-month-scroller"
-        onScroll={handleScroll}
+        onScroll={() => {
+          cancelPress();
+          handleScroll();
+        }}
         ref={scrollerRef}
         role="grid"
         tabIndex={0}

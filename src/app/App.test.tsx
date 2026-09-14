@@ -423,16 +423,17 @@ function sectionWithHeading(name: string): HTMLElement {
 
 async function openRootDestination(
   user: ReturnType<typeof userEvent.setup>,
-  destination: 'Calendar' | 'History' | 'Privacy' | 'Settings',
+  destination: 'Calendar' | 'Journal' | 'Privacy' | 'Settings',
 ): Promise<void> {
   await user.click(screen.getByRole('button', { name: destination }));
+  if (destination === 'Journal') await user.click(screen.getByRole('button', { name: 'Periods' }));
 }
 
 function persistentCheckInTodayButton(): HTMLElement {
-  const buttons = screen.getAllByRole('button', { name: 'Check in today' });
+  const buttons = screen.getAllByRole('button', { name: 'Add today’s entry' });
   const button = buttons.at(-1);
   if (button === undefined) {
-    throw new Error('Expected the persistent Check in today action.');
+    throw new Error('Expected the persistent Add today’s entry action.');
   }
   return button;
 }
@@ -498,7 +499,7 @@ describe('App', () => {
     expect(languageStore.read()).toBe('de');
   });
 
-  it('opens on Calendar and shows today check-in only on Calendar', async () => {
+  it('opens on Calendar and shows the entry action on Calendar and Journal', async () => {
     const user = userEvent.setup();
     await renderApp({ onboardingCompleted: true });
 
@@ -510,19 +511,19 @@ describe('App', () => {
     expect(screen.getAllByRole('navigation')).toHaveLength(1);
     const checkInTrigger = persistentCheckInTodayButton();
     await user.click(checkInTrigger);
-    expect(screen.getByRole('dialog', { name: 'Check in today' })).toBeVisible();
+    expect(screen.getByRole('dialog', { name: 'Add today’s entry' })).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(checkInTrigger).toHaveFocus();
 
     await openRootDestination(user, 'Privacy');
     expect(screen.getByRole('heading', { name: 'Privacy', level: 1 })).toHaveFocus();
     expect(screen.getByRole('heading', { name: 'Back up or restore' })).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Check in today' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add today’s entry' })).not.toBeInTheDocument();
 
-    await openRootDestination(user, 'History');
-    expect(screen.getByRole('heading', { name: 'History', level: 1 })).toHaveFocus();
+    await openRootDestination(user, 'Journal');
+    expect(screen.getByRole('heading', { name: 'Journal', level: 1 })).toBeVisible();
     expect(screen.getByRole('region', { name: 'Periods history' })).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Check in today' })).not.toBeInTheDocument();
+    expect(persistentCheckInTodayButton()).toBeVisible();
 
     await openRootDestination(user, 'Settings');
     expect(screen.getByRole('heading', { name: 'Settings', level: 1 })).toHaveFocus();
@@ -533,7 +534,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Usual period estimates' })).toBeVisible();
     expect(screen.getByRole('heading', { name: 'About' })).toBeVisible();
     expect(screen.queryByText(/Manage estimates, calendar layout/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Check in today' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add today’s entry' })).not.toBeInTheDocument();
 
     await openRootDestination(user, 'Calendar');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -680,7 +681,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
     await user.click(persistentCheckInTodayButton());
-    const checkIn = within(screen.getByRole('dialog', { name: 'Check in today' }));
+    const checkIn = within(screen.getByRole('dialog', { name: 'Add today’s entry' }));
     expect(checkIn.getByRole('button', { name: 'Save and done' })).toHaveAttribute(
       'aria-disabled',
       'true',
@@ -695,7 +696,7 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: /Start period/i })).not.toBeInTheDocument();
     await user.click(checkIn.getByRole('button', { name: 'Save and done' }));
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Check in today' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: 'Add today’s entry' })).not.toBeInTheDocument();
     });
 
     let snapshot = vaultController.getSnapshot();
@@ -710,8 +711,8 @@ describe('App', () => {
       'data-flow',
     );
 
-    await user.click(screen.getByRole('button', { name: "Edit today's check-in" }));
-    const editor = within(screen.getByRole('dialog', { name: "Edit today's check-in" }));
+    await user.click(screen.getByRole('button', { name: 'Edit today’s entry' }));
+    const editor = within(screen.getByRole('dialog', { name: 'Edit today’s entry' }));
     await user.click(editor.getByRole('button', { name: 'Period started today' }));
     await user.click(editor.getByRole('checkbox', { name: 'Medium' }));
     await user.click(editor.getByRole('radio', { name: 'Confidence: 5 out of 5' }));
@@ -720,9 +721,7 @@ describe('App', () => {
     });
     await user.click(editor.getByRole('button', { name: 'Start period and save' }));
     await waitFor(() => {
-      expect(
-        screen.queryByRole('dialog', { name: "Edit today's check-in" }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: 'Edit today’s entry' })).not.toBeInTheDocument();
     });
 
     snapshot = vaultController.getSnapshot();
@@ -829,7 +828,7 @@ describe('App', () => {
     expect(screen.queryByRole('dialog', { name: 'Daily check-in' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Wednesday, July 15, 2026/i }));
-    fireEvent.click(screen.getByRole('button', { name: /^Check in for Jul 15/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Add entry for Jul 15/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Period started on this day' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Medium' }));
     expect(screen.getByRole('button', { name: 'Start period and save' })).toHaveAttribute(
@@ -863,7 +862,7 @@ describe('App', () => {
     expect(explanation.getByText('28, 28 days')).toBeVisible();
     expect(explanation.getByText('Estimated period length')).toBeVisible();
 
-    await openRootDestination(user, 'History');
+    await openRootDestination(user, 'Journal');
 
     expect(screen.getByRole('region', { name: 'Periods history' })).toBeVisible();
     expect(screen.getAllByText('Bleeding duration: 5 days')).toHaveLength(2);
@@ -879,7 +878,7 @@ describe('App', () => {
       vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
     });
 
-    await openRootDestination(user, 'History');
+    await openRootDestination(user, 'Journal');
     expect(
       screen.getByRole('heading', { name: 'A period may be missing from the journal' }),
     ).toBeVisible();
@@ -905,7 +904,7 @@ describe('App', () => {
       vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
     });
 
-    await openRootDestination(user, 'History');
+    await openRootDestination(user, 'Journal');
     expect(screen.getByRole('heading', { name: 'Is this period still active?' })).toBeVisible();
     expect(screen.getByText(/active for 11 days/i)).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Review period dates' }));
@@ -937,7 +936,7 @@ describe('App', () => {
       vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
     });
 
-    await openRootDestination(user, 'History');
+    await openRootDestination(user, 'Journal');
     await user.click(screen.getByRole('button', { name: /Select period starting Jun 29, 2026/ }));
     await user.click(
       within(screen.getByRole('dialog')).getByRole('button', { name: 'Edit dates' }),
@@ -965,7 +964,8 @@ describe('App', () => {
       vaultSnapshot: { phase: 'unlocked', pinEnabled: false, payload },
     });
 
-    await user.click(screen.getByRole('button', { name: 'Verlauf' }));
+    await user.click(screen.getByRole('button', { name: 'Tagebuch' }));
+    await user.click(screen.getByRole('button', { name: 'Perioden' }));
     const selectPeriodButtons = screen.getAllByRole('button', { name: /Periode ab .* auswählen/ });
     const latestPeriodButton = selectPeriodButtons[0];
     if (latestPeriodButton === undefined) throw new Error('No recorded period could be selected.');
