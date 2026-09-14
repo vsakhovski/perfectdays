@@ -3,7 +3,7 @@
   gap: 1rem;
   inline-size: min(100%, 370px);
   padding: clamp(0.5rem, 2vw, 0.75rem);
-  border: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+  border: 1px solid transparent;
   border-radius: 1rem;
   background: var(--color-surface);
 }
@@ -91,7 +91,7 @@
   padding-inline-end: var(--calendar-scrollbar-width, 0);
   color: var(--color-text-muted);
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 500;
   text-align: center;
 }
 
@@ -115,7 +115,7 @@
   margin: 0;
   padding-block: 0.5rem 0.75rem;
   color: var(--color-text);
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   font-weight: 600;
   text-align: center;
 }
@@ -145,7 +145,7 @@
   min-block-size: 0;
   padding: 0.22rem;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-border) 45%, transparent);
+  border: 1px solid transparent;
   border-radius: 0.65rem;
   background: var(--color-surface);
   color: var(--color-text);

@@ -12,6 +12,15 @@ Store packaging, submission requirements, and release-readiness planning are tra
 
 ## Product goal
 
+### Contemporary journal styling — September 2026
+
+- Quieter neutral surfaces, larger page titles, fewer card borders, softer shell separators, and one shared active-navigation treatment retain the teal brand without competing with the content.
+- Calendar ordinary days are borderless; recorded/predicted treatments, selection, keyboard focus, and today indicators remain. The compact legend retains its accessible heading without displaying it. Estimated dates have stronger emphasis; the calculation explanation remains collapsed initially.
+- Journal uses a segmented view selector, note-first rows with separators and small edit icons, a switch for including empty days, and a warmer localized empty state with a simple notebook illustration.
+- Settings groups appearance controls and uses a switch for pre-period highlighting. Desktop appearance/About and tracking preferences form independent columns; mobile retains its reading order. Privacy groups PIN/data controls beside backup tools on desktop, replaces square PIN tiles with compact icon-and-text actions, and keeps erasure visually secondary but explicitly marked.
+- The entry dialog has a larger title, compact flow controls, quieter rating buttons, a roomier writing surface, and a secondary Cancel action. Existing persistence, confirmation, and prediction workflows are unchanged.
+- Verified with 394 unit tests, production build, four PWA artifact checks, lint, and formatting. Updated browser expectations cover the grouped desktop columns and Journal switch semantics; a unit regression covers pre-period switch auto-save, reopening Settings, and keyboard activation. The full E2E suite passes 84 tests with eight platform-specific skips across Chromium, Firefox, mobile Chrome, and mobile WebKit. Browser tests ran outside the sandbox to avoid Firefox's sandbox page-creation failure.
+
 ### Journal and entry discoverability
 
 The former History destination is now **Journal**, with **Daily entries** as its initial view and **Periods** retaining the recorded-period calendar and editing tools. Daily entries show today first, followed by saved entries grouped by month, with compact observations and expandable notes. **All days** includes unrecorded dates; older entries or days load in batches of 30. Selecting a row opens the existing entry dialog without leaving Journal. Calendar and Journal both expose a prominent add/edit entry action; Journal's action always targets today. English, German, and Russian copy is included. No calendar hint is added. Validation now includes updated App and offline/backup test selectors, browser coverage for Journal entry creation/editing and pagination, and desktop two-column Settings/Privacy layouts. Calendar hover effects apply only to hover-capable devices; today's recorded-period date uses contrasting light teal with forced-colors support.

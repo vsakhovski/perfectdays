@@ -469,7 +469,7 @@ export const de = {
       periods: 'Perioden',
       allDays: 'Alle Tage',
       empty:
-        'Hier erscheinen deine Tageseinträge. Beginne mit einer Notiz oder halte fest, wie du dich fühlst.',
+        'Ein bisschen Raum für deinen Tag. Beginne mit einer Notiz oder halte fest, wie du dich fühlst.',
       today: 'Heute',
       showMore: 'Mehr anzeigen',
       showLess: 'Weniger anzeigen',

@@ -1,6 +1,6 @@
 .tracker {
   display: grid;
-  gap: 1rem;
+  gap: var(--space-section);
 }
 
 .calendarTarget {
@@ -76,7 +76,7 @@
 
 .estimateCard {
   padding: 1rem;
-  border-color: color-mix(in srgb, var(--color-border) 55%, transparent);
+  border-color: transparent;
   border-radius: 1rem;
   box-shadow: none;
 }
@@ -168,7 +168,7 @@
 
 .estimateHighlight dd {
   color: var(--color-accent);
-  font-size: clamp(1.5rem, 7vw, 2rem);
+  font-size: clamp(1.75rem, 7vw, 2.25rem);
   font-weight: 600;
   line-height: 1.2;
   text-align: start;

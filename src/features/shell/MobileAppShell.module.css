@@ -23,13 +23,13 @@
   padding-inline: 1rem;
   background: var(--color-header);
   color: var(--color-on-header);
-  border-block-end: 1px solid #fff;
+  border-block-end: 1px solid rgb(255 255 255 / 14%);
 }
 
 .screenTitle {
   min-inline-size: 0;
   margin: 0;
-  font-size: clamp(1.15rem, 5vw, 1.35rem);
+  font-size: var(--font-page);
   font-weight: 600;
   line-height: 1.2;
   overflow-wrap: anywhere;
@@ -114,8 +114,8 @@
 
 .appIcon {
   flex: 0 0 auto;
-  inline-size: 2.25rem;
-  block-size: 2.25rem;
+  inline-size: 2rem;
+  block-size: 2rem;
   object-fit: contain;
 }
 
@@ -160,7 +160,7 @@
   position: relative;
   z-index: 1;
   background: var(--color-surface);
-  border-block-start: 1px solid var(--color-border-strong);
+  border-block-start: 1px solid var(--color-border);
 }
 
 .actionDock {
@@ -262,7 +262,7 @@
 }
 
 .navigationButton:hover {
-  border-color: var(--color-border);
+  border-color: transparent;
   color: var(--color-text);
 }
 
@@ -323,7 +323,7 @@
     min-block-size: 0;
     overflow-y: auto;
     padding: 1rem 0.75rem;
-    border-inline-end: 1px solid var(--color-border-strong);
+    border-inline-end: 1px solid var(--color-border);
     background: var(--color-surface);
   }
 
@@ -350,12 +350,12 @@
 
   .navigationIcon {
     flex: 0 0 2rem;
-    inline-size: 2rem;
+    inline-size: 3rem;
     min-block-size: 2rem;
   }
 
   .navigationButton[data-active='true'] {
-    background: var(--color-surface-subtle);
+    background: transparent;
   }
 
   .actionDock {

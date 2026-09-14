@@ -59,6 +59,8 @@ export function JournalView({
           <label className={styles['filter']}>
             <input
               type="checkbox"
+              role="switch"
+              data-switch
               checked={allDays}
               onChange={(event) => {
                 setAllDays(event.target.checked);
@@ -67,7 +69,15 @@ export function JournalView({
             />
             {t(($) => $.mobile.journal.allDays)}
           </label>
-          {logs.size === 0 ? <p>{t(($) => $.mobile.journal.empty)}</p> : null}
+          {logs.size === 0 ? (
+            <div className={styles['emptyState']}>
+              <svg aria-hidden="true" viewBox="0 0 80 80">
+                <rect x="19" y="12" width="45" height="56" rx="10" />
+                <path d="M29 29h23M29 40h18M29 51h12M15 25h8M15 40h8M15 55h8" />
+              </svg>
+              <p>{t(($) => $.mobile.journal.empty)}</p>
+            </div>
+          ) : null}
           <div className={styles['entries']}>
             {dates.map((date, index) => {
               const log = logs.get(date);
@@ -122,6 +132,11 @@ export function JournalView({
                         ) : null}
                       </span>
                       <span className={styles['record']} id={`${id}-${date}`}>
+                        {note ? (
+                          <span className={styles['note']}>
+                            {fullNote || note.length <= 180 ? note : `${note.slice(0, 180)}…`}
+                          </span>
+                        ) : null}
                         <span className={styles['observations']}>
                           {flow && flow !== 'spotting' ? (
                             <span className={styles['flow']}>
@@ -140,12 +155,17 @@ export function JournalView({
                             ),
                           )}
                         </span>
-                        {note ? (
-                          <span className={styles['note']}>
-                            {fullNote || note.length <= 180 ? note : `${note.slice(0, 180)}…`}
-                          </span>
-                        ) : null}
-                        <span className={styles['action']}>{log ? label : `+ ${label}`}</span>
+                        {log ? (
+                          <svg
+                            className={styles['editIcon']}
+                            aria-hidden="true"
+                            viewBox="0 0 24 24"
+                          >
+                            <path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15v5Z" />
+                          </svg>
+                        ) : (
+                          <span className={styles['action']}>{`+ ${label}`}</span>
+                        )}
                       </span>
                     </button>
                     {note.length > 180 ? (

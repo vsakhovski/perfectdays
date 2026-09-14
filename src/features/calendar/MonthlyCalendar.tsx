@@ -232,7 +232,9 @@ export function CalendarLegend({
 
   return (
     <section className={styles['legend']} aria-labelledby={titleId}>
-      <h3 id={titleId}>{copy.legendTitle}</h3>
+      <h3 id={titleId} className={styles['visuallyHidden']}>
+        {copy.legendTitle}
+      </h3>
       <ul className={styles['essentialLegend']} role="list">
         {backgroundMarkers.map((marker) => (
           <li key={marker}>

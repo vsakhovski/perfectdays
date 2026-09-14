@@ -449,7 +449,8 @@ export const en = {
       entries: 'Daily entries',
       periods: 'Periods',
       allDays: 'All days',
-      empty: 'Your daily entries will appear here. Add a note or record how you feel to begin.',
+      empty:
+        'A little space for how today felt. Start with a note, or simply record how you’re feeling.',
       today: 'Today',
       showMore: 'Show more',
       showLess: 'Show less',

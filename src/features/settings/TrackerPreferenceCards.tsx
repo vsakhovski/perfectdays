@@ -106,6 +106,8 @@ export function TrackerPreferenceCards({ payload }: { readonly payload: VaultPay
         <p>{t(($) => $.mobile.settings.prePeriod.description)}</p>
         <label className={styles['toggle']}>
           <input
+            role="switch"
+            data-switch
             checked={orangeEnabled}
             disabled={busyArea !== undefined}
             onChange={(event) => {

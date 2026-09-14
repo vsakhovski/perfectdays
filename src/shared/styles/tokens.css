@@ -7,9 +7,9 @@
   --color-brand-teal-light: #29a6a2;
   --color-header: #087b80;
   --color-on-header: #ffffff;
-  --color-background: #f8fbfa;
+  --color-background: #f5f7f6;
   --color-surface: #ffffff;
-  --color-surface-subtle: #edf7f6;
+  --color-surface-subtle: #eef4f2;
   --color-text: #173638;
   --color-text-muted: #52696a;
   --color-border: #c9dcdb;
@@ -24,6 +24,11 @@
   --color-marker-orange: #9a5b00;
   --color-marker-green: #35765a;
   --shadow-soft: 0 1rem 3rem rgb(8 68 72 / 10%);
+  --font-page: 1.5rem;
+  --font-section: 1.125rem;
+  --font-body: 1rem;
+  --font-caption: 0.875rem;
+  --space-section: 1.5rem;
   --radius-small: 0.75rem;
   --radius-large: 1.5rem;
   --dialog-padding: 1rem;

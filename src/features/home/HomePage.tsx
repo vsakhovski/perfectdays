@@ -86,18 +86,20 @@ function PrivacyDestination({
 
   return (
     <div className={styles['screenStack']}>
-      <PinSecurityPanel
-        lockLabel={t(($) => $.mobile.shell.actions.lock)}
-        {...(onLock ? { onLock } : {})}
-        onSetupRequestHandled={onPinSetupRequestHandled}
-        setupRequest={pinSetupRequest}
-      />
-      <section className={styles['informationCard']}>
-        <h2>{t(($) => $.mobile.privacy.storage.title)}</h2>
-        <p>{t(($) => $.mobile.privacy.storage.description)}</p>
-        <p>{t(($) => $.mobile.privacy.storage.downloads)}</p>
-        <EraseDataControl />
-      </section>
+      <div className={styles['settingsColumn']}>
+        <PinSecurityPanel
+          lockLabel={t(($) => $.mobile.shell.actions.lock)}
+          {...(onLock ? { onLock } : {})}
+          onSetupRequestHandled={onPinSetupRequestHandled}
+          setupRequest={pinSetupRequest}
+        />
+        <section className={styles['informationCard']}>
+          <h2>{t(($) => $.mobile.privacy.storage.title)}</h2>
+          <p>{t(($) => $.mobile.privacy.storage.description)}</p>
+          <p>{t(($) => $.mobile.privacy.storage.downloads)}</p>
+          <EraseDataControl />
+        </section>
+      </div>
       <BackupAndRestoreSettings onEnablePin={onRequestPinSetup} />
     </div>
   );
@@ -108,20 +110,24 @@ function SettingsDestination({ payload }: { readonly payload: VaultPayload }) {
 
   return (
     <div className={styles['screenStack']}>
-      <section className={styles['settingsCard']}>
-        <h2>{t(($) => $.mobile.settings.cards.theme)}</h2>
-        <ThemeControl compact />
-      </section>
-      <section className={styles['settingsCard']}>
-        <h2>{t(($) => $.mobile.settings.cards.language)}</h2>
-        <LanguageControl compact hideLabel />
-      </section>
-      <section className={styles['settingsCard']}>
-        <h2>{t(($) => $.mobile.settings.cards.weekStart)}</h2>
-        <WeekStartControl hideLabel payload={payload} />
-      </section>
-      <TrackerPreferenceCards payload={payload} />
-      <section className={styles['informationCard']}>
+      <div className={styles['preferenceGroup']}>
+        <section className={styles['settingsCard']}>
+          <h2>{t(($) => $.mobile.settings.cards.theme)}</h2>
+          <ThemeControl compact />
+        </section>
+        <section className={styles['settingsCard']}>
+          <h2>{t(($) => $.mobile.settings.cards.language)}</h2>
+          <LanguageControl compact hideLabel />
+        </section>
+        <section className={styles['settingsCard']}>
+          <h2>{t(($) => $.mobile.settings.cards.weekStart)}</h2>
+          <WeekStartControl hideLabel payload={payload} />
+        </section>
+      </div>
+      <div className={styles['settingsColumn']}>
+        <TrackerPreferenceCards payload={payload} />
+      </div>
+      <section className={[styles['informationCard'], styles['aboutCard']].join(' ')}>
         <h2>{t(($) => $.mobile.settings.about.title)}</h2>
         <p>{t(($) => $.mobile.settings.about.version, { version: __APP_VERSION__ })}</p>
         <p>{t(($) => $.mobile.settings.about.description)}</p>

@@ -95,7 +95,7 @@ test.describe('English application shell', () => {
     const editor = page.getByRole('dialog', { name: 'Edit today’s entry' });
     await expect(editor.getByLabel('Private note')).toHaveValue('A peaceful day in my journal.');
     await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await page.getByRole('checkbox', { name: 'All days' }).check();
+    await page.getByRole('switch', { name: 'All days' }).check();
     await expect(page.locator('article')).toHaveCount(30);
     await page.getByRole('button', { name: 'Load older entries' }).click();
     await expect(page.locator('article')).toHaveCount(60);
@@ -147,8 +147,8 @@ test.describe('English application shell', () => {
       expect(historyCalendar.x + historyCalendar.width).toBeLessThanOrEqual(historyBox.x);
     }
     for (const [destination, first, second] of [
-      ['Settings', 'Theme', 'Language'],
-      ['Privacy', 'PIN protection', 'Journal data'],
+      ['Settings', 'Theme', 'Pre-period window'],
+      ['Privacy', 'PIN protection', 'Back up or restore'],
     ] as const) {
       await openRootDestination(page, destination);
       const firstCard = page

@@ -541,6 +541,29 @@ describe('App', () => {
     expect(persistentCheckInTodayButton()).toBeVisible();
   }, 10_000);
 
+  it('automatically saves the pre-period switch and restores its value on reopening Settings', async () => {
+    const user = userEvent.setup();
+    const { vaultController } = await renderApp({ onboardingCompleted: true });
+    await openRootDestination(user, 'Settings');
+    const toggle = screen.getByRole('switch', { name: 'Show pre-period window in calendar' });
+    expect(toggle).toBeChecked();
+    await user.click(toggle);
+    expect(screen.queryByRole('spinbutton', { name: 'Number of pre-period days' })).toBeNull();
+    await waitFor(() => {
+      expect(vaultController.getSnapshot().payload?.settings.orangeEnabled).toBe(false);
+    });
+    await openRootDestination(user, 'Calendar');
+    await openRootDestination(user, 'Settings');
+    const restored = screen.getByRole('switch', { name: 'Show pre-period window in calendar' });
+    expect(restored).not.toBeChecked();
+    restored.focus();
+    await user.keyboard(' ');
+    expect(screen.getByRole('spinbutton', { name: 'Number of pre-period days' })).toBeVisible();
+    await waitFor(() => {
+      expect(vaultController.getSnapshot().payload?.settings.orangeEnabled).toBe(true);
+    });
+  });
+
   it('navigates main screens with browser Back and Forward and stays at the app boundary', async () => {
     const user = userEvent.setup();
     await renderApp({ onboardingCompleted: true });
