@@ -30,6 +30,7 @@ function OnboardingHome({ payload }: { readonly payload: VaultPayload }) {
 }
 
 function CalendarDestination({
+  checkInIntent,
   checkInReturnFocusElement,
   checkInRequest,
   checkInRequestDate,
@@ -42,6 +43,7 @@ function CalendarDestination({
   onViewingCurrentMonthChange,
   rememberedDetailsOpen,
 }: {
+  readonly checkInIntent: 'note' | 'period';
   readonly checkInReturnFocusElement: HTMLButtonElement | null;
   readonly checkInRequest: number;
   readonly checkInRequestDate: LocalDate;
@@ -56,6 +58,7 @@ function CalendarDestination({
 }) {
   return (
     <TrackerDashboard
+      checkInIntent={checkInIntent}
       checkInReturnFocusElement={checkInReturnFocusElement}
       checkInRequest={checkInRequest}
       checkInRequestDate={checkInRequestDate}
@@ -161,7 +164,7 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   const [checkInReturnFocusElement, setCheckInReturnFocusElement] =
     useState<HTMLButtonElement | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [checkInDetailsOpen, setCheckInDetailsOpen] = useState<boolean>(true);
+  const [checkInDetailsOpen, setCheckInDetailsOpen] = useState<boolean>(false);
   const [goTodayRequest, setGoTodayRequest] = useState<number>();
   const goTodayRequestCounterRef = useRef(0);
   const [calendarShowsCurrentMonth, setCalendarShowsCurrentMonth] = useState(true);
@@ -169,6 +172,7 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   const pinSetupRequestCounterRef = useRef(0);
   const today = journalEnvironment.today();
   const [calendarCheckInDate, setCalendarCheckInDate] = useState<LocalDate>(today);
+  const [checkInIntent, setCheckInIntent] = useState<'note' | 'period'>('note');
   const [journalEntryDate, setJournalEntryDate] = useState<LocalDate>(today);
   const hasTodayCheckIn = payload.logs.some((log) => log.date === today);
   const selectedDateHasCheckIn = payload.logs.some((log) => log.date === calendarCheckInDate);
@@ -176,6 +180,34 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
     day: 'numeric',
     month: 'short',
   });
+  const periodForDate = payload.episodes.find(
+    (episode) =>
+      episode.startDate <= calendarCheckInDate &&
+      (episode.endDate === undefined || episode.endDate >= calendarCheckInDate),
+  );
+  const canEndSelectedPeriod =
+    periodForDate !== undefined &&
+    periodForDate.startDate < calendarCheckInDate &&
+    periodForDate.endDate === undefined &&
+    !payload.logs.some(
+      (log) => log.episodeId === periodForDate.id && log.date > calendarCheckInDate,
+    );
+  const periodActionLabel = t(($) =>
+    periodForDate === undefined
+      ? $.mobile.shell.actions.startPeriod
+      : canEndSelectedPeriod
+        ? $.mobile.shell.actions.endPeriod
+        : $.mobile.shell.actions.viewPeriod,
+  );
+  const noteActionLabel = t(($) =>
+    payload.logs.some((log) => log.date === calendarCheckInDate && Boolean(log.note))
+      ? $.mobile.shell.actions.editNote
+      : $.mobile.shell.actions.writeNote,
+  );
+  const forSelectedDate = (label: string) =>
+    calendarCheckInDate === today
+      ? label
+      : t(($) => $.mobile.shell.actions.forDate, { action: label, date: selectedDateLabel });
   const checkInActionLabel =
     destination === 'history' || calendarCheckInDate === today
       ? hasTodayCheckIn
@@ -220,6 +252,7 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   const content =
     destination === 'calendar' ? (
       <CalendarDestination
+        checkInIntent={checkInIntent}
         checkInReturnFocusElement={checkInReturnFocusElement}
         checkInRequest={checkInRequest ?? 0}
         checkInRequestDate={calendarCheckInDate}
@@ -264,7 +297,6 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
       </>
     ) : destination === 'privacy' ? (
       <PrivacyDestination
-        {...(snapshot.pinEnabled ? { onLock: lock } : {})}
         onPinSetupRequestHandled={(request) => {
           setPinSetupRequest((current) => (current === request ? undefined : current));
         }}
@@ -281,13 +313,30 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   return (
     <MobileAppShell
       activeDestination={destination}
-      checkInActionLabel={checkInActionLabel}
+      checkInActionLabel={
+        destination === 'calendar' ? forSelectedDate(noteActionLabel) : checkInActionLabel
+      }
+      {...(destination === 'calendar' && periodForDate?.startDate !== calendarCheckInDate
+        ? {
+            periodAction: {
+              label: forSelectedDate(periodActionLabel),
+              onActivate: (trigger: HTMLButtonElement) => {
+                setCheckInIntent('period');
+                setCheckInReturnFocusElement(trigger);
+                checkInRequestCounterRef.current += 1;
+                setCheckInRequest(checkInRequestCounterRef.current);
+              },
+            },
+          }
+        : {})}
       copy={copy}
+      {...(destination === 'privacy' && snapshot.pinEnabled ? { onLock: lock } : {})}
       hasTodayCheckIn={hasTodayCheckIn}
       hideBottomChrome={editorOpen}
       {...(destination === 'calendar'
         ? {
             headerAction: {
+              icon: 'today' as const,
               disabled: calendarShowsCurrentMonth && calendarCheckInDate === today,
               label: t(($) => $.mobile.calendar.navigation.goToToday),
               onActivate: () => {
@@ -298,6 +347,7 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
           }
         : {})}
       onCheckIn={(trigger) => {
+        setCheckInIntent('note');
         setCheckInReturnFocusElement(trigger);
         if (destination === 'history') setJournalEntryDate(today);
         checkInRequestCounterRef.current += 1;

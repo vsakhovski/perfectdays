@@ -162,7 +162,20 @@ function MarkerIcon({ marker }: { readonly marker: LegendMarker }) {
         </svg>
       );
     case 'green':
-      return <span aria-hidden="true">{'✓'}</span>;
+      return (
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+        >
+          <circle cx="10" cy="10" r="8" />
+          <path d="M6 11.5c1.5 3 6.5 3 8 0" strokeLinecap="round" />
+          <circle cx="7" cy="7.5" r="0.75" fill="currentColor" stroke="none" />
+          <circle cx="13" cy="7.5" r="0.75" fill="currentColor" stroke="none" />
+        </svg>
+      );
     case 'spotting':
       return <span aria-hidden="true">{'•'}</span>;
     case 'neutral':
@@ -761,18 +774,6 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
   return (
     <section className={styles['calendar']} aria-label={copy.calendarLabel} ref={calendarRef}>
       <div
-        aria-hidden="true"
-        className={styles['weekdayHeader']}
-        data-testid="calendar-weekday-header"
-      >
-        {weekdays.map((weekday) => (
-          <abbr key={weekday.key} title={weekday.fullLabel}>
-            {weekday.shortLabel}
-          </abbr>
-        ))}
-      </div>
-
-      <div
         aria-label={copy.calendarLabel}
         className={styles['monthScroller']}
         data-testid="calendar-month-scroller"
@@ -799,6 +800,17 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
                     {month.label}
                   </h2>
                 </div>
+              </div>
+              <div
+                className={styles['weekdayHeader']}
+                data-testid="calendar-weekday-header"
+                role="row"
+              >
+                {weekdays.map((weekday) => (
+                  <div key={weekday.key} role="columnheader" aria-label={weekday.fullLabel}>
+                    <abbr title={weekday.fullLabel}>{weekday.shortLabel}</abbr>
+                  </div>
+                ))}
               </div>
               {groupIntoWeeks(month.days)
                 .filter((week) => week.some((day) => startOfMonth(day.date) === month.month))

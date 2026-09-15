@@ -336,17 +336,23 @@ export const de = {
       quickActionsTitle: 'Periode',
       boundaryControls: {
         explanation:
-          'Trage Beginn und Ende deiner Periode ein. Tägliche Angaben zur Blutungsstärke sind optional.',
+          'Blutungsstärke und Befinden sind optional. Du musst sie nicht jeden Tag eintragen.',
         start: 'Periode hat an diesem Tag begonnen',
         startToday: 'Periode hat heute begonnen',
         flowLabel: 'Blutungsstärke (optional)',
         end: 'Periode ist beendet',
         ongoing: 'Periode läuft · Tag {{count}}',
         endTitle: 'Wann war der letzte Tag mit Blutung?',
+        endYesterday: 'Gestern war der letzte Tag mit Blutung. Heute zählt nicht mehr zur Periode.',
+        endToday:
+          'Heute hatte ich noch eine Blutung, aber sie ist jetzt vorbei. Heute zählt zur Periode.',
+        yesterday: 'Gestern',
+        today: 'Heute',
+        resultRange: 'Periode: {{range}} (einschließlich beider Tage).',
         endBefore:
           '{{date}} — keine Blutung am Check-in-Tag. Der Check-in-Tag zählt nicht zur Periode.',
         endOnDay: '{{date}} — Blutung endete am Check-in-Tag. Dieser Tag zählt zur Periode.',
-        confirm: 'Dieses Enddatum übernehmen',
+        confirm: 'Periode beenden',
       },
       periodActions: {
         start: {
@@ -484,6 +490,12 @@ export const de = {
         settings: 'Einstellungen',
       },
       actions: {
+        startPeriod: 'Meine Periode hat begonnen',
+        endPeriod: 'Meine Periode ist vorbei',
+        viewPeriod: 'Periode ansehen',
+        editNote: 'Notiz bearbeiten',
+        forDate: '{{action}} · {{date}}',
+        writeNote: 'Notiz schreiben',
         checkInToday: 'Heutigen Eintrag hinzufügen',
         editTodayCheckIn: 'Heutigen Eintrag bearbeiten',
         checkInFor: 'Eintrag für {{date}} hinzufügen',
@@ -594,8 +606,8 @@ export const de = {
       dayTitle: 'Eintrag für diesen Tag hinzufügen',
       editDayTitle: 'Eintrag für diesen Tag bearbeiten',
       optional: {
-        show: 'Notiz oder Details hinzufügen (optional)',
-        hide: 'Notiz und Details ausblenden',
+        show: 'Wie hast du dich gefühlt? (optional)',
+        hide: 'Gefühle ausblenden',
       },
       guidance: {
         chooseObservation: 'Wähle vor dem Speichern mindestens eine Beobachtung aus.',

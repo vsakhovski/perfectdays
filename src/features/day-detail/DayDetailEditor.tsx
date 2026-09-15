@@ -71,7 +71,9 @@ export interface DayDetailCopy {
 }
 
 export interface DayDetailEditorProps {
+  readonly autoSave?: boolean;
   readonly periodControls?: {
+    readonly ongoingTitle?: string;
     readonly explanation: string;
     readonly start: string;
     readonly end: string;
@@ -82,6 +84,8 @@ export interface DayDetailEditorProps {
     readonly endTitle: string;
     readonly endBefore: string;
     readonly endOnDay: string;
+    readonly endBeforeRange?: string;
+    readonly endOnDayRange?: string;
     readonly confirm: string;
   };
   readonly busy?: boolean;
@@ -120,6 +124,7 @@ export interface DayDetailEditorProps {
   readonly saveDisabled?: boolean;
   readonly saveDisabledReason?: string;
   readonly periodActions: readonly PeriodActionState[];
+  readonly initialFocus?: 'note' | 'period';
   readonly rememberedDetailsOpen?: boolean;
   readonly returnFocusElement?: HTMLElement | null;
   readonly statusMessage?: string;
@@ -376,6 +381,7 @@ export function DayDetailEditor({
   errorMessage,
   onChange,
   onClose,
+  autoSave = false,
   onDelete,
   onDetailsOpenChange,
   onPeriodAction,
@@ -391,11 +397,15 @@ export function DayDetailEditor({
   saveDisabledReason,
   periodActions,
   periodControls,
+  initialFocus,
   rememberedDetailsOpen,
   returnFocusElement,
   statusMessage,
   value,
 }: DayDetailEditorProps) {
+  const noteRef = useRef<HTMLTextAreaElement>(null);
+  const periodRef = useRef<HTMLElement>(null);
+  const initialFocusRef = useRef(initialFocus);
   const titleId = useId();
   const dateId = useId();
   const saveDisabledReasonId = useId();
@@ -412,15 +422,28 @@ export function DayDetailEditor({
   const initialReturnFocusElementRef = useRef(returnFocusElement);
   const [confirmingPeriodRemoval, setConfirmingPeriodRemoval] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [choosingEnd, setChoosingEnd] = useState(false);
-  const [endChoice, setEndChoice] = useState<'end' | 'end-before'>('end-before');
+  const [directPeriodEnd] = useState(initialFocus === 'period' && periodControls?.canEnd === true);
+  const [directPeriodStart] = useState(
+    initialFocus === 'period' && periodControls?.canStart === true,
+  );
+  const directStartRequested = useRef(false);
+  const hideEntry = directPeriodEnd || (directPeriodStart && errorMessage === undefined);
+  useLayoutEffect(() => {
+    if (!directPeriodStart || directStartRequested.current) return;
+    directStartRequested.current = true;
+    onSave({ ...value, periodTransition: 'start' }, date);
+  }, [directPeriodStart, onSave, value, date]);
+  const [choosingEnd, setChoosingEnd] = useState(directPeriodEnd);
+  const [endChoice, setEndChoice] = useState<'end' | 'end-before'>(
+    periodControls?.canEndBefore === false ? 'end' : 'end-before',
+  );
   const endButtonRef = useRef<HTMLButtonElement>(null);
   const endConfirmRef = useRef<HTMLButtonElement>(null);
   const flowBeforeEndingRef = useRef<DayDetailValue['flow']>(undefined);
   useLayoutEffect(() => {
     if (choosingEnd) endConfirmRef.current?.focus();
   }, [choosingEnd]);
-  const [detailsOpen, setDetailsOpen] = useState(() => rememberedDetailsOpen ?? true);
+  const [detailsOpen, setDetailsOpen] = useState(() => rememberedDetailsOpen ?? false);
   const [emptySaveAttempted, setEmptySaveAttempted] = useState(false);
   const hasObservation =
     value.periodTransition !== undefined ||
@@ -437,7 +460,10 @@ export function DayDetailEditor({
     returnFocusRef.current =
       initialReturnFocusElementRef.current ??
       (document.activeElement instanceof HTMLElement ? document.activeElement : null);
-    dialogRef.current?.focus();
+    if (initialFocusRef.current === 'note') noteRef.current?.focus();
+    else if (initialFocusRef.current === 'period')
+      periodRef.current?.focus({ preventScroll: true });
+    else dialogRef.current?.focus();
 
     return () => {
       const returnTarget = returnFocusRef.current;
@@ -447,7 +473,7 @@ export function DayDetailEditor({
           returnTarget.closest('[hidden]') === null &&
           !returnTarget.matches(':disabled')
         ) {
-          returnTarget.focus();
+          returnTarget.focus({ preventScroll: true });
         }
       });
     };
@@ -538,14 +564,15 @@ export function DayDetailEditor({
       <div
         aria-describedby={dateId}
         aria-labelledby={titleId}
-        aria-modal="true"
+        aria-modal={hideEntry ? undefined : true}
         className={styles['dialog']}
-        onKeyDown={handleDialogKeyDown}
+        style={hideEntry ? { display: 'contents' } : undefined}
+        onKeyDown={hideEntry ? undefined : handleDialogKeyDown}
         ref={dialogRef}
-        role="dialog"
+        role={hideEntry ? undefined : 'dialog'}
         tabIndex={-1}
       >
-        <header className={styles['header']}>
+        <header className={styles['header']} style={hideEntry ? { display: 'none' } : undefined}>
           <div>
             <h2 id={titleId}>{copy.title}</h2>
             <p id={dateId}>{dateLabel}</p>
@@ -561,12 +588,18 @@ export function DayDetailEditor({
           </button>
         </header>
 
-        <form className={styles['form']} onSubmit={submit} ref={formRef}>
+        <form
+          className={styles['form']}
+          onSubmit={submit}
+          ref={formRef}
+          style={hideEntry ? { display: 'none' } : undefined}
+        >
           {periodControls ? (
-            <section className={styles['quickActions']}>
-              <h3>{copy.quickActionsTitle}</h3>
-              <p>{periodControls.explanation}</p>
-              {!periodControls.canStart && copy.periodDayDescription ? (
+            <section className={styles['quickActions']} ref={periodRef} tabIndex={-1}>
+              <h3 aria-live="polite">{periodControls.ongoingTitle ?? copy.quickActionsTitle}</h3>
+              {!periodControls.ongoingTitle &&
+              !periodControls.canStart &&
+              copy.periodDayDescription ? (
                 <p aria-live="polite">{copy.periodDayDescription}</p>
               ) : null}
               {periodControls.canStart ? (
@@ -639,43 +672,60 @@ export function DayDetailEditor({
               ) : null}
             </section>
           ) : null}
-          <fieldset className={styles['fieldset']} disabled={busy}>
-            <legend>
-              {copy.flowLegend}
-              {value.flow === undefined || value.flow === 'none'
-                ? null
-                : ` (${copy.flowOptions[value.flow]})`}
-            </legend>
-            <div className={styles['flowOptions']}>
-              {flowValues.map((flow) => (
-                <label key={flow}>
-                  <input
-                    checked={value.flow === flow}
-                    disabled={
-                      disabledFlows.includes(flow) ||
-                      value.periodTransition === 'end-before' ||
-                      (periodControls !== undefined &&
-                        !periodControls.hasPeriod &&
-                        value.periodTransition !== 'start')
-                    }
-                    name="flow"
-                    onChange={() => {
-                      const next = { ...value };
-                      if (next.flow === flow) delete next.flow;
-                      else next.flow = flow;
-                      onChange(next);
-                    }}
-                    type="checkbox"
-                    value={flow}
-                  />
-                  <span title={copy.flowOptions[flow]}>
-                    <FlowIcon flow={flow} />
-                    <span className={styles['flowLabel']}>{copy.flowOptions[flow]}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <label className={styles['noteField']}>
+            <span>{copy.noteLabel}</span>
+            <textarea
+              ref={noteRef}
+              aria-label={copy.noteLabel}
+              disabled={busy}
+              onChange={(event) => {
+                onChange({ ...value, note: event.currentTarget.value });
+              }}
+              rows={4}
+              value={value.note ?? ''}
+            />
+          </label>
+          {periodControls === undefined ||
+          periodControls.hasPeriod ||
+          value.periodTransition === 'start' ? (
+            <fieldset className={styles['fieldset']} disabled={busy}>
+              <legend>
+                {copy.flowLegend}
+                {value.flow === undefined || value.flow === 'none'
+                  ? null
+                  : ` (${copy.flowOptions[value.flow]})`}
+              </legend>
+              <div className={styles['flowOptions']}>
+                {flowValues.map((flow) => (
+                  <label key={flow}>
+                    <input
+                      checked={value.flow === flow}
+                      disabled={
+                        disabledFlows.includes(flow) ||
+                        value.periodTransition === 'end-before' ||
+                        (periodControls !== undefined &&
+                          !periodControls.hasPeriod &&
+                          value.periodTransition !== 'start')
+                      }
+                      name="flow"
+                      onChange={() => {
+                        const next = { ...value };
+                        if (next.flow === flow) delete next.flow;
+                        else next.flow = flow;
+                        onChange(next);
+                      }}
+                      type="checkbox"
+                      value={flow}
+                    />
+                    <span title={copy.flowOptions[flow]}>
+                      <FlowIcon flow={flow} />
+                      <span className={styles['flowLabel']}>{copy.flowOptions[flow]}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
 
           {errorMessage ? (
             <p className={styles['error']} role="alert">
@@ -758,11 +808,9 @@ export function DayDetailEditor({
               className={styles['detailsToggle']}
               disabled={busy}
               onClick={() => {
-                setDetailsOpen((open) => {
-                  const nextOpen = !open;
-                  onDetailsOpenChange?.(nextOpen);
-                  return nextOpen;
-                });
+                const nextOpen = !detailsOpen;
+                setDetailsOpen(nextOpen);
+                onDetailsOpenChange?.(nextOpen);
               }}
               type="button"
             >
@@ -805,20 +853,6 @@ export function DayDetailEditor({
                     );
                   })}
                 </div>
-
-                <label className={styles['noteField']}>
-                  <span>{copy.noteLabel}</span>
-                  <span className={styles['fieldDescription']}>{copy.noteDescription}</span>
-                  <textarea
-                    aria-label={copy.noteLabel}
-                    disabled={busy}
-                    onChange={(event) => {
-                      onChange({ ...value, note: event.currentTarget.value });
-                    }}
-                    rows={4}
-                    value={value.note ?? ''}
-                  />
-                </label>
               </div>
             ) : null}
           </section>
@@ -832,23 +866,25 @@ export function DayDetailEditor({
             <div className={styles['scrollIndicatorAnchor']}>
               <ScrollIndicator scrollRef={formRef} />
             </div>
-            <button
-              aria-describedby={showSaveDisabledReason ? saveDisabledReasonId : undefined}
-              aria-disabled={saveDisabled}
-              className={styles['saveButton']}
-              disabled={busy}
-              ref={saveButtonRef}
-              type="submit"
-            >
-              {busy ? copy.saving : copy.save}
-            </button>
+            {!autoSave ? (
+              <button
+                aria-describedby={showSaveDisabledReason ? saveDisabledReasonId : undefined}
+                aria-disabled={saveDisabled}
+                className={styles['saveButton']}
+                disabled={busy}
+                ref={saveButtonRef}
+                type="submit"
+              >
+                {busy ? copy.saving : copy.save}
+              </button>
+            ) : null}
             <button
               className={styles['secondaryButton']}
               disabled={busy}
               onClick={onClose}
               type="button"
             >
-              {copy.cancel}
+              {autoSave ? copy.close : copy.cancel}
             </button>
           </div>
         </form>
@@ -862,6 +898,10 @@ export function DayDetailEditor({
             confirmRef={endConfirmRef}
             tone="primary"
             onCancel={() => {
+              if (directPeriodEnd) {
+                onClose();
+                return;
+              }
               setChoosingEnd(false);
               endButtonRef.current?.focus();
             }}
@@ -869,11 +909,16 @@ export function DayDetailEditor({
               const next = { ...value, periodTransition: endChoice };
               if (endChoice === 'end-before') next.flow = 'none';
               else if (next.flow === 'none') delete next.flow;
+              if (directPeriodEnd) {
+                onSave(next, date);
+                return;
+              }
               onChange(next);
               setChoosingEnd(false);
               endButtonRef.current?.focus();
             }}
           >
+            {errorMessage ? <p role="alert">{errorMessage}</p> : null}
             <div className={styles['endChoices']}>
               <label>
                 <input
@@ -900,6 +945,11 @@ export function DayDetailEditor({
                 {periodControls.endOnDay}
               </label>
             </div>
+            <p aria-live="polite">
+              {endChoice === 'end-before'
+                ? periodControls.endBeforeRange
+                : periodControls.endOnDayRange}
+            </p>
           </ConfirmationModal>
         ) : null}
         {confirmingPeriodRemoval ? (
@@ -948,6 +998,10 @@ export function DayDetailEditor({
             description={periodExtensionConfirmation.description}
             onCancel={() => {
               onCancelPeriodExtension();
+              if (directPeriodStart) {
+                onClose();
+                return;
+              }
               window.requestAnimationFrame(() => saveButtonRef.current?.focus());
             }}
             onConfirm={onConfirmPeriodExtension}
@@ -965,6 +1019,10 @@ export function DayDetailEditor({
             copy={periodEndSelection}
             onCancel={() => {
               onCancelPeriodEndSelection();
+              if (directPeriodStart) {
+                onClose();
+                return;
+              }
               window.requestAnimationFrame(() => saveButtonRef.current?.focus());
             }}
             onChange={onPeriodEndSelectionChange}

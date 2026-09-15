@@ -88,7 +88,6 @@
   grid-template-columns: repeat(7, minmax(0, 1fr));
   align-items: center;
   block-size: 2rem;
-  padding-inline-end: var(--calendar-scrollbar-width, 0);
   color: var(--color-text-muted);
   font-size: 0.78rem;
   font-weight: 500;
@@ -389,6 +388,10 @@
   color: var(--color-marker-red);
 }
 
+.marker-green svg {
+  fill: none;
+}
+
 .dayButton[data-recorded-red='true'] .marker-recordedRed {
   color: var(--color-background);
 }
@@ -408,9 +411,23 @@
 }
 
 .marker-green {
-  border-radius: 999px;
-  background: var(--color-marker-green);
-  color: var(--color-background);
+  background: transparent;
+  color: #000;
+}
+
+:global(:root[data-theme='dark']) .marker-green,
+.dayButton[data-recorded-red='true'] .marker-green,
+.dayButton[data-predicted-red='true'] .marker-green,
+.dayButton[data-orange='true'] .marker-green {
+  color: #fff;
+}
+
+@media (hover: hover) {
+  :global(:root[data-theme='light'])
+    .dayButton[data-actionable='true'][data-recorded-red='true']:hover:not(:disabled)
+    .marker-green {
+    color: #000;
+  }
 }
 
 .marker-spotting {

@@ -141,13 +141,15 @@ function renderCalendar(
 }
 
 describe('MonthlyCalendar', () => {
-  it('renders separate month blocks with weekdays outside the scroller', () => {
+  it('renders separate month blocks with weekday headings inside each month', () => {
     renderCalendar();
 
     const scroller = screen.getByTestId('calendar-month-scroller');
     expect(scroller).toHaveAttribute('role', 'grid');
-    expect(within(scroller).queryByText('Mon')).not.toBeInTheDocument();
-    expect(screen.getByText('Mon')).toBeVisible();
+    for (const month of within(scroller).getAllByRole('rowgroup')) {
+      expect(within(month).getAllByRole('columnheader')).toHaveLength(7);
+      expect(within(month).getByRole('columnheader', { name: 'Monday' })).toBeVisible();
+    }
     expect(within(scroller).queryByRole('table')).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /Full date 2026-05-01/u })).toHaveLength(1);
     expect(screen.getByRole('heading', { name: 'May 2026' })).toBeVisible();

@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useVault } from '../../app/vault/use-vault';
+import { PrivacyActionIcon } from '../../shared/ui/PrivacyActionIcon';
 import { VaultUnlockError } from '../../application/vault/vault-manager';
 import { PinKeypad } from '../vault/PinKeypad';
 import { isSixDigitPin } from '../vault/pin';
@@ -68,21 +69,25 @@ function FormButtons({
   submitPending: string;
 }) {
   return (
-    <div className={formStyles['buttonRow']}>
+    <div className={styles['pinActions']}>
       <button
-        className={destructive ? formStyles['dangerButton'] : formStyles['primaryButton']}
+        className={styles['pinActionButton']}
+        data-destructive={destructive}
+        data-primary={!destructive}
         disabled={pending || submitDisabled}
         type="submit"
       >
+        <PrivacyActionIcon kind={destructive ? 'delete' : 'lock'} />
         {pending ? submitPending : submit}
       </button>
       <button
-        className={formStyles['secondaryButton']}
+        className={styles['pinActionButton']}
         disabled={pending}
         formNoValidate
         onClick={onCancel}
         type="button"
       >
+        <PrivacyActionIcon kind="cancel" />
         {cancel}
       </button>
     </div>
@@ -704,13 +709,15 @@ export function EraseDataControl() {
         />
       ) : (
         <button
-          className={formStyles['dangerButton']}
+          className={styles['pinActionButton']}
+          data-destructive="true"
           onClick={() => {
             setConfirming(true);
           }}
           ref={triggerRef}
           type="button"
         >
+          <PrivacyActionIcon kind="delete" />
           {t(($) => $.vault.security.actions.eraseEverything)}
         </button>
       )}

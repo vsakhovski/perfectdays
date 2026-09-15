@@ -429,8 +429,14 @@ async function openRootDestination(
   if (destination === 'Journal') await user.click(screen.getByRole('button', { name: 'Periods' }));
 }
 
+function firstElement<T>(elements: readonly T[]): T {
+  const element = elements[0];
+  if (element === undefined) throw new Error('Expected at least one matching element');
+  return element;
+}
+
 function persistentCheckInTodayButton(): HTMLElement {
-  const buttons = screen.getAllByRole('button', { name: 'Add today’s entry' });
+  const buttons = screen.getAllByRole('button', { name: /^(Write a note|Add today’s entry)$/ });
   const button = buttons.at(-1);
   if (button === undefined) {
     throw new Error('Expected the persistent Add today’s entry action.');
@@ -512,7 +518,7 @@ describe('App', () => {
     const checkInTrigger = persistentCheckInTodayButton();
     await user.click(checkInTrigger);
     expect(screen.getByRole('dialog', { name: 'Add today’s entry' })).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(firstElement(screen.getAllByRole('button', { name: 'Close entry' })));
     expect(checkInTrigger).toHaveFocus();
 
     await openRootDestination(user, 'Privacy');
@@ -635,7 +641,7 @@ describe('App', () => {
     expect(screen.queryByRole('group', { name: 'Calendar month navigation' })).toBeNull();
     await user.click(screen.getByRole('button', { name: /Friday, August 7, 2026/u }));
     expect(goToToday).toBeEnabled();
-
+    await user.click(firstElement(screen.getAllByRole('button', { name: 'Close entry' })));
     await user.click(goToToday);
 
     expect(screen.getByRole('heading', { name: 'August 2026', level: 2 })).toBeVisible();
@@ -648,17 +654,18 @@ describe('App', () => {
     await renderApp({ onboardingCompleted: true });
 
     await user.click(persistentCheckInTodayButton());
-    expect(screen.getByRole('button', { name: 'Hide note and details' })).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Hide note and details' }));
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(screen.getByRole('button', { name: 'How did you feel? (optional)' }));
+    expect(screen.getByRole('button', { name: 'Hide feelings' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Hide feelings' }));
+    await user.click(firstElement(screen.getAllByRole('button', { name: 'Close entry' })));
 
     await user.click(persistentCheckInTodayButton());
-    expect(screen.getByRole('button', { name: 'Add note or details (optional)' })).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Add note or details (optional)' }));
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByRole('button', { name: 'How did you feel? (optional)' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'How did you feel? (optional)' }));
+    await user.click(firstElement(screen.getAllByRole('button', { name: 'Close entry' })));
 
     await user.click(persistentCheckInTodayButton());
-    expect(screen.getByRole('button', { name: 'Hide note and details' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Hide feelings' })).toBeVisible();
   }, 20_000);
 
   it('changes the first weekday from Settings and applies it to the calendar', async () => {
@@ -668,7 +675,8 @@ describe('App', () => {
       systemLanguages: ['en-US'],
     });
     const firstWeekday = () =>
-      screen.getByTestId('calendar-weekday-header').querySelector('abbr')?.textContent;
+      firstElement(screen.getAllByTestId('calendar-weekday-header')).querySelector('abbr')
+        ?.textContent;
 
     expect(firstWeekday()).toMatch(/^Sun/u);
     await openRootDestination(user, 'Settings');
@@ -705,19 +713,12 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
     await user.click(persistentCheckInTodayButton());
     const checkIn = within(screen.getByRole('dialog', { name: 'Add today’s entry' }));
-    expect(checkIn.getByRole('button', { name: 'Save and done' })).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    );
-    expect(screen.queryByText('Choose at least one observation before saving.')).toBeNull();
-    await user.click(checkIn.getByRole('button', { name: 'Save and done' }));
-    expect(screen.getByText('Choose at least one observation before saving.')).toBeVisible();
+    expect(checkIn.queryByRole('button', { name: 'Save and done' })).toBeNull();
     fireEvent.change(screen.getByLabelText('Private note'), {
       target: { value: 'No period today.' },
     });
-    expect(checkIn.getByRole('button', { name: 'Save and done' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: /Start period/i })).not.toBeInTheDocument();
-    await user.click(checkIn.getByRole('button', { name: 'Save and done' }));
+    await user.click(firstElement(checkIn.getAllByRole('button', { name: 'Close entry' })));
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'Add today’s entry' })).not.toBeInTheDocument();
     });
@@ -734,15 +735,16 @@ describe('App', () => {
       'data-flow',
     );
 
-    await user.click(screen.getByRole('button', { name: 'Edit today’s entry' }));
+    await user.click(screen.getByRole('button', { name: 'Edit note' }));
     const editor = within(screen.getByRole('dialog', { name: 'Edit today’s entry' }));
     await user.click(editor.getByRole('button', { name: 'Period started today' }));
     await user.click(editor.getByRole('checkbox', { name: 'Medium' }));
+    await user.click(editor.getByRole('button', { name: 'How did you feel? (optional)' }));
     await user.click(editor.getByRole('radio', { name: 'Confidence: 5 out of 5' }));
     fireEvent.change(screen.getByLabelText('Private note'), {
       target: { value: 'A synthetic test check-in.' },
     });
-    await user.click(editor.getByRole('button', { name: 'Start period and save' }));
+    await user.click(firstElement(editor.getAllByRole('button', { name: 'Close entry' })));
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'Edit today’s entry' })).not.toBeInTheDocument();
     });
@@ -768,6 +770,33 @@ describe('App', () => {
       }),
     ).toHaveAttribute('data-flow', 'medium');
   }, 10_000);
+
+  it('starts a period directly and hides end actions on its first day', async () => {
+    const user = userEvent.setup();
+    const { vaultController } = await renderApp({ onboardingCompleted: true });
+    await user.click(screen.getByRole('button', { name: 'My period started' }));
+    await waitFor(() => {
+      const snapshot = vaultController.getSnapshot();
+      expect(snapshot.phase === 'unlocked' && snapshot.payload.episodes).toEqual([
+        expect.objectContaining({ startDate: '2026-08-08' }),
+      ]);
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(screen.queryByRole('button', { name: 'My period ended' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Write a note' }));
+    expect(screen.queryByRole('button', { name: 'Period has ended' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Private note'), {
+      target: { value: 'Autosaved note' },
+    });
+    await waitFor(() => {
+      const snapshot = vaultController.getSnapshot();
+      expect(snapshot.phase === 'unlocked' && snapshot.payload.logs[0]?.note).toBe(
+        'Autosaved note',
+      );
+    });
+    expect(screen.getByRole('textbox', { name: 'Private note' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Save and done' })).toBeNull();
+  });
 
   it('can enable the optional PIN on the final onboarding screen', async () => {
     const user = userEvent.setup();
@@ -851,13 +880,9 @@ describe('App', () => {
     expect(screen.queryByRole('dialog', { name: 'Daily check-in' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Wednesday, July 15, 2026/i }));
-    fireEvent.click(screen.getByRole('button', { name: /^Add entry for Jul 15/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Period started on this day' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Medium' }));
-    expect(screen.getByRole('button', { name: 'Start period and save' })).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    );
+    expect(screen.queryByRole('button', { name: 'Start period and save' })).toBeNull();
     expect(
       screen.getByText(
         /This day is too far from the later recorded period to extend it\. Correct the dates in Periods history\./i,

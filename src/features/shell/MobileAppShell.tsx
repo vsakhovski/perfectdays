@@ -21,12 +21,13 @@ export interface MobileAppShellProps {
   readonly activeDestination: RootDestination;
   readonly children: ReactNode;
   readonly copy: MobileAppShellCopy;
+  readonly periodAction?: { label: string; onActivate: (trigger: HTMLButtonElement) => void };
   readonly checkInActionLabel?: string;
   readonly hasTodayCheckIn: boolean;
   readonly hideBottomChrome?: boolean;
   readonly headerAction?: {
     readonly disabled?: boolean;
-    readonly icon?: 'back' | 'close';
+    readonly icon?: 'back' | 'close' | 'today';
     readonly label: string;
     readonly onActivate: () => void;
     readonly placement?: 'default' | 'end' | 'start';
@@ -111,6 +112,7 @@ export function MobileAppShell({
   activeDestination,
   children,
   checkInActionLabel,
+  periodAction,
   copy,
   focusScreenTitle = false,
   hasTodayCheckIn,
@@ -181,6 +183,15 @@ export function MobileAppShell({
         <BackIcon />
       ) : headerAction.icon === 'close' ? (
         <CloseIcon />
+      ) : headerAction.icon === 'today' ? (
+        <>
+          <svg aria-hidden="true" className={styles['icon']} viewBox="0 0 24 24">
+            <rect x="3" y="5" width="18" height="16" rx="2" />
+            <path d="M7 3v4m10-4v4M3 10h18" />
+            <circle cx="12" cy="15" r="2" />
+          </svg>
+          <span>{headerAction.label}</span>
+        </>
       ) : (
         headerAction.label
       )}
@@ -213,7 +224,18 @@ export function MobileAppShell({
 
       <div className={styles['bottomChrome']} hidden={hideBottomChrome}>
         {showCheckInAction ? (
-          <div className={styles['actionDock']}>
+          <div className={styles['actionDock']} data-dual={Boolean(periodAction)}>
+            {periodAction ? (
+              <button
+                type="button"
+                className={styles['checkInButton']}
+                onClick={(event) => {
+                  periodAction.onActivate(event.currentTarget);
+                }}
+              >
+                {periodAction.label}
+              </button>
+            ) : null}
             <button
               className={styles['checkInButton']}
               onClick={(event) => {

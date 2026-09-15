@@ -10,6 +10,7 @@ import {
 import { MAX_BACKUP_JSON_LENGTH } from '../../application/backup/backup-json';
 import { decodeEncryptedVaultBackup } from '../../application/backup/encrypted-vault-backup-codec';
 import { PinKeypad } from '../vault/PinKeypad';
+import { PrivacyActionIcon } from '../../shared/ui/PrivacyActionIcon';
 import styles from './BackupAndRestorePanel.module.css';
 
 export type BackupOperation =
@@ -346,6 +347,7 @@ export function BackupAndRestorePanel({
               onClick={requestEncryptedBackup}
               type="button"
             >
+              <PrivacyActionIcon kind="download" />
               {busyOperation === 'encrypted-backup'
                 ? copy.encrypted.working
                 : copy.encrypted.action}
@@ -359,6 +361,7 @@ export function BackupAndRestorePanel({
                 onClick={enablePin}
                 type="button"
               >
+                <PrivacyActionIcon kind="lock" />
                 {busyOperation === 'enable-pin'
                   ? copy.encrypted.enablingPin
                   : copy.encrypted.enablePin}
@@ -463,6 +466,7 @@ export function BackupAndRestorePanel({
                       onClick={() => void exportPlaintext()}
                       type="button"
                     >
+                      <PrivacyActionIcon kind="download" />
                       {verifyingPlaintextPin
                         ? copy.plaintext.verifyingPin
                         : busyOperation === 'plaintext-export'
@@ -475,6 +479,7 @@ export function BackupAndRestorePanel({
                       onClick={closePlaintextWarning}
                       type="button"
                     >
+                      <PrivacyActionIcon kind="cancel" />
                       {copy.plaintext.cancel}
                     </button>
                   </div>
@@ -492,6 +497,7 @@ export function BackupAndRestorePanel({
               ref={plaintextTriggerRef}
               type="button"
             >
+              <PrivacyActionIcon kind="file" />
               {copy.plaintext.reviewWarning}
             </button>
           )}
@@ -549,7 +555,10 @@ export function BackupAndRestorePanel({
                     ref={restoreFileRef}
                     type="file"
                   />
-                  <span>{copy.restore.chooseFile}</span>
+                  <span>
+                    <PrivacyActionIcon kind="restore" />
+                    {copy.restore.chooseFile}
+                  </span>
                 </label>
                 <span aria-live="polite" className={styles['fileName']} id={fileDescriptionId}>
                   {selectedFile === undefined
@@ -610,6 +619,7 @@ export function BackupAndRestorePanel({
                             disabled={verifyingPin || backupPin.length !== 6}
                             type="submit"
                           >
+                            <PrivacyActionIcon kind="lock" />
                             {verifyingPin ? copy.restore.verifyingPin : copy.restore.verifyPin}
                           </button>
                           <button
@@ -618,6 +628,7 @@ export function BackupAndRestorePanel({
                             onClick={clearRestoreForm}
                             type="button"
                           >
+                            <PrivacyActionIcon kind="cancel" />
                             {copy.restore.clear}
                           </button>
                         </div>
@@ -655,6 +666,7 @@ export function BackupAndRestorePanel({
                             disabled={busy || !restoreConfirmed}
                             type="submit"
                           >
+                            <PrivacyActionIcon kind="restore" />
                             {busyOperation === 'encrypted-restore'
                               ? copy.restore.working
                               : copy.restore.action}
@@ -665,6 +677,7 @@ export function BackupAndRestorePanel({
                             onClick={clearRestoreForm}
                             type="button"
                           >
+                            <PrivacyActionIcon kind="cancel" />
                             {copy.restore.clear}
                           </button>
                         </div>

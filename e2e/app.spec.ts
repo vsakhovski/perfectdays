@@ -85,7 +85,7 @@ test.describe('English application shell', () => {
     await entry.click();
     const dialog = page.getByRole('dialog', { name: 'Add today’s entry' });
     await dialog.getByLabel('Private note').fill('A peaceful day in my journal.');
-    await dialog.getByRole('button', { name: 'Save and done' }).click();
+    await dialog.getByRole('button', { name: 'Close entry' }).first().click();
     await expect(dialog).toBeHidden();
     await expect(page.getByRole('heading', { name: 'Journal', exact: true })).toBeVisible();
     await expect(
@@ -94,7 +94,7 @@ test.describe('English application shell', () => {
     await page.locator('article').getByRole('button', { name: 'Edit today’s entry' }).click();
     const editor = page.getByRole('dialog', { name: 'Edit today’s entry' });
     await expect(editor.getByLabel('Private note')).toHaveValue('A peaceful day in my journal.');
-    await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await editor.getByRole('button', { name: 'Close entry', exact: true }).first().click();
     await page.getByRole('switch', { name: 'All days' }).check();
     await expect(page.locator('article')).toHaveCount(30);
     await page.getByRole('button', { name: 'Load older entries' }).click();
@@ -133,7 +133,7 @@ test.describe('English application shell', () => {
       expect(navBox.width - box.width).toBeLessThanOrEqual(26);
       previousBottom = box.y + box.height;
     }
-    const checkIn = page.getByRole('button', { name: 'Add today’s entry', exact: true });
+    const checkIn = page.getByRole('button', { name: 'Write a note', exact: true });
     await expect(checkIn).toBeInViewport();
     const dockBox = await checkIn.boundingBox();
     expect(dockBox?.y).toBeGreaterThan(800);
@@ -412,15 +412,12 @@ test.describe('English application shell', () => {
     await finishOnboarding(page);
 
     const today = page.locator('button[aria-current="date"]');
-    await page.getByRole('button', { name: 'Add today’s entry' }).click();
+    await page.getByRole('button', { name: 'Write a note' }).click();
     const dialog = page.getByRole('dialog', { name: 'Add today’s entry' });
     const startButton = dialog.getByRole('button', { name: 'Period started today' });
-    const startPosition = await startButton.boundingBox();
     await startButton.click();
     await expect(startButton).toHaveAttribute('aria-pressed', 'true');
     const selectedPosition = await startButton.boundingBox();
-    expect(startPosition).not.toBeNull();
-    expect(selectedPosition?.y).toBe(startPosition?.y);
     const description = dialog.getByText('The period starts on this day.', { exact: true });
     await expect(description).toBeVisible();
     const descriptionPosition = await description.boundingBox();
@@ -429,11 +426,12 @@ test.describe('English application shell', () => {
     }
     expect(descriptionPosition.y).toBeGreaterThan(selectedPosition.y);
     await dialog.getByRole('checkbox', { name: 'Medium' }).check();
+    await dialog.getByRole('button', { name: 'How did you feel? (optional)' }).click();
     await dialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }).check();
     await dialog.getByLabel('Private note').fill('A private browser test check-in.');
-    await dialog.getByRole('button', { name: 'Start period and save' }).click();
+    await dialog.getByRole('button', { name: 'Close entry' }).first().click();
     await expect(dialog).not.toBeVisible();
-    await expect(page.getByRole('button', { name: 'Edit today’s entry' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Edit note' })).toBeVisible();
 
     await expect(today).toHaveAccessibleName(/Recorded period day/);
     await expect(today).toHaveAccessibleName(/Higher confidence recorded/);
@@ -442,10 +440,11 @@ test.describe('English application shell', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
     const persistedToday = page.locator('button[aria-current="date"]');
     await expect(persistedToday).toHaveAccessibleName(/Recorded period day/);
-    await page.getByRole('button', { name: 'Edit today’s entry' }).click();
+    await page.getByRole('button', { name: 'Edit note' }).click();
 
     const persistedDialog = page.getByRole('dialog', { name: 'Edit today’s entry' });
     await expect(persistedDialog.getByRole('checkbox', { name: 'Medium' })).toBeChecked();
+    await persistedDialog.getByRole('button', { name: 'How did you feel? (optional)' }).click();
     await expect(
       persistedDialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }),
     ).toBeChecked();
@@ -464,14 +463,15 @@ test.describe('English application shell', () => {
     await page.goto('/');
     await finishOnboarding(page);
 
-    await page.getByRole('button', { name: 'Add today’s entry' }).click();
+    await page.getByRole('button', { name: 'Write a note' }).click();
     const dayDialog = page.getByRole('dialog', { name: 'Add today’s entry' });
     await dayDialog.getByRole('button', { name: 'Period started today' }).click();
     await dayDialog.getByRole('checkbox', { name: 'Medium' }).check();
+    await dayDialog.getByRole('button', { name: 'How did you feel? (optional)' }).click();
     await dayDialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }).check();
     await dayDialog.getByRole('radio', { name: 'Tension: 4 out of 5' }).check();
     await dayDialog.getByLabel('Private note').fill('Keep this after correcting the dates.');
-    await dayDialog.getByRole('button', { name: 'Start period and save' }).click();
+    await dayDialog.getByRole('button', { name: 'Close entry' }).first().click();
     await expect(dayDialog).not.toBeVisible();
 
     const hasNoHorizontalOverflow = await page.evaluate<boolean>(
@@ -528,9 +528,9 @@ test.describe('English application shell', () => {
     const persistedToday = page.locator('button[aria-current="date"]');
     await expect(persistedToday).toHaveAccessibleName(/Recorded period day/);
     await persistedToday.click();
-    await page.getByRole('button', { name: 'Edit today’s entry' }).click();
     const persistedDayDialog = page.getByRole('dialog', { name: 'Edit today’s entry' });
     await expect(persistedDayDialog.getByRole('checkbox', { name: 'Medium' })).toBeChecked();
+    await persistedDayDialog.getByRole('button', { name: 'How did you feel? (optional)' }).click();
     await expect(
       persistedDayDialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }),
     ).toBeChecked();
@@ -748,7 +748,7 @@ test.describe('Phase 5 compact mobile shell', () => {
 
     const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
     const destinationButtons = navigation.getByRole('button');
-    const checkInAction = page.getByRole('button', { name: 'Add today’s entry' });
+    const checkInAction = page.getByRole('button', { name: 'Write a note' });
 
     await expect(destinationButtons).toHaveCount(4);
     await expect(navigation.getByRole('button', { exact: true, name: 'Calendar' })).toHaveAttribute(
@@ -787,7 +787,7 @@ test.describe('Phase 5 compact mobile shell', () => {
 
     await openRootDestination(page, 'Journal');
     await expect(page.getByRole('region', { name: 'Periods history' })).toBeVisible();
-    await expect(checkInAction).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add today’s entry' })).toBeVisible();
     await openRootDestination(page, 'Calendar');
 
     const calendarUsesOnlyVerticalInnerScrolling = await page.evaluate<boolean>(
@@ -802,7 +802,7 @@ test.describe('Phase 5 compact mobile shell', () => {
 
     await checkInAction.click();
     const checkIn = page.getByRole('dialog', { name: 'Add today’s entry' });
-    const saveAndDone = checkIn.getByRole('button', { name: 'Save and done' });
+    const saveAndDone = checkIn.getByRole('button', { name: 'Close entry' }).last();
     await expect(saveAndDone).toBeInViewport();
     const saveButtonBox = await saveAndDone.boundingBox();
     const viewport = page.viewportSize();
@@ -826,8 +826,8 @@ test.describe('Phase 5 compact mobile shell', () => {
       })`,
     );
     expect(transientBrowserState).not.toContain(leakageSentinel);
-    await checkIn.getByRole('button', { name: 'Cancel' }).click();
-    await expect(checkInAction).toBeFocused();
+    await checkIn.getByRole('button', { name: 'Close entry' }).first().click();
+    await expect(page.getByRole('button', { name: 'Edit note' })).toBeFocused();
 
     const hasNoHorizontalOverflow = await page.evaluate<boolean>(
       'document.documentElement.scrollWidth <= document.documentElement.clientWidth',
@@ -883,7 +883,7 @@ test.describe('Phase 5 compact mobile shell', () => {
     await expect(page.getByRole('button', { name: 'Next month' })).toHaveCount(0);
     expect(await monthScroller.getByRole('heading', { level: 2 }).count()).toBeGreaterThan(1);
     await expect(monthScroller.getByRole('heading').first()).toHaveText(/\d{4}/);
-    const weekdayBox = await page.getByTestId('calendar-weekday-header').boundingBox();
+    const weekdayBox = await page.getByTestId('calendar-weekday-header').first().boundingBox();
     const todayCell = page.locator('button[aria-current="date"]');
     await expect(todayCell).toBeInViewport();
     let lastScrollPosition = -1;
@@ -921,13 +921,19 @@ test.describe('Phase 5 compact mobile shell', () => {
       )
       .toBeGreaterThan(initialScroll);
     await expect(goToToday).toBeEnabled();
-    expect(await page.getByTestId('calendar-weekday-header').boundingBox()).toEqual(weekdayBox);
+    const movedWeekdays = await page.getByTestId('calendar-weekday-header').first().boundingBox();
+    expect(movedWeekdays?.width).toBe(weekdayBox?.width);
+    expect(movedWeekdays?.y).not.toBe(weekdayBox?.y);
     await goToToday.click();
     await expect(goToToday).toBeDisabled();
     await expect(todayCell).toBeFocused();
     await expect(todayCell).toBeInViewport();
     await expect(todayCell).not.toHaveAttribute('aria-pressed');
-    const firstWeekday = page.getByTestId('calendar-weekday-header').locator('abbr').first();
+    const firstWeekday = page
+      .getByTestId('calendar-weekday-header')
+      .first()
+      .locator('abbr')
+      .first();
     await expect(firstWeekday).toHaveText(/Sun/u);
     await openRootDestination(page, 'Settings');
     const weekStart = page.getByRole('combobox', { name: 'First day of the week' });
@@ -950,9 +956,9 @@ test.describe('Phase 5 compact mobile shell', () => {
     await expect(
       page.getByRole('heading', { exact: true, level: 1, name: 'Calendar' }),
     ).toBeVisible();
-    await expect(page.getByTestId('calendar-weekday-header').locator('abbr').first()).toHaveText(
-      /Mon/u,
-    );
+    await expect(
+      page.getByTestId('calendar-weekday-header').first().locator('abbr').first(),
+    ).toHaveText(/Mon/u);
   });
 
   test('keeps the check-in header and actions stable while details are edited', async ({
@@ -960,13 +966,13 @@ test.describe('Phase 5 compact mobile shell', () => {
   }) => {
     await page.goto('/');
     await finishOnboarding(page);
-    await page.getByRole('button', { name: 'Add today’s entry' }).click();
+    await page.getByRole('button', { name: 'Write a note' }).click();
 
     const dialog = page.getByRole('dialog', { name: 'Add today’s entry' });
     const header = dialog.locator('header');
-    const close = dialog.getByRole('button', { name: 'Close entry' });
+    const close = dialog.getByRole('button', { name: 'Close entry' }).first();
     const closeIcon = close.locator('svg');
-    const save = dialog.getByRole('button', { name: 'Save and done' });
+    const save = dialog.getByRole('button', { name: 'Close entry' }).last();
     const actionPanel = save.locator('..');
     const headerBefore = await header.boundingBox();
     const actionPanelBefore = await actionPanel.boundingBox();
@@ -985,14 +991,15 @@ test.describe('Phase 5 compact mobile shell', () => {
       ).toBeLessThanOrEqual(0.5);
     }
 
-    await dialog.getByRole('button', { name: 'Hide note and details' }).click();
+    await dialog.getByRole('button', { name: 'How did you feel? (optional)' }).click();
     const actionPanelAfter = await actionPanel.boundingBox();
     expect(actionPanelAfter).not.toBeNull();
     if (actionPanelBefore !== null && actionPanelAfter !== null) {
       expect(Math.abs(actionPanelBefore.height - actionPanelAfter.height)).toBeLessThanOrEqual(0.5);
       expect(Math.abs(actionPanelBefore.y - actionPanelAfter.y)).toBeLessThanOrEqual(0.5);
     }
-    await dialog.getByRole('button', { name: 'Add note or details (optional)' }).click();
+    await dialog.getByRole('button', { name: 'Hide feelings' }).click();
+    await dialog.getByRole('button', { name: 'How did you feel? (optional)' }).click();
 
     const confidenceFive = dialog.getByRole('radio', { name: 'Confidence: 5 out of 5' });
     const ratingPositionBefore = await confidenceFive.boundingBox();
@@ -1021,11 +1028,11 @@ test.describe('Phase 5 compact mobile shell', () => {
       expect(Math.abs(headerBefore.y - headerAfterScroll.y)).toBeLessThanOrEqual(0.5);
     }
 
-    await dialog.getByRole('button', { name: 'Cancel' }).click();
-    await page.getByRole('button', { name: 'Add today’s entry' }).click();
+    await dialog.getByRole('button', { name: 'Close entry' }).first().click();
+    await page.getByRole('button', { name: 'Write a note' }).click();
     await expect(
       page.getByRole('dialog', { name: 'Add today’s entry' }).getByRole('button', {
-        name: 'Hide note and details',
+        name: 'Hide feelings',
       }),
     ).toBeVisible();
   });

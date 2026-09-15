@@ -588,6 +588,7 @@ export interface TrackerCalendarProps {
   readonly checkInReturnFocusElement?: HTMLElement | null;
   readonly checkInRequest?: number;
   readonly checkInRequestDate?: LocalDate;
+  readonly checkInIntent?: 'note' | 'period';
   readonly historyTriggerRef?: Ref<HTMLButtonElement>;
   readonly insightsTriggerRef?: Ref<HTMLButtonElement>;
   readonly goTodayRequest?: number;
@@ -606,6 +607,7 @@ export interface TrackerCalendarProps {
 export function TrackerCalendar({
   editorOnly = false,
   checkInReturnFocusElement,
+  checkInIntent,
   checkInRequest = 0,
   checkInRequestDate,
   goTodayRequest = 0,
@@ -632,6 +634,7 @@ export function TrackerCalendar({
   );
   const [calendarRangeEnd, setCalendarRangeEnd] = useState(() => addMonths(startOfMonth(today), 1));
   const [selectedDate, setSelectedDate] = useState<LocalDate>(today);
+  const [editorIntent, setEditorIntent] = useState<'note' | 'period'>();
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorReturnFocusElement, setEditorReturnFocusElement] = useState<HTMLElement | null>(
     null,
@@ -706,6 +709,7 @@ export function TrackerCalendar({
     setStatusMessage(undefined);
     setPendingPeriodExtension(undefined);
     setPendingHistoricalPeriodEnd(undefined);
+    setEditorIntent(checkInIntent);
     setEditorOpen(true);
     onEditorOpenChange?.(true);
     onSelectedDateChange?.(requestedDate);
@@ -713,6 +717,7 @@ export function TrackerCalendar({
   }, [
     checkInRequest,
     checkInRequestDate,
+    checkInIntent,
     checkInReturnFocusElement,
     onCheckInRequestHandled,
     onEditorOpenChange,
@@ -905,14 +910,21 @@ export function TrackerCalendar({
     setCalendarRangeEnd((current) => (month > current ? month : current));
   }, []);
   const selectCalendarDate = useCallback(
-    (date: LocalDate): void => {
+    (date: LocalDate, trigger: HTMLButtonElement): void => {
       if (date > today) return;
       setSelectedDate(date);
       onSelectedDateChange?.(date);
+      setEditorReturnFocusElement(trigger);
+      setEditorValue(valueFromLog(payload.logs.find((log) => log.date === date)));
       setErrorMessage(undefined);
       setStatusMessage(undefined);
+      setPendingPeriodExtension(undefined);
+      setPendingHistoricalPeriodEnd(undefined);
+      setEditorIntent(undefined);
+      setEditorOpen(true);
+      onEditorOpenChange?.(true);
     },
-    [onSelectedDateChange, today],
+    [onEditorOpenChange, onSelectedDateChange, payload.logs, today],
   );
 
   const selectedEpisodeForDescription = periodContainingDate(payload, selectedDate);
@@ -1122,7 +1134,8 @@ export function TrackerCalendar({
     }
   };
 
-  const saveCheckIn = (value: DayDetailValue, date: LocalDate): void => {
+  const entryDirty = useRef(false);
+  const saveCheckIn = (value: DayDetailValue, date: LocalDate, closeAfterSave = true): void => {
     try {
       const extensionCandidate = periodExtensionCandidateForDate(
         payload,
@@ -1167,8 +1180,16 @@ export function TrackerCalendar({
       setStatusMessage(undefined);
       void savePayload(nextPayload)
         .then(() => {
-          setEditorOpen(false);
-          onEditorOpenChange?.(false);
+          entryDirty.current = false;
+          setEditorValue((current) => {
+            const next = { ...current };
+            delete next.periodTransition;
+            return next;
+          });
+          if (closeAfterSave) {
+            setEditorOpen(false);
+            onEditorOpenChange?.(false);
+          }
         })
         .catch((error: unknown) => {
           setErrorMessage(messageForError(error));
@@ -1330,6 +1351,25 @@ export function TrackerCalendar({
         : !editorHasObservation && !hasUserEnteredObservation(existingLog)
           ? t(($) => $.mobile.checkIn.guidance.chooseObservation)
           : undefined;
+  useEffect(() => {
+    if (
+      !editorOpen ||
+      busy ||
+      !entryDirty.current ||
+      saveDisabledReason !== undefined ||
+      pendingPeriodExtension !== undefined ||
+      pendingHistoricalPeriodEnd !== undefined
+    )
+      return;
+    const timer = window.setTimeout(() => {
+      entryDirty.current = false;
+      saveCheckIn(editorValue, selectedDate, false);
+    }, 600);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  });
+
   const nextEstimateCentral =
     forecast === null
       ? undefined
@@ -1545,7 +1585,17 @@ export function TrackerCalendar({
       ) : null}
       {editorOpen ? (
         <DayDetailEditor
+          {...(editorIntent ? { initialFocus: editorIntent } : {})}
           periodControls={{
+            ...(selectedEpisodeForDescription !== undefined &&
+            selectedEpisodeForDescription.endDate === undefined &&
+            (periodDescriptionAction === 'start' || periodDescriptionAction === 'continue')
+              ? {
+                  ongoingTitle: t(($) => $.tracker.dayDetail.boundaryControls.ongoing, {
+                    count: daysBetween(selectedEpisodeForDescription.startDate, selectedDate) + 1,
+                  }),
+                }
+              : {}),
             explanation: t(($) => $.tracker.dayDetail.boundaryControls.explanation),
             start:
               selectedDate === today
@@ -1555,17 +1605,48 @@ export function TrackerCalendar({
             canStart: selectedEpisode === undefined,
             canEnd:
               selectedEpisode !== undefined &&
+              selectedDate > selectedEpisode.startDate &&
               selectedEpisode.endDate === undefined &&
               !selectedDateHasLaterActiveDays,
             canEndBefore: selectedEpisode !== undefined && selectedDate > selectedEpisode.startDate,
             hasPeriod: selectedEpisode !== undefined,
             endTitle: t(($) => $.tracker.dayDetail.boundaryControls.endTitle),
-            endBefore: t(($) => $.tracker.dayDetail.boundaryControls.endBefore, {
-              date: formatLocalDate(addDays(selectedDate, -1), resolvedLanguage),
-            }),
-            endOnDay: t(($) => $.tracker.dayDetail.boundaryControls.endOnDay, {
-              date: formatLocalDate(selectedDate, resolvedLanguage),
-            }),
+            endBefore:
+              selectedDate === today
+                ? t(($) => $.tracker.dayDetail.boundaryControls.endYesterday)
+                : t(($) => $.tracker.dayDetail.boundaryControls.endBefore, {
+                    date:
+                      selectedDate === today
+                        ? t(($) => $.tracker.dayDetail.boundaryControls.yesterday)
+                        : formatLocalDate(addDays(selectedDate, -1), resolvedLanguage),
+                  }),
+            endOnDay:
+              selectedDate === today
+                ? t(($) => $.tracker.dayDetail.boundaryControls.endToday)
+                : t(($) => $.tracker.dayDetail.boundaryControls.endOnDay, {
+                    date:
+                      selectedDate === today
+                        ? t(($) => $.tracker.dayDetail.boundaryControls.today)
+                        : formatLocalDate(selectedDate, resolvedLanguage),
+                  }),
+            ...(selectedEpisode === undefined
+              ? {}
+              : {
+                  endBeforeRange: t(($) => $.tracker.dayDetail.boundaryControls.resultRange, {
+                    range: formatLocalDateRange(
+                      selectedEpisode.startDate,
+                      addDays(selectedDate, -1),
+                      resolvedLanguage,
+                    ),
+                  }),
+                  endOnDayRange: t(($) => $.tracker.dayDetail.boundaryControls.resultRange, {
+                    range: formatLocalDateRange(
+                      selectedEpisode.startDate,
+                      selectedDate,
+                      resolvedLanguage,
+                    ),
+                  }),
+                }),
             confirm: t(($) => $.tracker.dayDetail.boundaryControls.confirm),
           }}
           busy={busy}
@@ -1579,10 +1660,25 @@ export function TrackerCalendar({
           })}
           {...(noneRequiresPeriodCorrection ? { disabledFlows: ['none'] as const } : {})}
           {...(errorMessage === undefined ? {} : { errorMessage })}
-          onChange={setEditorValue}
+          autoSave
+          onChange={(value) => {
+            entryDirty.current = true;
+            setEditorValue(value);
+          }}
           onClose={() => {
+            if (busy) return;
+            if (
+              (entryDirty.current || errorMessage !== undefined) &&
+              (editorHasObservation || hasUserEnteredObservation(existingLog))
+            ) {
+              if (saveDisabledReason !== undefined) return;
+              entryDirty.current = false;
+              saveCheckIn(editorValue, selectedDate);
+              return;
+            }
             setPendingPeriodExtension(undefined);
             setPendingHistoricalPeriodEnd(undefined);
+            entryDirty.current = false;
             setEditorOpen(false);
             onEditorOpenChange?.(false);
           }}
@@ -1674,6 +1770,7 @@ export interface TrackerDashboardProps {
   readonly checkInReturnFocusElement?: HTMLElement | null;
   readonly checkInRequest?: number;
   readonly checkInRequestDate?: LocalDate;
+  readonly checkInIntent?: 'note' | 'period';
   readonly goTodayRequest?: number;
   readonly historyTriggerRef?: Ref<HTMLButtonElement>;
   readonly insightsTriggerRef?: Ref<HTMLButtonElement>;

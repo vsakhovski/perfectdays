@@ -117,14 +117,14 @@ describe('DayDetailEditor', () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
     render(<ControlledEditor periodControls={controls} onSave={onSave} />);
-    const light = screen.getByRole('checkbox', { name: copy.flowOptions.light });
-    expect(light).toBeDisabled();
+    expect(screen.queryByRole('checkbox', { name: copy.flowOptions.light })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: copy.flowOptions.none })).toBeNull();
     await user.click(screen.getByRole('button', { name: controls.start }));
     expect(screen.getByRole('button', { name: controls.start })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
+    const light = screen.getByRole('checkbox', { name: copy.flowOptions.light });
     await user.click(light);
     expect(light).toBeChecked();
     await user.click(light);
@@ -161,6 +161,46 @@ describe('DayDetailEditor', () => {
       },
       asLocalDate('2026-05-12'),
     );
+  });
+
+  it('opens the last-bleeding-day confirmation directly and saves its selected boundary', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <DayDetailEditor
+        copy={copy}
+        date={asLocalDate('2026-05-12')}
+        dateLabel="May 12, 2026"
+        initialFocus="period"
+        periodControls={{
+          ...controls,
+          canStart: false,
+          canEnd: true,
+          hasPeriod: true,
+          endBeforeRange: 'May 8–11',
+          endOnDayRange: 'May 8–12',
+        }}
+        onChange={vi.fn()}
+        onClose={onClose}
+        onPeriodAction={vi.fn()}
+        onSave={onSave}
+        periodActions={[]}
+        value={{ note: 'Keep this note' }}
+      />,
+    );
+    expect(screen.queryByRole('dialog', { name: copy.title })).toBeNull();
+    const confirmation = within(screen.getByRole('alertdialog', { name: controls.endTitle }));
+    expect(confirmation.getByText('May 8–11')).toBeVisible();
+    await user.click(confirmation.getByRole('radio', { name: controls.endOnDay }));
+    expect(confirmation.getByText('May 8–12')).toBeVisible();
+    await user.click(confirmation.getByRole('button', { name: controls.confirm }));
+    expect(onSave).toHaveBeenCalledWith(
+      { note: 'Keep this note', periodTransition: 'end' },
+      '2026-05-12',
+    );
+    await user.click(confirmation.getByRole('button', { name: copy.cancel }));
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('moves focus into the modal editor and restores an explicit touch opener on unmount', async () => {
@@ -205,6 +245,7 @@ describe('DayDetailEditor', () => {
 
     expect(screen.getByRole('checkbox', { name: copy.flowOptions.medium })).not.toBeChecked();
     await user.click(screen.getByRole('checkbox', { name: copy.flowOptions.light }));
+    await user.click(screen.getByRole('button', { name: copy.optionalDetails.show }));
     const confidenceFive = within(
       screen.getByRole('group', { name: copy.ratings.confidence.legend }),
     ).getByRole('radio', { name: ratingOptions[5] });
@@ -262,6 +303,8 @@ describe('DayDetailEditor', () => {
     }
 
     render(<RememberedDetailsHarness />);
+    expect(screen.getByRole('button', { name: copy.optionalDetails.show })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: copy.optionalDetails.show }));
     expect(screen.getByRole('button', { name: copy.optionalDetails.hide })).toBeVisible();
     await user.click(screen.getByRole('button', { name: copy.optionalDetails.hide }));
 

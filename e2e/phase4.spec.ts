@@ -116,15 +116,16 @@ async function openPrivacy(page: Page): Promise<void> {
 }
 
 async function recordToday(page: Page, note: string): Promise<void> {
-  await page.getByRole('button', { name: 'Add today’s entry' }).click();
+  await page.getByRole('button', { name: 'Write a note' }).click();
   const dialog = page.getByRole('dialog', { name: 'Add today’s entry' });
   await dialog.getByRole('button', { name: 'Period started today' }).click();
   await dialog.getByRole('checkbox', { name: 'Medium' }).check();
+  await dialog.getByRole('button', { name: 'How did you feel? (optional)' }).click();
   await dialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }).check();
   await dialog.getByLabel('Private note').fill(note);
-  await dialog.getByRole('button', { name: 'Start period and save' }).click();
+  await dialog.getByRole('button', { name: 'Close entry' }).first().click();
   await expect(dialog).not.toBeVisible();
-  await expect(page.getByRole('button', { name: 'Edit today’s entry' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Edit note' })).toBeVisible();
 }
 
 async function updateTodayNote(page: Page, note: string): Promise<void> {
@@ -132,10 +133,10 @@ async function updateTodayNote(page: Page, note: string): Promise<void> {
     .getByRole('navigation', { name: 'Primary navigation' })
     .getByRole('button', { exact: true, name: 'Calendar' })
     .click();
-  await page.getByRole('button', { name: 'Edit today’s entry' }).click();
+  await page.getByRole('button', { name: 'Edit note' }).click();
   const dialog = page.getByRole('dialog', { name: 'Edit today’s entry' });
   await dialog.getByLabel('Private note').fill(note);
-  await dialog.getByRole('button', { name: 'Save and done' }).click();
+  await dialog.getByRole('button', { name: 'Close entry' }).first().click();
   await expect(dialog).not.toBeVisible();
 }
 
@@ -176,7 +177,6 @@ test.describe('Phase 4 production boundaries', () => {
       const today = page.locator('button[aria-current="date"]');
       await expect(today).toHaveAccessibleName(/Recorded period day/);
       await today.click();
-      await page.getByRole('button', { name: 'Edit today’s entry' }).click();
       await expect(
         page.getByRole('dialog', { name: 'Edit today’s entry' }).getByLabel('Private note'),
       ).toHaveValue(privateNote);
@@ -251,7 +251,7 @@ test.describe('Phase 4 production boundaries', () => {
     await enterLockPin(page, originalPin);
     await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Edit today’s entry' }).click();
+    await page.getByRole('button', { name: 'Edit note' }).click();
     const restoredNote = page
       .getByRole('dialog', { name: 'Edit today’s entry' })
       .getByLabel('Private note');

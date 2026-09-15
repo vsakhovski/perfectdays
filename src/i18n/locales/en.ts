@@ -322,16 +322,23 @@ export const en = {
     dayDetail: {
       quickActionsTitle: 'Period',
       boundaryControls: {
-        explanation: 'Record when your period starts and ends. Daily flow details are optional.',
+        explanation: 'Flow and feelings are optional. You don’t need to record them every day.',
         start: 'Period started on this day',
         startToday: 'Period started today',
         flowLabel: 'Flow (optional)',
         end: 'Period has ended',
         ongoing: 'Period is ongoing · Day {{count}}',
-        endTitle: 'Which was the last day of bleeding?',
+        endTitle: 'Which was your last day of bleeding?',
+        endYesterday:
+          'Yesterday was the last day of bleeding. Today is not counted as part of the period.',
+        endToday:
+          'I had bleeding today, but it has now ended. Today is counted as part of the period.',
+        yesterday: 'Yesterday',
+        today: 'Today',
+        resultRange: 'Period: {{range}} (including both dates).',
         endBefore: '{{date}} — no bleeding on the check-in day. The check-in day is not counted.',
         endOnDay: '{{date}} — bleeding ended on the check-in day. This day is counted.',
-        confirm: 'Use this end date',
+        confirm: 'End period',
       },
       periodActions: {
         start: {
@@ -465,6 +472,12 @@ export const en = {
         settings: 'Settings',
       },
       actions: {
+        startPeriod: 'My period started',
+        endPeriod: 'My period ended',
+        viewPeriod: 'View period',
+        editNote: 'Edit note',
+        forDate: '{{action}} · {{date}}',
+        writeNote: 'Write a note',
         checkInToday: 'Add today’s entry',
         editTodayCheckIn: 'Edit today’s entry',
         checkInFor: 'Add entry for {{date}}',
@@ -574,8 +587,8 @@ export const en = {
       dayTitle: 'Add entry for this day',
       editDayTitle: 'Edit this day’s entry',
       optional: {
-        show: 'Add note or details (optional)',
-        hide: 'Hide note and details',
+        show: 'How did you feel? (optional)',
+        hide: 'Hide feelings',
       },
       guidance: {
         chooseObservation: 'Choose at least one observation before saving.',

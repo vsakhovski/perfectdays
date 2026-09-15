@@ -12,6 +12,24 @@ Store packaging, submission requirements, and release-readiness planning are tra
 
 ## Product goal
 
+### Entry and calendar regression coverage
+
+Validation completed: 396 unit tests passed; production build, four PWA artifact checks, lint, and formatting passed. The complete E2E run passed 84 tests with eight existing platform-specific skips across desktop Chromium, Firefox, mobile Chromium, and mobile WebKit.
+
+Unit and browser checks now follow direct calendar-day entry opening, separate period/note actions, automatic entry saving, always-visible notes, and collapsed optional feelings. Regressions cover starting a period without opening the entry form, hiding end actions on its first day, and choosing the final bleeding day directly with a date-range preview. Calendar checks verify weekday headings inside every month block. Browser reload, offline persistence, backup, and export scenarios use the updated actions. The feelings disclosure callback now runs outside the state updater to avoid a React render-time parent-update warning.
+
+### Consistent Privacy actions
+
+Privacy actions use full-container-width, left-aligned icon-and-text buttons with subtle filled backgrounds and no resting border, matching Set up a PIN. PIN, erasure, backup/export, file selection, restore, and confirmation actions share this treatment. Destructive actions retain danger-colored text; keyboard focus indicators remain. Keypads and compact modal close controls retain their specialized layouts. Tests and production build are deferred until requested.
+
+### Direct calendar entry access
+
+Entry changes now auto-save after a 600 ms editing pause. Closing flushes pending valid changes; an untouched empty entry is not saved. The dialog stays open after automatic saves and retains period-boundary confirmation safeguards. Save and done is replaced by Close, and the private-note storage caption is removed. Production build and tests for this change remain deferred until requested.
+
+Calendar now offers separate contextual period and note actions. The period action opens the entry dialog at period controls (start, end, or view an existing completed period); Write/Edit note focuses the note field. Historical actions include the selected date. Opening either action does not save or change period boundaries. The dialog presents period controls, a visible private note, flow when a period is relevant, and optional feelings collapsed initially; the disclosure preference is retained between openings. English, German, and Russian labels are included. Static TypeScript/lint checks and a mobile browser walkthrough were performed; tests and production build are deferred until requested.
+
+Tapping a past or current day in Calendar opens its entry dialog immediately, loading any saved observations for that date. Future days remain non-editable. The calendar stays mounted at its current month and scroll position; closing the dialog returns focus to the originating day without scrolling it. The persistent entry action remains available, and Journal's period-selection/editing workflow is unchanged. Tests and production build for this interaction change are deferred until requested.
+
 ### Contemporary journal styling — September 2026
 
 - Quieter neutral surfaces, larger page titles, fewer card borders, softer shell separators, and one shared active-navigation treatment retain the teal brand without competing with the content.

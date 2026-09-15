@@ -201,7 +201,7 @@
 
 .filePicker {
   position: relative;
-  justify-self: start;
+  justify-self: stretch;
   cursor: pointer;
 }
 
@@ -217,34 +217,47 @@
 .primaryButton,
 .secondaryButton,
 .dangerButton {
-  display: inline-grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  inline-size: 100%;
+  min-inline-size: 0;
   min-block-size: 2.75rem;
-  padding: 0.65rem 1rem;
-  border: 1px solid transparent;
+  padding: clamp(0.35rem, 2.2vw, 0.75rem);
+  border: 0;
   border-radius: var(--radius-small);
   cursor: pointer;
   font-weight: 600;
+  font-size: 0.9375rem;
   line-height: 1.25;
-  text-align: center;
+  text-align: start;
+  overflow-wrap: anywhere;
 }
 
 .primaryButton {
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  background: var(--color-surface-subtle);
+  color: var(--color-accent);
 }
 
 .secondaryButton,
 .filePicker span {
   border-color: var(--color-border-strong);
-  background: var(--color-surface);
+  background: var(--color-surface-subtle);
   color: var(--color-text);
 }
 
 .dangerButton {
   border-color: var(--color-danger);
-  background: var(--color-danger);
-  color: var(--color-on-danger, white);
+  background: var(--color-surface-subtle);
+  color: var(--color-danger);
+}
+
+.primaryButton:hover:not(:disabled),
+.secondaryButton:hover:not(:disabled),
+.dangerButton:hover:not(:disabled),
+.filePicker:has(input:not(:disabled)):hover span {
+  background: var(--color-background);
 }
 
 .confirmation {

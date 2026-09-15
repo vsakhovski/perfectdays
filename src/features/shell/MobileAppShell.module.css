@@ -133,6 +133,7 @@
   opacity: 0.55;
 }
 
+.headerActionButton[data-icon='today'],
 .lockButton {
   display: inline-flex;
   flex: 0 0 auto;
@@ -191,6 +192,25 @@
 
 .checkInButton:active {
   transform: scale(0.985);
+}
+
+.actionDock[data-dual='true'] {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.actionDock[data-dual='true'] .checkInButton {
+  min-inline-size: 0;
+  padding-inline: 0.5rem;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.actionDock[data-dual='true'] .checkInButton:last-child {
+  background: var(--color-surface);
+  color: var(--color-accent);
+  border-width: 1px;
 }
 
 .checkInButton:hover {
