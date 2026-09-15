@@ -1301,9 +1301,8 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Set up a PIN' }));
     const dialog = screen.getByRole('dialog', { name: 'Set up a six-digit PIN' });
-    const submit = within(dialog).getByRole('button', { name: 'Enable PIN protection' });
+    expect(within(dialog).queryByRole('button', { name: 'Enable PIN protection' })).toBeNull();
     await enterPinWithKeypad(user, '123');
-    expect(submit).toBeDisabled();
     expect(vaultController.calls.enablePin).toEqual([]);
 
     await enterPinWithKeypad(user, '456');
@@ -1314,12 +1313,12 @@ describe('App', () => {
 
     await enterPinWithKeypad(user, '123456');
     await enterPinWithKeypad(user, '123456');
-    expect(submit).toBeEnabled();
-    await user.click(submit);
-
     expect(vaultController.calls.enablePin).toEqual(['123456']);
     expect(await screen.findByText('PIN protection is now on.')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Lock' })).toBeVisible();
+    await waitFor(() => {
+      expect(window.history.state).not.toHaveProperty('dialog');
+    });
   });
 
   it('changes a PIN through current, new, and confirmation keypad stages', async () => {
@@ -1343,19 +1342,16 @@ describe('App', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('The PINs do not match.');
     expect(screen.getByLabelText('New PIN')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Change PIN' })).toBeDisabled();
+    expect(within(dialog).queryByRole('button', { name: 'Change PIN' })).toBeNull();
 
     await enterPinWithKeypad(user, '654321');
     await enterPinWithKeypad(user, '654321');
-    const submit = within(dialog).getByRole('button', { name: 'Change PIN' });
-    expect(submit).toBeEnabled();
-    await user.click(submit);
 
     expect(vaultController.calls.changePin).toEqual([{ currentPin: '123456', newPin: '654321' }]);
     expect(await screen.findByText('The PIN was changed.')).toBeVisible();
   });
 
-  it('turns off PIN protection only after modal keypad verification and confirmation', async () => {
+  it('turns off PIN protection automatically after modal keypad verification', async () => {
     const user = userEvent.setup();
     const { vaultController } = await renderApp({
       onboardingCompleted: true,
@@ -1368,17 +1364,9 @@ describe('App', () => {
     const dialog = screen.getByRole('dialog', { name: 'Turn off PIN protection?' });
     expect(dialog).toBeVisible();
     expect(screen.getByRole('button', { name: '1' })).toHaveFocus();
-    const submit = within(dialog).getByRole('button', { name: 'Turn off PIN protection' });
-    await user.click(
-      within(dialog).getByRole('checkbox', {
-        name: 'I understand that the journal will be stored without PIN protection.',
-      }),
-    );
-    expect(submit).toBeDisabled();
-
+    expect(within(dialog).queryByRole('checkbox')).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: 'Turn off PIN protection' })).toBeNull();
     await enterPinWithKeypad(user, '246810');
-    expect(submit).toBeEnabled();
-    await user.click(submit);
 
     expect(vaultController.calls.disablePin).toEqual(['246810']);
     expect(await screen.findByText('PIN protection is now off.')).toBeVisible();
@@ -1435,7 +1423,7 @@ describe('App', () => {
       pinEnabled: true,
       payload: null,
     });
-    expect(await screen.findByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Perfect Days', level: 1 })).toBeVisible();
   });
 
   it('moves focus into a PIN form and restores it when the form is cancelled', async () => {
@@ -1457,7 +1445,7 @@ describe('App', () => {
       vaultSnapshot: { phase: 'locked', pinEnabled: true, payload: null },
     });
 
-    expect(screen.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Perfect Days', level: 1 })).toBeVisible();
     expect(screen.queryByText(/menstrual/i)).not.toBeInTheDocument();
     expect(
       screen.queryByRole('heading', { name: 'Lock-screen preferences' }),
@@ -1492,13 +1480,13 @@ describe('App', () => {
 
     await enterPinWithKeypad(user, '000000');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'The app could not be unlocked. Check the PIN and try again.',
-    );
+    expect(
+      await screen.findByText('The app could not be unlocked. Check the PIN and try again.'),
+    ).toBeVisible();
     expect(vaultController.calls.unlock).toEqual(['000000']);
-    expect(screen.getByLabelText('PIN')).toHaveValue('******');
+    expect(screen.getByRole('textbox', { name: /could not be unlocked/ })).toHaveValue('******');
     await user.click(screen.getByRole('button', { name: 'Show PIN' }));
-    expect(screen.getByLabelText('PIN')).toHaveValue('000000');
+    expect(screen.getByRole('textbox', { name: /could not be unlocked/ })).toHaveValue('000000');
     expect(screen.queryByRole('button', { name: 'Unlock' })).not.toBeInTheDocument();
 
     await enterPinWithKeypad(user, '123456');
@@ -1513,7 +1501,7 @@ describe('App', () => {
       vaultSnapshot: { phase: 'locked', pinEnabled: true, payload: null },
     });
 
-    expect(screen.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Perfect Days', level: 1 })).toBeVisible();
     expect(screen.queryByLabelText('PIN')).not.toBeInTheDocument();
     expect(screen.getByText(/PIN unlocking is unavailable/i)).toBeVisible();
     expect(screen.getByRole('button', { name: 'Forgot PIN?' })).toBeVisible();
@@ -1593,7 +1581,7 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Lock' }));
 
-    expect(await screen.findByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Perfect Days', level: 1 })).toBeVisible();
     expect(screen.queryByText(/menstrual/i)).not.toBeInTheDocument();
   });
 

@@ -224,7 +224,7 @@ describe('BackupAndRestorePanel', () => {
     renderPanel({ pinEnabled: false });
     await user.click(screen.getByRole('button', { name: copy.plaintext.reviewWarning }));
     await user.click(screen.getByRole('checkbox', { name: copy.plaintext.confirmation }));
-    await user.click(screen.getByRole('button', { name: copy.plaintext.cancel }));
+    await user.click(screen.getByRole('button', { name: copy.plaintext.close }));
 
     const trigger = screen.getByRole('button', { name: copy.plaintext.reviewWarning });
     expect(trigger).toHaveFocus();

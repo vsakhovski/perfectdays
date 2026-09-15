@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
+import { useDialogBack } from '../../shared/ui/use-dialog-back';
 import { useTranslation } from 'react-i18next';
 
 import { useVault } from '../../app/vault/use-vault';
@@ -52,12 +53,10 @@ function LockIcon() {
 }
 
 function FormButtons({
-  cancel,
   pending,
   submit,
   submitPending,
   destructive = false,
-  onCancel,
   submitDisabled = false,
 }: {
   cancel: string;
@@ -80,16 +79,6 @@ function FormButtons({
         <PrivacyActionIcon kind={destructive ? 'delete' : 'lock'} />
         {pending ? submitPending : submit}
       </button>
-      <button
-        className={styles['pinActionButton']}
-        disabled={pending}
-        formNoValidate
-        onClick={onCancel}
-        type="button"
-      >
-        <PrivacyActionIcon kind="cancel" />
-        {cancel}
-      </button>
     </div>
   );
 }
@@ -104,6 +93,7 @@ function SetupPinForm({ onCancel, onSuccess }: PinFormProps) {
   const [pinRevealed, setPinRevealed] = useState(false);
   const [error, setError] = useState<FormError>(null);
   const [pending, setPending] = useState(false);
+  useDialogBack(true, onCancel, pending);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent): void => {
@@ -117,14 +107,13 @@ function SetupPinForm({ onCancel, onSuccess }: PinFormProps) {
     };
   }, [onCancel, pending]);
 
-  const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const submit = async (confirmedPin = confirmation) => {
     setError(null);
-    if (!isSixDigitPin(pin) || !isSixDigitPin(confirmation)) {
+    if (!isSixDigitPin(pin) || !isSixDigitPin(confirmedPin)) {
       setError('sixDigits');
       return;
     }
-    if (pin !== confirmation) {
+    if (pin !== confirmedPin) {
       setError('mismatch');
       return;
     }
@@ -157,7 +146,6 @@ function SetupPinForm({ onCancel, onSuccess }: PinFormProps) {
         : error === 'sixDigits'
           ? t(($) => $.vault.security.form.sixDigits)
           : t(($) => $.vault.security.form.operationFailed);
-  const ready = isSixDigitPin(pin) && isSixDigitPin(confirmation) && pin === confirmation;
 
   const updateDisplayedPin = (nextPin: string): void => {
     setError(null);
@@ -179,6 +167,7 @@ function SetupPinForm({ onCancel, onSuccess }: PinFormProps) {
       return;
     }
     setConfirmation(nextPin);
+    if (nextPin.length === 6 && nextPin === pin) void submit(nextPin);
   };
 
   return (
@@ -189,7 +178,9 @@ function SetupPinForm({ onCancel, onSuccess }: PinFormProps) {
         autoComplete="off"
         className={styles['pinDialog']}
         noValidate
-        onSubmit={(event) => void submit(event)}
+        onSubmit={(event) => {
+          event.preventDefault();
+        }}
         role="dialog"
       >
         <header className={styles['dialogHeader']}>
@@ -224,14 +215,6 @@ function SetupPinForm({ onCancel, onSuccess }: PinFormProps) {
           })}
           value={displayedPin}
         />
-        <FormButtons
-          cancel={t(($) => $.vault.security.form.cancel)}
-          onCancel={onCancel}
-          pending={pending}
-          submit={t(($) => $.vault.security.setup.submit)}
-          submitDisabled={!ready}
-          submitPending={t(($) => $.vault.security.setup.working)}
-        />
       </form>
     </div>
   );
@@ -248,6 +231,7 @@ function ChangePinForm({ onCancel, onSuccess }: PinFormProps) {
   const [pinRevealed, setPinRevealed] = useState(false);
   const [error, setError] = useState<FormError>(null);
   const [pending, setPending] = useState(false);
+  useDialogBack(true, onCancel, pending);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent): void => {
@@ -261,14 +245,13 @@ function ChangePinForm({ onCancel, onSuccess }: PinFormProps) {
     };
   }, [onCancel, pending]);
 
-  const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const submit = async (confirmedPin: string) => {
     setError(null);
-    if (!isSixDigitPin(currentPin) || !isSixDigitPin(newPin) || !isSixDigitPin(confirmation)) {
+    if (!isSixDigitPin(currentPin) || !isSixDigitPin(newPin) || !isSixDigitPin(confirmedPin)) {
       setError('sixDigits');
       return;
     }
-    if (newPin !== confirmation) {
+    if (newPin !== confirmedPin) {
       setError('mismatch');
       return;
     }
@@ -315,11 +298,6 @@ function ChangePinForm({ onCancel, onSuccess }: PinFormProps) {
           : error === 'sixDigits'
             ? t(($) => $.vault.security.form.sixDigits)
             : t(($) => $.vault.security.form.operationFailed);
-  const ready =
-    isSixDigitPin(currentPin) &&
-    isSixDigitPin(newPin) &&
-    isSixDigitPin(confirmation) &&
-    newPin === confirmation;
 
   const updateDisplayedPin = (nextPin: string): void => {
     setError(null);
@@ -350,6 +328,7 @@ function ChangePinForm({ onCancel, onSuccess }: PinFormProps) {
       return;
     }
     setConfirmation(nextPin);
+    if (nextPin.length === 6 && nextPin === newPin) void submit(nextPin);
   };
 
   return (
@@ -360,7 +339,9 @@ function ChangePinForm({ onCancel, onSuccess }: PinFormProps) {
         autoComplete="off"
         className={styles['pinDialog']}
         noValidate
-        onSubmit={(event) => void submit(event)}
+        onSubmit={(event) => {
+          event.preventDefault();
+        }}
         role="dialog"
       >
         <header className={styles['dialogHeader']}>
@@ -395,14 +376,6 @@ function ChangePinForm({ onCancel, onSuccess }: PinFormProps) {
           })}
           value={displayedPin}
         />
-        <FormButtons
-          cancel={t(($) => $.vault.security.form.cancel)}
-          onCancel={onCancel}
-          pending={pending}
-          submit={t(($) => $.vault.security.change.submit)}
-          submitDisabled={!ready}
-          submitPending={t(($) => $.vault.security.change.working)}
-        />
       </form>
     </div>
   );
@@ -414,9 +387,9 @@ function DisablePinForm({ onCancel, onSuccess }: PinFormProps) {
   const titleId = useId();
   const [currentPin, setCurrentPin] = useState('');
   const [pinRevealed, setPinRevealed] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState<FormError>(null);
   const [pending, setPending] = useState(false);
+  useDialogBack(true, onCancel, pending);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent): void => {
@@ -430,20 +403,17 @@ function DisablePinForm({ onCancel, onSuccess }: PinFormProps) {
     };
   }, [onCancel, pending]);
 
-  const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const submit = async (enteredPin: string) => {
+    if (pending) return;
     setError(null);
-    if (!isSixDigitPin(currentPin)) {
+    if (!isSixDigitPin(enteredPin)) {
       setError('sixDigits');
-      return;
-    }
-    if (!confirmed) {
       return;
     }
 
     setPending(true);
     try {
-      await disablePin(currentPin);
+      await disablePin(enteredPin);
       onSuccess();
     } catch (caught) {
       setError(caught instanceof VaultUnlockError ? 'unlockFailed' : 'operationFailed');
@@ -472,7 +442,9 @@ function DisablePinForm({ onCancel, onSuccess }: PinFormProps) {
         autoComplete="off"
         className={styles['pinDialog']}
         noValidate
-        onSubmit={(event) => void submit(event)}
+        onSubmit={(event) => {
+          event.preventDefault();
+        }}
         role="dialog"
       >
         <header className={styles['dialogHeader']}>
@@ -501,6 +473,7 @@ function DisablePinForm({ onCancel, onSuccess }: PinFormProps) {
           onChange={(value) => {
             setCurrentPin(value);
             setError(null);
+            if (isSixDigitPin(value)) void submit(value);
           }}
           onRevealChange={setPinRevealed}
           placeholder={t(($) => $.tracker.onboarding.pin.placeholder)}
@@ -509,26 +482,6 @@ function DisablePinForm({ onCancel, onSuccess }: PinFormProps) {
             field: currentPinLabel,
           })}
           value={currentPin}
-        />
-        <label className={formStyles['confirmation']}>
-          <input
-            checked={confirmed}
-            disabled={pending}
-            onChange={(event) => {
-              setConfirmed(event.currentTarget.checked);
-            }}
-            type="checkbox"
-          />
-          <span>{t(($) => $.vault.security.disable.confirmation)}</span>
-        </label>
-        <FormButtons
-          cancel={t(($) => $.vault.security.form.cancel)}
-          destructive
-          onCancel={onCancel}
-          pending={pending}
-          submit={t(($) => $.vault.security.disable.submit)}
-          submitDisabled={!confirmed || !isSixDigitPin(currentPin)}
-          submitPending={t(($) => $.vault.security.disable.working)}
         />
       </form>
     </div>
@@ -545,6 +498,7 @@ function ResetForm({ onCancel, onSuccess }: PinFormProps) {
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState<FormError>(null);
   const [pending, setPending] = useState(false);
+  useDialogBack(true, onCancel, pending);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent): void => {

@@ -2,6 +2,7 @@ import { useId, useRef, useState, type KeyboardEvent, type SyntheticEvent } from
 import { useTranslation } from 'react-i18next';
 
 import { useVault } from '../../app/vault/use-vault';
+import { useDialogBack } from '../../shared/ui/use-dialog-back';
 import { AppLogo } from '../../shared/ui/AppLogo';
 import { PinKeypad } from './PinKeypad';
 import styles from './vault-ui.module.css';
@@ -77,6 +78,8 @@ export function LockScreen() {
     globalThis.queueMicrotask(() => resetToggleRef.current?.focus());
   };
 
+  useDialogBack(showReset, closeReset, resetPending);
+
   const handleResetKeyDown = (event: KeyboardEvent<HTMLFormElement>): void => {
     if (event.key === 'Escape' && !resetPending) {
       event.preventDefault();
@@ -103,32 +106,14 @@ export function LockScreen() {
 
   return (
     <main className={styles['lockPage']}>
+      <header className={styles['lockBrand']}>
+        <AppLogo className={styles['lockLogo']} />
+        <h1 id="lock-title">{t(($) => $.vault.lock.eyebrow)}</h1>
+      </header>
       <section className={styles['lockCard']} aria-labelledby="lock-title">
-        <div className={styles['lockBrand']}>
-          <AppLogo className={styles['lockLogo']} />
-          <span>{t(($) => $.vault.lock.eyebrow)}</span>
-        </div>
-        <h1 id="lock-title">{t(($) => $.vault.lock.title)}</h1>
-        <div className={styles['lockMessage']}>
-          {unlockFailed ? (
-            <p className={styles['error']} role="alert">
-              {t(($) => $.vault.lock.failed)}
-            </p>
-          ) : pending ? (
-            <p aria-live="polite" className={styles['introduction']} role="status">
-              {t(($) => $.vault.lock.unlocking)}
-            </p>
-          ) : (
-            <p className={styles['introduction']}>
-              {pinProtectionAvailable
-                ? t(($) => $.vault.lock.description)
-                : t(($) => $.vault.lock.cryptoUnavailable)}
-            </p>
-          )}
-        </div>
-
+        {!pinProtectionAvailable ? <p>{t(($) => $.vault.lock.cryptoUnavailable)}</p> : null}
         {pinProtectionAvailable ? (
-          <div className={styles['lockPinEntry']}>
+          <div className={styles['lockPinEntry']} data-error={unlockFailed}>
             <PinKeypad
               bottomLeftControl={
                 <button
@@ -147,7 +132,13 @@ export function LockScreen() {
                 field: t(($) => $.vault.lock.pinLabel),
               })}
               keypadLabel={t(($) => $.tracker.onboarding.pin.keypadLabel)}
-              label={t(($) => $.vault.lock.pinLabel)}
+              label={
+                unlockFailed
+                  ? t(($) => $.vault.lock.failed)
+                  : pending
+                    ? t(($) => $.vault.lock.unlocking)
+                    : t(($) => $.vault.lock.description)
+              }
               onChange={updatePin}
               onRevealChange={setPinRevealed}
               placeholder={t(($) => $.tracker.onboarding.pin.placeholder)}
@@ -184,7 +175,18 @@ export function LockScreen() {
             ref={resetDialogRef}
             role="dialog"
           >
-            <h2 id={resetPanelTitleId}>{t(($) => $.vault.lock.reset.title)}</h2>
+            <header className={styles['resetHeader']}>
+              <h2 id={resetPanelTitleId}>{t(($) => $.vault.lock.reset.title)}</h2>
+              <button
+                className={styles['resetClose']}
+                type="button"
+                disabled={resetPending}
+                onClick={closeReset}
+                aria-label={t(($) => $.vault.lock.reset.cancel)}
+              >
+                {'\u00d7'}
+              </button>
+            </header>
             <p>{t(($) => $.vault.lock.reset.description)}</p>
             <label className={styles['confirmation']}>
               <input
@@ -212,14 +214,6 @@ export function LockScreen() {
                 {resetPending
                   ? t(($) => $.vault.lock.reset.working)
                   : t(($) => $.vault.lock.reset.action)}
-              </button>
-              <button
-                className={styles['secondaryButton']}
-                disabled={resetPending}
-                onClick={closeReset}
-                type="button"
-              >
-                {t(($) => $.vault.lock.reset.cancel)}
               </button>
             </div>
           </form>

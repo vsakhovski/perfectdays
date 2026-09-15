@@ -9,6 +9,7 @@ import {
 
 import { MAX_BACKUP_JSON_LENGTH } from '../../application/backup/backup-json';
 import { decodeEncryptedVaultBackup } from '../../application/backup/encrypted-vault-backup-codec';
+import { useDialogBack } from '../../shared/ui/use-dialog-back';
 import { PinKeypad } from '../vault/PinKeypad';
 import { PrivacyActionIcon } from '../../shared/ui/PrivacyActionIcon';
 import styles from './BackupAndRestorePanel.module.css';
@@ -321,6 +322,9 @@ export function BackupAndRestorePanel({
     if (restored) clearRestoreForm();
   };
 
+  useDialogBack(plaintextWarningOpen, closePlaintextWarning, busy || verifyingPlaintextPin);
+  useDialogBack(restoreStage !== 'file', clearRestoreForm, busy || verifyingPin);
+
   return (
     <section aria-busy={busy} aria-labelledby={headingId} className={styles['panel']}>
       <header className={styles['heading']}>
@@ -473,15 +477,6 @@ export function BackupAndRestorePanel({
                           ? copy.plaintext.working
                           : copy.plaintext.action}
                     </button>
-                    <button
-                      className={styles['secondaryButton']}
-                      disabled={busy || verifyingPlaintextPin}
-                      onClick={closePlaintextWarning}
-                      type="button"
-                    >
-                      <PrivacyActionIcon kind="cancel" />
-                      {copy.plaintext.cancel}
-                    </button>
                   </div>
                 </div>
               </div>
@@ -622,15 +617,6 @@ export function BackupAndRestorePanel({
                             <PrivacyActionIcon kind="lock" />
                             {verifyingPin ? copy.restore.verifyingPin : copy.restore.verifyPin}
                           </button>
-                          <button
-                            className={styles['secondaryButton']}
-                            disabled={verifyingPin}
-                            onClick={clearRestoreForm}
-                            type="button"
-                          >
-                            <PrivacyActionIcon kind="cancel" />
-                            {copy.restore.clear}
-                          </button>
                         </div>
                       </>
                     ) : (
@@ -670,15 +656,6 @@ export function BackupAndRestorePanel({
                             {busyOperation === 'encrypted-restore'
                               ? copy.restore.working
                               : copy.restore.action}
-                          </button>
-                          <button
-                            className={styles['secondaryButton']}
-                            disabled={busy}
-                            onClick={clearRestoreForm}
-                            type="button"
-                          >
-                            <PrivacyActionIcon kind="cancel" />
-                            {copy.restore.clear}
                           </button>
                         </div>
                       </>

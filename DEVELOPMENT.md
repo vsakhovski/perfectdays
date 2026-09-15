@@ -12,6 +12,12 @@ Store packaging, submission requirements, and release-readiness planning are tra
 
 ## Product goal
 
+### Compact PIN dialogs
+
+Regression validation: 397 unit tests pass, including isolated Strict Mode dialog-Back coverage. Updated browser checks cover automatic PIN setup/change/removal, rejection of incorrect PINs, setup Back dismissal, and the full-screen lock prompt. Production build, four PWA checks, lint, and formatting pass. A clean full E2E rerun passed 84 tests with eight platform-specific skips across all four browser projects.
+
+PIN setup/change/removal, erase verification, readable export and restore dialogs use smaller corners, compact headings and corner close controls without bottom Cancel actions. Forgot PIN uses the same close arrangement. Browser Back consumes a transient dialog history entry and closes the dialog without changing the underlying page; closing with X or completing an operation also consumes that entry. History contains no PIN or journal values. Setup saves automatically when the repeated six-digit PIN matches. Existing verification and destructive-action confirmations remain. TypeScript/lint and a browser walkthrough cover setup Back dismissal and automatic matching-PIN saving; tests and production build remain deferred until requested.
+
 ### Entry and calendar regression coverage
 
 Validation completed: 396 unit tests passed; production build, four PWA artifact checks, lint, and formatting passed. The complete E2E run passed 84 tests with eight existing platform-specific skips across desktop Chromium, Firefox, mobile Chromium, and mobile WebKit.

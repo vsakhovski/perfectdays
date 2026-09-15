@@ -207,9 +207,10 @@ test.describe('Phase 4 production boundaries', () => {
     await openPrivacy(page);
     await page.getByRole('button', { name: 'Set up a PIN', exact: true }).click();
     const setupDialog = page.getByRole('dialog', { name: 'Set up a six-digit PIN' });
+    await expect(setupDialog).toBeVisible();
+    await expect(setupDialog).toBeVisible();
     await enterLockPin(page, originalPin);
     await enterLockPin(page, originalPin);
-    await setupDialog.getByRole('button', { name: 'Enable PIN protection' }).click();
     await expect(page.getByText('PIN protection is now on.')).toBeVisible();
 
     const downloadPromise = page.waitForEvent('download');
@@ -224,7 +225,6 @@ test.describe('Phase 4 production boundaries', () => {
     await enterLockPin(page, originalPin);
     await enterLockPin(page, changedPin);
     await enterLockPin(page, changedPin);
-    await page.getByRole('button', { name: 'Change PIN', exact: true }).click();
     await expect(page.getByText('The PIN was changed.')).toBeVisible();
     await updateTodayNote(page, mutatedNote);
 
@@ -245,9 +245,11 @@ test.describe('Phase 4 production boundaries', () => {
     ).toBeVisible();
 
     await page.getByRole('button', { name: 'Lock', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Perfect Days', level: 1 })).toBeVisible();
     await enterLockPin(page, changedPin);
-    await expect(page.getByRole('alert')).toContainText('could not be unlocked');
+    await expect(
+      page.getByText('The app could not be unlocked. Check the PIN and try again.'),
+    ).toBeVisible();
     await enterLockPin(page, originalPin);
     await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
 
@@ -278,9 +280,9 @@ test.describe('Phase 4 production boundaries', () => {
     await openPrivacy(page);
     await page.getByRole('button', { name: 'Set up a PIN', exact: true }).click();
     const setupDialog = page.getByRole('dialog', { name: 'Set up a six-digit PIN' });
+    await expect(setupDialog).toBeVisible();
     await enterLockPin(page, pin);
     await enterLockPin(page, pin);
-    await setupDialog.getByRole('button', { name: 'Enable PIN protection' }).click();
     await expect(page.getByText('PIN protection is now on.')).toBeVisible();
 
     await page.getByRole('button', { name: 'Download readable export' }).click();

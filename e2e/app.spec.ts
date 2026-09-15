@@ -567,24 +567,32 @@ test.describe('English application shell', () => {
     await openRootDestination(page, 'Privacy');
     await page.getByRole('button', { name: 'Set up a PIN' }).click();
     const setupDialog = page.getByRole('dialog', { name: 'Set up a six-digit PIN' });
+    await expect(setupDialog).toBeVisible();
+    await expect(setupDialog).toBeVisible();
+    await page.goBack();
+    await expect(setupDialog).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Privacy', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Set up a PIN' }).click();
+    await expect(setupDialog.getByRole('button', { name: 'Enable PIN protection' })).toHaveCount(0);
     await enterLockPin(page, firstPin);
     await enterLockPin(page, firstPin);
-    await setupDialog.getByRole('button', { name: 'Enable PIN protection' }).click();
     await expect(page.getByText('PIN protection is now on.')).toBeVisible();
 
     await page.evaluate("window.dispatchEvent(new Event('pagehide'))");
-    await expect(page.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Perfect Days', level: 1 })).toBeVisible();
     await expect(page).toHaveTitle('Perfect Days — locked');
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 
     await enterLockPin(page, '000000');
-    await expect(page.getByRole('alert')).toContainText('could not be unlocked');
+    await expect(
+      page.getByText('The app could not be unlocked. Check the PIN and try again.'),
+    ).toBeVisible();
 
     await enterLockPin(page, firstPin);
     await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
 
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Perfect Days', level: 1 })).toBeVisible();
     await enterLockPin(page, firstPin);
     await openRootDestination(page, 'Privacy');
     await expect(page.getByRole('button', { name: 'Change PIN', exact: true })).toBeVisible();
@@ -595,23 +603,24 @@ test.describe('English application shell', () => {
     await enterLockPin(page, firstPin);
     await enterLockPin(page, secondPin);
     await enterLockPin(page, secondPin);
-    await changeDialog.getByRole('button', { name: 'Change PIN', exact: true }).click();
     await expect(page.getByText('The PIN was changed.')).toBeVisible();
 
     await page.getByRole('button', { name: 'Lock', exact: true }).click();
     await enterLockPin(page, firstPin);
-    await expect(page.getByRole('alert')).toContainText('could not be unlocked');
+    await expect(
+      page.getByText('The app could not be unlocked. Check the PIN and try again.'),
+    ).toBeVisible();
     await enterLockPin(page, secondPin);
 
     await openRootDestination(page, 'Privacy');
     await page.getByRole('button', { name: 'Turn off PIN protection' }).click();
     const disableDialog = page.getByRole('dialog', { name: 'Turn off PIN protection?' });
     await expect(disableDialog).toBeVisible();
+    await expect(disableDialog.getByRole('checkbox')).toHaveCount(0);
+    await enterLockPin(page, '000000');
+    await expect(disableDialog.getByRole('alert')).toBeVisible();
+    await expect(page.getByText('PIN protection is on', { exact: true })).toBeVisible();
     await enterLockPin(page, secondPin);
-    await page
-      .getByLabel('I understand that the journal will be stored without PIN protection.')
-      .check();
-    await page.getByRole('button', { name: 'Turn off PIN protection' }).click();
     await expect(page.getByText('PIN protection is now off.')).toBeVisible();
 
     await page.reload();
@@ -638,19 +647,19 @@ test.describe('English application shell', () => {
     await openRootDestination(page, 'Privacy');
     await page.getByRole('button', { name: 'Set up a PIN' }).click();
     const setupDialog = page.getByRole('dialog', { name: 'Set up a six-digit PIN' });
+    await expect(setupDialog).toBeVisible();
     await enterLockPin(page, pin);
     await enterLockPin(page, pin);
-    await setupDialog.getByRole('button', { name: 'Enable PIN protection' }).click();
     await expect(page.getByText('PIN protection is now on.')).toBeVisible();
 
-    await expect(secondPage.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
+    await expect(secondPage.getByRole('heading', { name: 'Perfect Days', level: 1 })).toBeVisible();
     await expect(secondPage.getByRole('heading', { level: 1, name: 'Calendar' })).not.toBeVisible();
 
     await enterLockPin(secondPage, pin);
     await expect(secondPage.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Lock', exact: true }).click();
-    await expect(secondPage.getByRole('heading', { name: 'Locked', level: 1 })).toBeVisible();
+    await expect(secondPage.getByRole('heading', { name: 'Perfect Days', level: 1 })).toBeVisible();
     await expect(secondPage.getByRole('heading', { level: 1, name: 'Calendar' })).not.toBeVisible();
   });
 
