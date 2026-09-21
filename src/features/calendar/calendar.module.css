@@ -388,10 +388,6 @@
   color: var(--color-marker-red);
 }
 
-.marker-green svg {
-  fill: none;
-}
-
 .dayButton[data-recorded-red='true'] .marker-recordedRed {
   color: var(--color-background);
 }
@@ -408,39 +404,6 @@
 
 .marker-orange {
   color: var(--color-marker-orange);
-}
-
-.marker-green {
-  background: transparent;
-  color: #000;
-}
-
-:global(:root[data-theme='dark']) .marker-green,
-.dayButton[data-recorded-red='true'] .marker-green,
-.dayButton[data-predicted-red='true'] .marker-green,
-.dayButton[data-orange='true'] .marker-green {
-  color: #fff;
-}
-
-@media (hover: hover) {
-  :global(:root[data-theme='light'])
-    .dayButton[data-actionable='true'][data-recorded-red='true']:hover:not(:disabled)
-    .marker-green {
-    color: #000;
-  }
-}
-
-.marker-spotting {
-  color: var(--color-marker-red);
-  font-size: 1.35rem;
-}
-
-.marker-neutral {
-  color: var(--color-text-muted);
-}
-
-.marker-today {
-  color: var(--color-focus);
 }
 
 .legend {
@@ -621,12 +584,6 @@
   .dayButton[data-selection-animated='true']::after {
     border: 2px dashed Highlight;
     animation: none;
-  }
-
-  .marker-green {
-    border: 1px solid CanvasText;
-    background: Canvas;
-    color: CanvasText;
   }
 
   .backgroundSwatch {

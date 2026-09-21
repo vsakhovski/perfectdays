@@ -1135,7 +1135,14 @@ export function TrackerCalendar({
   };
 
   const entryDirty = useRef(false);
-  const saveCheckIn = (value: DayDetailValue, date: LocalDate, closeAfterSave = true): void => {
+  const [entryStorageFailed, setEntryStorageFailed] = useState(false);
+  const saveCheckIn = (
+    value: DayDetailValue,
+    date: LocalDate,
+    closeAfterSave = true,
+    validateOnly = false,
+  ): void => {
+    if (!validateOnly) entryDirty.current = true;
     try {
       const extensionCandidate = periodExtensionCandidateForDate(
         payload,
@@ -1175,6 +1182,8 @@ export function TrackerCalendar({
         transition,
         journalEnvironment,
       );
+      if (validateOnly) return;
+      setEntryStorageFailed(false);
       setBusy(true);
       setErrorMessage(undefined);
       setStatusMessage(undefined);
@@ -1191,8 +1200,10 @@ export function TrackerCalendar({
             onEditorOpenChange?.(false);
           }
         })
-        .catch((error: unknown) => {
-          setErrorMessage(messageForError(error));
+        .catch(() => {
+          entryDirty.current = true;
+          setEntryStorageFailed(true);
+          setErrorMessage(t(($) => $.tracker.dayDetail.errors.storageFailed));
         })
         .finally(() => {
           setBusy(false);
@@ -1356,13 +1367,13 @@ export function TrackerCalendar({
       !editorOpen ||
       busy ||
       !entryDirty.current ||
+      errorMessage !== undefined ||
       saveDisabledReason !== undefined ||
       pendingPeriodExtension !== undefined ||
       pendingHistoricalPeriodEnd !== undefined
     )
       return;
     const timer = window.setTimeout(() => {
-      entryDirty.current = false;
       saveCheckIn(editorValue, selectedDate, false);
     }, 600);
     return () => {
@@ -1664,15 +1675,40 @@ export function TrackerCalendar({
           onChange={(value) => {
             entryDirty.current = true;
             setEditorValue(value);
+            setErrorMessage(undefined);
+            setEntryStorageFailed(false);
+            saveCheckIn(value, selectedDate, false, true);
           }}
+          {...(entryStorageFailed && errorMessage !== undefined
+            ? {
+                retryLabel: t(($) => $.tracker.dayDetail.errors.retry),
+                onRetry: () => {
+                  saveCheckIn(editorValue, selectedDate, false);
+                },
+              }
+            : {})}
+          {...(errorMessage !== undefined ||
+          (editorHasObservation && saveDisabledReason !== undefined)
+            ? {
+                discardLabel: t(($) => $.tracker.dayDetail.errors.discard),
+                onDiscard: () => {
+                  entryDirty.current = false;
+                  setErrorMessage(undefined);
+                  setEntryStorageFailed(false);
+                  setPendingPeriodExtension(undefined);
+                  setPendingHistoricalPeriodEnd(undefined);
+                  setEditorOpen(false);
+                  onEditorOpenChange?.(false);
+                },
+              }
+            : {})}
           onClose={() => {
-            if (busy) return;
+            if (busy || errorMessage !== undefined) return;
             if (
-              (entryDirty.current || errorMessage !== undefined) &&
+              entryDirty.current &&
               (editorHasObservation || hasUserEnteredObservation(existingLog))
             ) {
               if (saveDisabledReason !== undefined) return;
-              entryDirty.current = false;
               saveCheckIn(editorValue, selectedDate);
               return;
             }
@@ -1691,6 +1727,8 @@ export function TrackerCalendar({
             : {
                 onCancelPeriodExtension: () => {
                   setPendingPeriodExtension(undefined);
+                  setEditorValue(valueFromLog(existingLog));
+                  entryDirty.current = false;
                 },
                 onConfirmPeriodExtension: confirmPeriodExtension,
                 periodExtensionConfirmation: {
@@ -1728,6 +1766,8 @@ export function TrackerCalendar({
             : {
                 onCancelPeriodEndSelection: () => {
                   setPendingHistoricalPeriodEnd(undefined);
+                  setEditorValue(valueFromLog(existingLog));
+                  entryDirty.current = false;
                 },
                 onConfirmPeriodEndSelection: confirmHistoricalPeriodEnd,
                 onPeriodEndSelectionChange: (endDate: LocalDate) => {

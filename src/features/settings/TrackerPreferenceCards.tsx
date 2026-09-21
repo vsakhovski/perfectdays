@@ -92,11 +92,8 @@ export function TrackerPreferenceCards({ payload }: { readonly payload: VaultPay
   };
 
   const feedbackFor = (area: SaveArea) => {
-    if (busyArea === area) return t(($) => $.mobile.settings.autoSave.saving);
-    if (feedback?.area !== area) return undefined;
-    return feedback.kind === 'saved'
-      ? t(($) => $.mobile.settings.autoSave.saved)
-      : t(($) => $.mobile.settings.autoSave.failed);
+    if (busyArea === area || feedback?.area !== area || feedback.kind !== 'error') return undefined;
+    return t(($) => $.mobile.settings.autoSave.failed);
   };
 
   return (

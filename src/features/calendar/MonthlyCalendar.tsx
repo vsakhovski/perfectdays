@@ -87,19 +87,15 @@ export interface MonthlyCalendarProps {
   readonly weekdays: readonly CalendarWeekday[];
 }
 
-const markerOrder: readonly CalendarMarker[] = [
-  'recordedRed',
-  'predictedRed',
-  'orange',
-  'green',
-  'spotting',
-];
+type VisibleCalendarMarker = 'recordedRed' | 'predictedRed' | 'orange';
+
+const markerOrder: readonly VisibleCalendarMarker[] = ['recordedRed', 'predictedRed', 'orange'];
 
 function markerIsPresent(markers: CalendarDayMarkers): boolean {
   return markerOrder.some((marker) => markers[marker]);
 }
 
-type LegendMarker = CalendarMarker | 'neutral' | 'today';
+type LegendMarker = VisibleCalendarMarker;
 
 export function CalendarFlowIcon({ flow }: { readonly flow: CalendarFlow }) {
   const clipId = useId();
@@ -151,37 +147,12 @@ function MarkerIcon({ marker }: { readonly marker: LegendMarker }) {
           <path d="M8 0C6.3 3.5 2 7.9 2 12a6 6 0 0 0 12 0C14 7.9 9.7 3.5 8 0Z" />
         </svg>
       );
-    case 'predictedStart':
-      return <span aria-hidden="true">{'▾'}</span>;
-    case 'possibleStart':
-      return <span aria-hidden="true">{'?'}</span>;
     case 'orange':
       return (
         <svg aria-hidden="true" viewBox="0 0 20 20">
           <path d="M10 0c.55 5.75 4.25 9.45 10 10-5.75.55-9.45 4.25-10 10C9.45 14.25 5.75 10.55 0 10 5.75 9.45 9.45 5.75 10 0Z" />
         </svg>
       );
-    case 'green':
-      return (
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 20 20"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-        >
-          <circle cx="10" cy="10" r="8" />
-          <path d="M6 11.5c1.5 3 6.5 3 8 0" strokeLinecap="round" />
-          <circle cx="7" cy="7.5" r="0.75" fill="currentColor" stroke="none" />
-          <circle cx="13" cy="7.5" r="0.75" fill="currentColor" stroke="none" />
-        </svg>
-      );
-    case 'spotting':
-      return <span aria-hidden="true">{'•'}</span>;
-    case 'neutral':
-      return <span aria-hidden="true">{'—'}</span>;
-    case 'today':
-      return <span aria-hidden="true">{'○'}</span>;
   }
 }
 
@@ -236,7 +207,6 @@ export function CalendarLegend({
       ? (['recordedRed'] as const)
       : (['recordedRed', 'predictedRed', 'orange'] as const);
   const labelFor = (marker: LegendMarker): string => {
-    if (marker === 'today') return copy.essentialLegend?.today ?? copy.today;
     if (marker === 'recordedRed') return copy.essentialLegend?.recorded ?? copy.markers.recordedRed;
     if (marker === 'predictedRed')
       return copy.essentialLegend?.predicted ?? copy.markers.predictedRed;
@@ -656,7 +626,6 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
           data-calendar-month={dayMonth}
           data-current-month={isActiveMonth}
           data-flow={day.flow}
-          data-green={day.markers.green}
           data-orange={day.markers.orange}
           data-predicted-red={day.markers.predictedRed}
           data-recorded-after={day.markers.recordedRed && nextDay?.markers.recordedRed === true}
@@ -666,7 +635,6 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
           data-recorded-red={day.markers.recordedRed}
           data-selection={day.selection}
           data-selection-animated={day.selectionAnimated}
-          data-spotting={day.markers.spotting}
           data-today={isToday}
           disabled={day.disabled}
           onContextMenu={(event) => {

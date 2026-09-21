@@ -83,7 +83,7 @@ test.describe('English application shell', () => {
     );
     const entry = page.locator('article').getByRole('button', { name: 'Add today’s entry' });
     await entry.click();
-    const dialog = page.getByRole('dialog', { name: 'Add today’s entry' });
+    const dialog = page.getByRole('dialog', { name: /^(Add|Edit) today’s entry$/ });
     await dialog.getByLabel('Private note').fill('A peaceful day in my journal.');
     await dialog.getByRole('button', { name: 'Close entry' }).first().click();
     await expect(dialog).toBeHidden();
@@ -199,6 +199,8 @@ test.describe('English application shell', () => {
 
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     const language = page.getByRole('combobox', { name: 'Select language' });
+    // Startup includes an intentional three-second splash before onboarding is interactive.
+    await expect(language).toBeVisible({ timeout: 15_000 });
     await expect(language).toHaveValue('English');
     await expect(language).toHaveCSS('border-radius', '12px');
     const languageControlBounds = await language.boundingBox();
@@ -413,7 +415,7 @@ test.describe('English application shell', () => {
 
     const today = page.locator('button[aria-current="date"]');
     await page.getByRole('button', { name: 'Write a note' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Add today’s entry' });
+    const dialog = page.getByRole('dialog', { name: /^(Add|Edit) today’s entry$/ });
     const startButton = dialog.getByRole('button', { name: 'Period started today' });
     await startButton.click();
     await expect(startButton).toHaveAttribute('aria-pressed', 'true');
@@ -434,7 +436,7 @@ test.describe('English application shell', () => {
     await expect(page.getByRole('button', { name: 'Edit note' })).toBeVisible();
 
     await expect(today).toHaveAccessibleName(/Recorded period day/);
-    await expect(today).toHaveAccessibleName(/Higher confidence recorded/);
+    await expect(today).not.toHaveAccessibleName(/Higher confidence recorded/);
 
     await page.reload();
     await expect(page.getByRole('heading', { level: 1, name: 'Calendar' })).toBeVisible();
@@ -464,7 +466,7 @@ test.describe('English application shell', () => {
     await finishOnboarding(page);
 
     await page.getByRole('button', { name: 'Write a note' }).click();
-    const dayDialog = page.getByRole('dialog', { name: 'Add today’s entry' });
+    const dayDialog = page.getByRole('dialog', { name: /^(Add|Edit) today’s entry$/ });
     await dayDialog.getByRole('button', { name: 'Period started today' }).click();
     await dayDialog.getByRole('checkbox', { name: 'Medium' }).check();
     await dayDialog.getByRole('button', { name: 'How did you feel? (optional)' }).click();
@@ -810,7 +812,7 @@ test.describe('Phase 5 compact mobile shell', () => {
     expect(calendarUsesOnlyVerticalInnerScrolling).toBe(true);
 
     await checkInAction.click();
-    const checkIn = page.getByRole('dialog', { name: 'Add today’s entry' });
+    const checkIn = page.getByRole('dialog', { name: /^(Add|Edit) today’s entry$/ });
     const saveAndDone = checkIn.getByRole('button', { name: 'Close entry' }).last();
     await expect(saveAndDone).toBeInViewport();
     const saveButtonBox = await saveAndDone.boundingBox();
@@ -977,7 +979,7 @@ test.describe('Phase 5 compact mobile shell', () => {
     await finishOnboarding(page);
     await page.getByRole('button', { name: 'Write a note' }).click();
 
-    const dialog = page.getByRole('dialog', { name: 'Add today’s entry' });
+    const dialog = page.getByRole('dialog', { name: /^(Add|Edit) today’s entry$/ });
     const header = dialog.locator('header');
     const close = dialog.getByRole('button', { name: 'Close entry' }).first();
     const closeIcon = close.locator('svg');
@@ -1040,7 +1042,7 @@ test.describe('Phase 5 compact mobile shell', () => {
     await dialog.getByRole('button', { name: 'Close entry' }).first().click();
     await page.getByRole('button', { name: 'Write a note' }).click();
     await expect(
-      page.getByRole('dialog', { name: 'Add today’s entry' }).getByRole('button', {
+      page.getByRole('dialog', { name: /^(Add|Edit) today’s entry$/ }).getByRole('button', {
         name: 'Hide feelings',
       }),
     ).toBeVisible();

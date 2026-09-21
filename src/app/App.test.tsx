@@ -766,7 +766,7 @@ describe('App', () => {
 
     expect(
       screen.getByRole('button', {
-        name: /Saturday, August 8, 2026.*Medium.*Recorded period day.*Higher confidence recorded/i,
+        name: /Saturday, August 8, 2026.*Medium.*Recorded period day/i,
       }),
     ).toHaveAttribute('data-flow', 'medium');
   }, 10_000);
@@ -796,6 +796,47 @@ describe('App', () => {
     });
     expect(screen.getByRole('textbox', { name: 'Private note' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Save and done' })).toBeNull();
+  });
+
+  it('retains a failed autosave draft and retries silently without losing the note', async () => {
+    const { vaultController } = await renderApp({ onboardingCompleted: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Write a note' }));
+    const dialog = within(screen.getByRole('dialog'));
+    vaultController.failNextSave();
+    fireEvent.change(dialog.getByRole('textbox', { name: 'Private note' }), {
+      target: { value: 'Keep this draft' },
+    });
+    expect(await dialog.findByRole('alert')).toHaveTextContent(
+      'Your changes couldn’t be saved on this device.',
+    );
+    for (const close of dialog.getAllByRole('button', { name: 'Close entry' })) {
+      fireEvent.click(close);
+    }
+    expect(dialog.getByRole('textbox', { name: 'Private note' })).toHaveValue('Keep this draft');
+    fireEvent.click(dialog.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => {
+      const snapshot = vaultController.getSnapshot();
+      expect(snapshot.phase === 'unlocked' && snapshot.payload.logs[0]?.note).toBe(
+        'Keep this draft',
+      );
+    });
+    expect(dialog.queryByRole('alert')).toBeNull();
+    expect(dialog.queryByRole('button', { name: 'Retry' })).toBeNull();
+    expect(dialog.queryByText(/Saved automatically|Saving automatically/)).toBeNull();
+  });
+
+  it('can explicitly discard an unsaved draft after a storage failure', async () => {
+    const { vaultController } = await renderApp({ onboardingCompleted: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Write a note' }));
+    vaultController.failNextSave();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Private note' }), {
+      target: { value: 'Unsaved draft' },
+    });
+    await screen.findByRole('button', { name: 'Retry' });
+    fireEvent.click(screen.getByRole('button', { name: 'Discard unsaved changes' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const snapshot = vaultController.getSnapshot();
+    expect(snapshot.phase === 'unlocked' && snapshot.payload.logs).toEqual([]);
   });
 
   it('can enable the optional PIN on the final onboarding screen', async () => {

@@ -163,10 +163,12 @@ describe('MonthlyCalendar', () => {
     expect(screen.queryByRole('button', { name: copy.nextMonth })).toBeNull();
 
     const today = screen.getByRole('button', {
-      name: /Full date 2026-05-01.*Today.*Heavy flow.*Recorded period.*medium confidence.*Higher confidence.*Spotting recorded/u,
+      name: /Full date 2026-05-01.*Today.*Heavy flow.*Recorded period.*medium confidence/u,
     });
     expect(today).toHaveAttribute('aria-current', 'date');
     expect(today).toHaveAttribute('data-flow', 'heavy');
+    expect(today).not.toHaveAccessibleName(/Higher confidence|Spotting recorded/u);
+    expect(today.querySelector('[class*="marker-green"], [class*="marker-spotting"]')).toBeNull();
 
     const legend = screen.getByRole('heading', { name: copy.legendTitle }).closest('section');
     expect(legend).not.toBeNull();

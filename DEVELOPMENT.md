@@ -12,6 +12,16 @@ Store packaging, submission requirements, and release-readiness planning are tra
 
 ## Product goal
 
+### Silent autosave and immediate validation
+
+Regression validation: 399 unit tests, the production build, four PWA artifact checks, lint, formatting, and the full E2E suite pass (84 passed, eight platform-specific skips). Tests cover failed-autosave draft preservation, retry and discard. Calendar assertions exclude removed symbols. Browser entry locators support the title changing from Add to Edit after autosave; the onboarding readiness check allows for the startup splash.
+
+Entry changes are validated immediately using the same journal rules as saving, while valid changes retain debounced silent autosave. Required period-boundary confirmations open immediately. Invalid data shows corrective feedback without Retry. Storage failures retain the draft and expose Retry; closing a blocked entry brings its error into view, and explicit discard is available. Cancelling a boundary confirmation restores the saved entry instead of repeatedly reopening confirmation. English, German, and Russian feedback is included. Tests and production build are deferred until requested.
+
+### Simplified calendar symbols
+
+Calendar day cells show only recorded bleeding (including saved flow intensity), predicted bleeding, and the pre-period window. Wellbeing/smiley and legacy spotting symbols are no longer rendered or announced as calendar markers. Journal observations remain stored and available in entries; today, selected-date, and period-editing indicators are unchanged. Tests and production build were not run for this presentation change.
+
 ### Compact PIN dialogs
 
 Regression validation: 397 unit tests pass, including isolated Strict Mode dialog-Back coverage. Updated browser checks cover automatic PIN setup/change/removal, rejection of incorrect PINs, setup Back dismissal, and the full-screen lock prompt. Production build, four PWA checks, lint, and formatting pass. A clean full E2E rerun passed 84 tests with eight platform-specific skips across all four browser projects.

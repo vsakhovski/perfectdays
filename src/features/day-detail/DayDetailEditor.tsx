@@ -72,6 +72,10 @@ export interface DayDetailCopy {
 
 export interface DayDetailEditorProps {
   readonly autoSave?: boolean;
+  readonly retryLabel?: string;
+  readonly onRetry?: () => void;
+  readonly discardLabel?: string;
+  readonly onDiscard?: () => void;
   readonly periodControls?: {
     readonly ongoingTitle?: string;
     readonly explanation: string;
@@ -382,6 +386,10 @@ export function DayDetailEditor({
   onChange,
   onClose,
   autoSave = false,
+  retryLabel,
+  onRetry,
+  discardLabel,
+  onDiscard,
   onDelete,
   onDetailsOpenChange,
   onPeriodAction,
@@ -403,6 +411,15 @@ export function DayDetailEditor({
   statusMessage,
   value,
 }: DayDetailEditorProps) {
+  const errorRef = useRef<HTMLDivElement>(null);
+  const closeEntry = (): void => {
+    if (errorMessage || (saveDisabled && saveDisabledReason)) {
+      const target = errorRef.current ?? saveDisabledReasonRef.current;
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target?.focus({ preventScroll: true });
+    }
+    onClose();
+  };
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const periodRef = useRef<HTMLElement>(null);
   const initialFocusRef = useRef(initialFocus);
@@ -507,7 +524,7 @@ export function DayDetailEditor({
   const handleDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     if (event.key === 'Escape' && !busy) {
       event.preventDefault();
-      onClose();
+      closeEntry();
       return;
     }
 
@@ -581,7 +598,7 @@ export function DayDetailEditor({
             aria-label={copy.close}
             className={styles['closeButton']}
             disabled={busy}
-            onClick={onClose}
+            onClick={closeEntry}
             type="button"
           >
             <CloseIcon />
@@ -728,13 +745,19 @@ export function DayDetailEditor({
           ) : null}
 
           {errorMessage ? (
-            <p className={styles['error']} role="alert">
-              {errorMessage}
-            </p>
+            <div className={styles['error']} ref={errorRef} tabIndex={-1}>
+              <p role="alert">{errorMessage}</p>
+              {onRetry ? (
+                <button type="button" disabled={busy} onClick={onRetry}>
+                  {retryLabel}
+                </button>
+              ) : null}
+            </div>
           ) : null}
           {showSaveDisabledReason ? (
             <p
               className={styles['saveGuidance']}
+              role="alert"
               id={saveDisabledReasonId}
               ref={saveDisabledReasonRef}
               tabIndex={-1}
@@ -743,6 +766,11 @@ export function DayDetailEditor({
             </p>
           ) : null}
 
+          {onDiscard ? (
+            <button type="button" disabled={busy} onClick={onDiscard}>
+              {discardLabel}
+            </button>
+          ) : null}
           {onDelete ? (
             <button
               className={styles['topDeleteButton']}
@@ -881,7 +909,7 @@ export function DayDetailEditor({
             <button
               className={styles['secondaryButton']}
               disabled={busy}
-              onClick={onClose}
+              onClick={closeEntry}
               type="button"
             >
               {autoSave ? copy.close : copy.cancel}

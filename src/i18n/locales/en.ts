@@ -425,6 +425,9 @@ export const en = {
           'That period change conflicts with another period. Correct the existing dates first.',
         noActivePeriod: 'There is no active period to continue or end.',
         startLog: 'Remove the period before deleting its start-day check-in.',
+        storageFailed: 'Your changes couldn’t be saved on this device.',
+        retry: 'Retry',
+        discard: 'Discard unsaved changes',
         saveFailed: 'The change could not be saved. Your existing journal was left unchanged.',
       },
       status: {

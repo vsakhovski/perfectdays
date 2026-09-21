@@ -441,6 +441,9 @@ export const de = {
           'Diese Periodenänderung steht im Konflikt mit einer anderen Periode. Korrigiere zuerst die vorhandenen Daten.',
         noActivePeriod: 'Es gibt keine aktive Periode zum Fortsetzen oder Beenden.',
         startLog: 'Entferne die Periode, bevor du den Check-in ihres Starttags löschst.',
+        storageFailed: 'Deine Änderungen konnten auf diesem Gerät nicht gespeichert werden.',
+        retry: 'Erneut versuchen',
+        discard: 'Ungespeicherte Änderungen verwerfen',
         saveFailed:
           'Die Änderung konnte nicht gespeichert werden. Dein bestehendes Tagebuch wurde nicht verändert.',
       },
