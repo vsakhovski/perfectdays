@@ -12,7 +12,21 @@ Store packaging, submission requirements, and release-readiness planning are tra
 
 ## Product goal
 
+### Reminder setup and preview
+
+Android reminder Settings now starts with a purpose statement that changes when enabled, uses actual preset message text in the selector, and offers a modal Android-style notification preview (any click, swipe, Escape, close button and browser Back supported). Routine status messages and technical scheduling/lock-screen paragraphs are removed from this card; actionable errors remain. Native onboarding adds a reminder step just before PIN, enabled by default; Continue requests permission, while preferences are committed with completed onboarding. The PWA flow is unchanged.
+
+Regression validation: 453 unit tests pass, including reminder settings, custom-message validation/retry, onboarding step order, preview focus/dismissal, and mocked Android notification scheduling/cleanup. PWA and Android web builds, four PWA artifact checks, lint and formatting pass. All 84 applicable E2E scenarios passed across the full run and targeted reruns (eight existing platform-specific skips). The responsive calendar test now settles resizing before returning to today; the navigation test uses DOM readiness instead of waiting for a late load event. Firefox page-creation failures in the sandbox required an unrestricted rerun. Actual Android notification delivery and signed APK/device validation remain separate release checks.
+
+### Android local-reminder first implementation
+
+Added a separate Capacitor Android build target (`dist-android`), native-only period reminder settings (default two days, 1–7 range, local time, presets/custom text and skip), serialized local scheduling with a persistent per-device receipt, and schema-7 optional reminder preferences. Calendar and reminders share the next-start calculation. Note-only saves do not replace an unchanged scheduled reminder; startup/resume can repair a missing future registration but never recreate a skipped or elapsed occurrence. Restore/erasure disarm reminders before mutation. Native lifecycle events feed background locking, the Android window is screenshot-protected, and automatic backup/transfer is excluded. See `ANDROID.md` for signed-APK setup and release gates. Tests, web/native builds and device validation are deferred until requested; this is not a verified distributable APK.
+
 ### Silent autosave and immediate validation
+
+Latest check-in E2E verification: all 84 applicable scenarios passed in one full four-browser run, with eight existing platform-specific skips. Android soft-keyboard behavior still needs confirmation on a physical device.
+
+Android check-in refinement: private-note changes remain in the draft while the textarea has focus; autosave resumes after blur (closing the entry still saves its draft). The textarea stays editable during background saves, and a save completion does not mark newer edits clean. Flow controls precede the private note, directly following the period controls. Period action buttons use full-width filled treatments and tactile feedback, with action-oriented “Mark period start” / “Mark period end” labels and corresponding German/Russian translations. Regression tests cover no save or focus loss while typing, persistence after blur, failed-save retry/discard, and period/flow/note ordering. All 454 unit tests, PWA and Android web builds, PWA artifact checks, lint and formatting pass.
 
 Regression validation: 399 unit tests, the production build, four PWA artifact checks, lint, formatting, and the full E2E suite pass (84 passed, eight platform-specific skips). Tests cover failed-autosave draft preservation, retry and discard. Calendar assertions exclude removed symbols. Browser entry locators support the title changing from Add to Edit after autosave; the onboarding readiness check allows for the startup splash.
 

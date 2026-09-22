@@ -434,6 +434,17 @@
   border-color: var(--color-accent);
   background: var(--color-accent);
   color: var(--color-on-accent);
+  inline-size: 100%;
+  min-block-size: 3rem;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 16%);
+}
+
+.periodActionButton:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.periodActionButton:active:not(:disabled) {
+  box-shadow: none;
 }
 
 .secondaryButton {

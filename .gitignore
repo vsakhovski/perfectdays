@@ -1,6 +1,10 @@
 # Dependencies and build output
 node_modules/
 dist/
+dist-android/
+*.jks
+*.keystore
+android/keystore.properties
 coverage/
 
 # Test artifacts
@@ -20,4 +24,3 @@ test-results/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
-

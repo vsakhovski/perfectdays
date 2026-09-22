@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">My Perfect Days</string>
+    <string name="title_activity_main">My Perfect Days</string>
+    <string name="package_name">app.myperfectdays.journal</string>
+    <string name="custom_url_scheme">app.myperfectdays.journal</string>
+</resources>

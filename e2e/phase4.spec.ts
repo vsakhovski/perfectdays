@@ -118,7 +118,7 @@ async function openPrivacy(page: Page): Promise<void> {
 async function recordToday(page: Page, note: string): Promise<void> {
   await page.getByRole('button', { name: 'Write a note' }).click();
   const dialog = page.getByRole('dialog', { name: 'Add today’s entry' });
-  await dialog.getByRole('button', { name: 'Period started today' }).click();
+  await dialog.getByRole('button', { name: 'Mark period start' }).click();
   await dialog.getByRole('checkbox', { name: 'Medium' }).check();
   await dialog.getByRole('button', { name: 'How did you feel? (optional)' }).click();
   await dialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }).check();

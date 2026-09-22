@@ -20,6 +20,7 @@ import { AppNavigationProvider } from './navigation/AppNavigationProvider';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { useTheme } from './theme/use-theme';
 import { VaultProvider } from './vault/VaultProvider';
+import { NativeReminderSync } from '../features/settings/NativeReminderSync';
 
 interface AppProvidersProps {
   children: ReactNode;
@@ -103,6 +104,7 @@ function AppVaultProvider({
       textFileDownloader={textFileDownloader}
       vaultInvalidationChannel={vaultInvalidationChannel}
     >
+      <NativeReminderSync />
       {children}
     </VaultProvider>
   );

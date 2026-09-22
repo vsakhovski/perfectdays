@@ -1,0 +1,65 @@
+.dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(25rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  padding: 1rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 0.5rem 2rem rgb(0 0 0 / 25%);
+  touch-action: none;
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+  backdrop-filter: blur(6px);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.header button {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 1.5rem;
+}
+.notification {
+  margin-block: 1rem;
+  padding: 1rem;
+  border-radius: 1.4rem;
+  background: color-mix(in srgb, var(--color-text) 7%, var(--color-surface));
+}
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.identity img {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+.notification p {
+  margin-bottom: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.caption {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}

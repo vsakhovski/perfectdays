@@ -24,9 +24,18 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "verify": "npm run format:check && npm run lint && npm test && npm run build && npm run test:pwa",
-    "ci": "npm run verify && npm run test:e2e"
+    "ci": "npm run verify && npm run test:e2e",
+    "build:android:web": "tsc -b && vite build --mode android",
+    "android:sync": "npm run build:android:web && cap sync android",
+    "android:open": "cap open android",
+    "android:apk": "npm run android:sync && cd android && gradlew.bat assembleRelease"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/preferences": "^8.0.1",
     "dexie": "^4.4.4",
     "i18next": "^26.3.6",
     "react": "^19.2.8",
@@ -36,6 +45,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
+    "@capacitor/cli": "^8.5.2",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
     "@testing-library/dom": "^10.4.1",

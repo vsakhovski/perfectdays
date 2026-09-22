@@ -20,15 +20,21 @@ export const browserApplicationLifecycleSource: ApplicationLifecycleSource = {
     const handlePageShow = () => {
       listener(readLifecycleState());
     };
+    const handleNativeState = (event: Event) => {
+      if (event instanceof CustomEvent)
+        listener(event.detail === true ? 'foreground' : 'background');
+    };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('pagehide', handlePageHide);
     window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('native-app-state', handleNativeState);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pagehide', handlePageHide);
       window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('native-app-state', handleNativeState);
     };
   },
 };

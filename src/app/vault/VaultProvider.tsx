@@ -22,6 +22,7 @@ import type { JournalMutationContext } from '../../domain/journal';
 import type { VaultPayload } from '../../domain/models';
 import { synchronizeDocumentVaultState } from '../../i18n/synchronize-document';
 import { useLanguage } from '../i18n/use-language';
+import { reminderRuntime } from '../../application/reminders/reminder-runtime';
 import { VaultContext, type ResetNotice } from './vault-context';
 
 interface VaultProviderProps {
@@ -233,6 +234,7 @@ export function VaultProvider({
   const restoreEncryptedBackup = useCallback(
     async (backupJson: string, backupPin: string) => {
       try {
+        await reminderRuntime.disable();
         await controller.restoreEncryptedBackup(backupJson, backupPin);
         vaultInvalidationChannel.publish();
       } catch (error) {
@@ -251,6 +253,7 @@ export function VaultProvider({
   const eraseEverything = useCallback(async () => {
     let eraseCommitted = false;
     try {
+      await reminderRuntime.disable();
       await controller.reset();
       eraseCommitted = true;
       let preferencesCleared = false;

@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useId,
   useLayoutEffect,
   useRef,
@@ -72,6 +73,7 @@ export interface DayDetailCopy {
 
 export interface DayDetailEditorProps {
   readonly autoSave?: boolean;
+  readonly onNoteFocusChange?: (focused: boolean) => void;
   readonly retryLabel?: string;
   readonly onRetry?: () => void;
   readonly discardLabel?: string;
@@ -386,6 +388,7 @@ export function DayDetailEditor({
   onChange,
   onClose,
   autoSave = false,
+  onNoteFocusChange,
   retryLabel,
   onRetry,
   discardLabel,
@@ -421,6 +424,12 @@ export function DayDetailEditor({
     onClose();
   };
   const noteRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(
+    () => () => {
+      onNoteFocusChange?.(false);
+    },
+    [onNoteFocusChange],
+  );
   const periodRef = useRef<HTMLElement>(null);
   const initialFocusRef = useRef(initialFocus);
   const titleId = useId();
@@ -637,6 +646,7 @@ export function DayDetailEditor({
                     onChange(next);
                   }}
                 >
+                  <span aria-hidden="true">{'+'}</span>
                   {periodControls.start}
                 </button>
               ) : null}
@@ -689,19 +699,6 @@ export function DayDetailEditor({
               ) : null}
             </section>
           ) : null}
-          <label className={styles['noteField']}>
-            <span>{copy.noteLabel}</span>
-            <textarea
-              ref={noteRef}
-              aria-label={copy.noteLabel}
-              disabled={busy}
-              onChange={(event) => {
-                onChange({ ...value, note: event.currentTarget.value });
-              }}
-              rows={4}
-              value={value.note ?? ''}
-            />
-          </label>
           {periodControls === undefined ||
           periodControls.hasPeriod ||
           value.periodTransition === 'start' ? (
@@ -744,6 +741,25 @@ export function DayDetailEditor({
             </fieldset>
           ) : null}
 
+          <label className={styles['noteField']}>
+            <span>{copy.noteLabel}</span>
+            <textarea
+              ref={noteRef}
+              aria-label={copy.noteLabel}
+              disabled={busy && !autoSave}
+              onFocus={() => {
+                onNoteFocusChange?.(true);
+              }}
+              onBlur={() => {
+                onNoteFocusChange?.(false);
+              }}
+              onChange={(event) => {
+                onChange({ ...value, note: event.currentTarget.value });
+              }}
+              rows={4}
+              value={value.note ?? ''}
+            />
+          </label>
           {errorMessage ? (
             <div className={styles['error']} ref={errorRef} tabIndex={-1}>
               <p role="alert">{errorMessage}</p>

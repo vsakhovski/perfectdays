@@ -178,6 +178,8 @@ const languageControlCopy = {
 } as const;
 
 interface HarnessProps {
+  readonly reminderContent?: TrackerOnboardingProps['reminderContent'];
+  readonly onReminderContinue?: TrackerOnboardingProps['onReminderContinue'];
   readonly draft?: OnboardingDraft;
   readonly onAddHistory?: TrackerOnboardingProps['onAddHistory'];
   readonly onComplete?: TrackerOnboardingProps['onComplete'];
@@ -189,6 +191,8 @@ interface HarnessProps {
 }
 
 function Harness({
+  reminderContent,
+  onReminderContinue,
   draft: initialValue = initialDraft,
   onAddHistory = vi.fn<TrackerOnboardingProps['onAddHistory']>(),
   onComplete = vi.fn<TrackerOnboardingProps['onComplete']>(),
@@ -202,6 +206,8 @@ function Harness({
 
   return (
     <TrackerOnboarding
+      {...(reminderContent !== undefined ? { reminderContent } : {})}
+      {...(onReminderContinue ? { onReminderContinue } : {})}
       appVersion="0.6.0"
       copy={copy}
       draft={draft}
@@ -411,6 +417,29 @@ describe('TrackerOnboarding', () => {
     await user.click(screen.getByLabelText(copy.orange.enabled));
     expect(screen.queryByLabelText(copy.orange.days)).toBeNull();
     expect(screen.queryByRole('button', { name: copy.orange.increase })).toBeNull();
+  });
+
+  it('inserts native reminders before PIN and waits for valid reminder preferences', async () => {
+    const user = userEvent.setup();
+    const onReminderContinue = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    render(
+      <Harness
+        reminderContent={<h2>{'Period start reminder'}</h2>}
+        onReminderContinue={onReminderContinue}
+      />,
+    );
+    await goToHistory(user);
+    for (let index = 0; index < 4; index++) {
+      await user.click(screen.getByRole('button', { name: copy.actions.next }));
+    }
+    expect(screen.getByRole('heading', { name: 'Period start reminder' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: copy.actions.next }));
+    expect(screen.getByRole('heading', { name: 'Period start reminder' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: copy.actions.next }));
+    expect(screen.getByRole('heading', { name: copy.pin.title })).toBeVisible();
+    expect(onReminderContinue).toHaveBeenCalledTimes(2);
+    await user.click(screen.getByRole('button', { name: copy.actions.back }));
+    expect(screen.getByRole('heading', { name: 'Period start reminder' })).toBeVisible();
   });
 
   it('navigates with deliberate horizontal swipes and preserves step validation', () => {

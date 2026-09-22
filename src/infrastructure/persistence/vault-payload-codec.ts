@@ -9,7 +9,7 @@ import {
   MAX_TYPICAL_CYCLE_LENGTH,
 } from '../../domain/tracking-settings';
 
-export const CURRENT_VAULT_SCHEMA_VERSION = 6 as const;
+export const CURRENT_VAULT_SCHEMA_VERSION = 7 as const;
 
 const localDateSchema = z.custom<LocalDate>(
   (value) => typeof value === 'string' && isLocalDate(value),
@@ -297,7 +297,7 @@ export const vaultPayloadV5Schema = z
 
 export const vaultPayloadV6Schema = z
   .strictObject({
-    schemaVersion: z.literal(CURRENT_VAULT_SCHEMA_VERSION),
+    schemaVersion: z.literal(6),
     episodes: z.array(periodEpisodeSchema),
     logs: z.array(dailyLogSchema),
     estimateDecisions: z.array(estimateDecisionSchema),
@@ -305,6 +305,28 @@ export const vaultPayloadV6Schema = z
     settings: vaultSettingsV4Schema,
     createdAt: timestampSchema,
     updatedAt: timestampSchema,
+  })
+  .superRefine(validateDomainInvariants);
+
+export const vaultPayloadV7Schema = z
+  .strictObject({
+    ...vaultPayloadV6Schema.shape,
+    schemaVersion: z.literal(7),
+    settings: vaultSettingsV4Schema.extend({
+      periodReminder: z
+        .strictObject({
+          enabled: z.boolean(),
+          daysBefore: z.number().int().min(1).max(7),
+          time: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/u),
+          message: z.enum(['discreet', 'direct', 'custom']),
+          customText: z.string().max(160),
+        })
+        .refine(
+          (value) =>
+            !value.enabled || value.message !== 'custom' || value.customText.trim().length > 0,
+        )
+        .optional(),
+    }),
   })
   .superRefine(validateDomainInvariants);
 
@@ -470,6 +492,10 @@ export function migrateVaultPayload(input: unknown): VaultPayload {
         candidate = migrateVersionFive(candidate);
         candidateVersion = 6;
         break;
+      case 6:
+        candidate = { ...vaultPayloadV6Schema.parse(candidate), schemaVersion: 7 };
+        candidateVersion = 7;
+        break;
       default:
         throw new UnsupportedVaultSchemaVersionError(candidateVersion);
     }
@@ -479,7 +505,7 @@ export function migrateVaultPayload(input: unknown): VaultPayload {
     throw new UnsupportedVaultSchemaVersionError(candidateVersion);
   }
 
-  return vaultPayloadV6Schema.parse(candidate) as VaultPayload;
+  return vaultPayloadV7Schema.parse(candidate) as VaultPayload;
 }
 
 const encoder = new TextEncoder();
@@ -487,7 +513,7 @@ const decoder = new TextDecoder('utf-8', { fatal: true });
 
 export function encodeVaultPayload(payload: VaultPayload): Uint8Array {
   try {
-    const validatedPayload = vaultPayloadV6Schema.parse(payload);
+    const validatedPayload = vaultPayloadV7Schema.parse(payload);
     return encoder.encode(JSON.stringify(validatedPayload));
   } catch (error) {
     if (error instanceof InvalidVaultPayloadError) {

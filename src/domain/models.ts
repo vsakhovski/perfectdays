@@ -55,7 +55,16 @@ export type LanguagePreference = 'system' | SupportedLanguage;
 export type WeekStartPreference = 'system' | 'monday' | 'sunday';
 export type AutoLockDelay = 'immediate' | '1-minute' | '5-minutes' | '15-minutes';
 
+export interface PeriodReminderSettings {
+  enabled: boolean;
+  daysBefore: number;
+  time: string;
+  message: 'discreet' | 'direct' | 'custom';
+  customText: string;
+}
+
 export interface UserSettings {
+  periodReminder?: PeriodReminderSettings;
   theme: ThemePreference;
   language: LanguagePreference;
   weekStart: WeekStartPreference;

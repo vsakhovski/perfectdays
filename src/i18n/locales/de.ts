@@ -1,6 +1,48 @@
 import type { TranslationResource } from './en';
 
 export const de = {
+  reminders: {
+    enabledExplanation:
+      'Diese Erinnerung wird kurz vor dem erwarteten Beginn deiner Periode angezeigt.',
+    explanation:
+      'Aktiviere diese Option, um kurz vor dem erwarteten Beginn deiner Periode erinnert zu werden.',
+    closePreview: 'Benachrichtigungsvorschau schließen',
+    previewNote: 'Beispiel einer Benachrichtigung. Das Aussehen hängt von deinem Android-Gerät ab.',
+    title: 'Erinnerung an den Periodenbeginn',
+    enable: 'Periodenerinnerung aktivieren',
+    days: 'Tage vor dem geschätzten Beginn',
+    time: 'Uhrzeit',
+    message: 'Nachricht',
+    custom: 'Eigener Text (bis zu 160 Zeichen)',
+    preview: 'Vorschau',
+    privacy:
+      'Die Nachricht kann auf dem Sperrbildschirm sichtbar sein. Android speichert Zeitpunkt und Text außerhalb deines PIN-geschützten Tagebuchs.',
+    delivery:
+      'Eine bevorstehende Erinnerung wird lokal geplant. Die Zustellzeit ist ungefähr. Öffne die App nach dem Erfassen deiner nächsten Periode, um Erinnerungen aktuell zu halten.',
+    allow: 'Erinnerungen auf diesem Gerät erlauben',
+    skip: 'Diese Erinnerung überspringen',
+    invalid: 'Wähle 1–7 Tage, eine gültige Uhrzeit und einen eigenen Text mit 1–160 Zeichen.',
+    failed:
+      'Einstellungen oder Erinnerungsplanung konnten nicht aktualisiert werden. Bitte erneut versuchen.',
+    retry: 'Erneut versuchen',
+    discreetText: 'Ein wenig Zeit für dich könnte bald guttun.',
+    directText: 'Deine nächste Periode könnte bald beginnen.',
+    messages: {
+      discreet: 'Diskret',
+      direct: 'Periodenerinnerung',
+      custom: 'Eigener Text',
+    },
+    status: {
+      off: 'Periodenerinnerungen sind auf diesem Gerät aus.',
+      waiting: 'Warten auf eine Schätzung der nächsten Periode.',
+      scheduled: 'Nächste Erinnerung:',
+      skipped: 'Die Erinnerung für diesen Zyklus wird übersprungen.',
+      past: 'Der Erinnerungszeitpunkt für diese geschätzte Periode ist bereits vorbei.',
+      permission:
+        'Benachrichtigungen sind blockiert. Erlaube sie in den Android-Einstellungen und versuche es erneut.',
+      error: 'Die Erinnerung konnte nicht geplant werden.',
+    },
+  },
   meta: {
     title: 'My Perfect Days',
     description: 'Ein privates, lokal gespeichertes Tagebuch für Menstruationsmuster.',
@@ -337,10 +379,10 @@ export const de = {
       boundaryControls: {
         explanation:
           'Blutungsstärke und Befinden sind optional. Du musst sie nicht jeden Tag eintragen.',
-        start: 'Periode hat an diesem Tag begonnen',
-        startToday: 'Periode hat heute begonnen',
+        start: 'Periodenbeginn eintragen',
+        startToday: 'Periodenbeginn eintragen',
         flowLabel: 'Blutungsstärke (optional)',
-        end: 'Periode ist beendet',
+        end: 'Periodenende eintragen',
         ongoing: 'Periode läuft · Tag {{count}}',
         endTitle: 'Wann war der letzte Tag mit Blutung?',
         endYesterday: 'Gestern war der letzte Tag mit Blutung. Heute zählt nicht mehr zur Periode.',
@@ -352,11 +394,11 @@ export const de = {
         endBefore:
           '{{date}} — keine Blutung am Check-in-Tag. Der Check-in-Tag zählt nicht zur Periode.',
         endOnDay: '{{date}} — Blutung endete am Check-in-Tag. Dieser Tag zählt zur Periode.',
-        confirm: 'Periode beenden',
+        confirm: 'Periodenende eintragen',
       },
       periodActions: {
         start: {
-          label: 'Periode beginnen',
+          label: 'Periodenbeginn eintragen',
           description: 'Die Periode beginnt an diesem Tag.',
         },
         continue: {
@@ -364,7 +406,7 @@ export const de = {
           description: 'Die Periode dauert an diesem Tag an.',
         },
         end: {
-          label: 'Periode hier beenden',
+          label: 'Periodenende eintragen',
           description: 'Die Periode endet an diesem Tag.',
         },
         remove: {
@@ -493,8 +535,8 @@ export const de = {
         settings: 'Einstellungen',
       },
       actions: {
-        startPeriod: 'Meine Periode hat begonnen',
-        endPeriod: 'Meine Periode ist vorbei',
+        startPeriod: 'Periodenbeginn eintragen',
+        endPeriod: 'Periodenende eintragen',
         viewPeriod: 'Periode ansehen',
         editNote: 'Notiz bearbeiten',
         forDate: '{{action}} · {{date}}',

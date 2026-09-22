@@ -6,6 +6,10 @@ For the public repository overview and local setup, see [README.md](README.md). 
 
 ## Recommended Distribution Strategy
 
+### Android signed-APK implementation
+
+The first native target is now Android through Capacitor, initially distributed as signed APKs. See [ANDROID.md](ANDROID.md) for build/signing steps, update rules, local period reminder behavior, and unverified device-release gates. The PWA remains notification-free. Reminders default to two days before the next estimated start; relevant saved changes reschedule them, while startup/resume only reconciles unchanged or missing pending registrations. No push service or notification backend is used.
+
 For the current product, distribute the hosted PWA first and add store packages later. The recommended sequence is:
 
 1. Deploy the production `dist/` directory as a static PWA on a permanent custom HTTPS domain.

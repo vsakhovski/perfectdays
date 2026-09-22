@@ -737,7 +737,7 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Edit note' }));
     const editor = within(screen.getByRole('dialog', { name: 'Edit today’s entry' }));
-    await user.click(editor.getByRole('button', { name: 'Period started today' }));
+    await user.click(editor.getByRole('button', { name: 'Mark period start' }));
     await user.click(editor.getByRole('checkbox', { name: 'Medium' }));
     await user.click(editor.getByRole('button', { name: 'How did you feel? (optional)' }));
     await user.click(editor.getByRole('radio', { name: 'Confidence: 5 out of 5' }));
@@ -774,7 +774,7 @@ describe('App', () => {
   it('starts a period directly and hides end actions on its first day', async () => {
     const user = userEvent.setup();
     const { vaultController } = await renderApp({ onboardingCompleted: true });
-    await user.click(screen.getByRole('button', { name: 'My period started' }));
+    await user.click(screen.getByRole('button', { name: 'Mark period start' }));
     await waitFor(() => {
       const snapshot = vaultController.getSnapshot();
       expect(snapshot.phase === 'unlocked' && snapshot.payload.episodes).toEqual([
@@ -782,12 +782,13 @@ describe('App', () => {
       ]);
       expect(screen.queryByRole('dialog')).toBeNull();
     });
-    expect(screen.queryByRole('button', { name: 'My period ended' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mark period end' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Write a note' }));
-    expect(screen.queryByRole('button', { name: 'Period has ended' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mark period end' })).toBeNull();
     fireEvent.change(screen.getByLabelText('Private note'), {
       target: { value: 'Autosaved note' },
     });
+    fireEvent.blur(screen.getByLabelText('Private note'));
     await waitFor(() => {
       const snapshot = vaultController.getSnapshot();
       expect(snapshot.phase === 'unlocked' && snapshot.payload.logs[0]?.note).toBe(
@@ -798,6 +799,35 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: 'Save and done' })).toBeNull();
   });
 
+  it('keeps the note focused and unsaved while typing, then saves on blur', async () => {
+    const { vaultController } = await renderApp({ onboardingCompleted: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Write a note' }));
+    const note = screen.getByRole('textbox', { name: 'Private note' });
+    expect(note).toHaveFocus();
+    vi.useFakeTimers();
+    try {
+      fireEvent.change(note, { target: { value: 'Still typing' } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+      expect(note).toHaveFocus();
+      expect(note).toBeEnabled();
+      const beforeBlur = vaultController.getSnapshot();
+      expect(beforeBlur.phase === 'unlocked' && beforeBlur.payload.logs).toEqual([]);
+      fireEvent.change(note, { target: { value: 'Complete note' } });
+      fireEvent.blur(note);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(700);
+      });
+      const afterBlur = vaultController.getSnapshot();
+      expect(afterBlur.phase === 'unlocked' && afterBlur.payload.logs[0]?.note).toBe(
+        'Complete note',
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('retains a failed autosave draft and retries silently without losing the note', async () => {
     const { vaultController } = await renderApp({ onboardingCompleted: true });
     fireEvent.click(screen.getByRole('button', { name: 'Write a note' }));
@@ -806,6 +836,7 @@ describe('App', () => {
     fireEvent.change(dialog.getByRole('textbox', { name: 'Private note' }), {
       target: { value: 'Keep this draft' },
     });
+    fireEvent.blur(dialog.getByRole('textbox', { name: 'Private note' }));
     expect(await dialog.findByRole('alert')).toHaveTextContent(
       'Your changes couldn’t be saved on this device.',
     );
@@ -832,6 +863,7 @@ describe('App', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Private note' }), {
       target: { value: 'Unsaved draft' },
     });
+    fireEvent.blur(screen.getByRole('textbox', { name: 'Private note' }));
     await screen.findByRole('button', { name: 'Retry' });
     fireEvent.click(screen.getByRole('button', { name: 'Discard unsaved changes' }));
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -921,7 +953,7 @@ describe('App', () => {
     expect(screen.queryByRole('dialog', { name: 'Daily check-in' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Wednesday, July 15, 2026/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Period started on this day' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mark period start' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Medium' }));
     expect(screen.queryByRole('button', { name: 'Start period and save' })).toBeNull();
     expect(

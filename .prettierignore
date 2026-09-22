@@ -1,4 +1,6 @@
 dist/
+dist-android/
+android/
 coverage/
 node_modules/
 package-lock.json

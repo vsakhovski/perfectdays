@@ -101,8 +101,8 @@ function ControlledEditor({
 describe('DayDetailEditor', () => {
   const controls = {
     explanation: 'Daily flow is optional.',
-    start: 'Period started today',
-    end: 'Period has ended',
+    start: 'Mark period start',
+    end: 'Mark period end',
     canStart: true,
     canEnd: false,
     canEndBefore: true,
@@ -125,6 +125,12 @@ describe('DayDetailEditor', () => {
       'true',
     );
     const light = screen.getByRole('checkbox', { name: copy.flowOptions.light });
+    const note = screen.getByRole('textbox', { name: copy.noteLabel });
+    expect(light.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: controls.start }).compareDocumentPosition(light) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     await user.click(light);
     expect(light).toBeChecked();
     await user.click(light);

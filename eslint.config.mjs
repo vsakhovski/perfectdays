@@ -10,6 +10,8 @@ export default tseslint.config(
     ignores: [
       'coverage/**',
       'dist/**',
+      'dist-android/**',
+      'android/**',
       'node_modules/**',
       'playwright-report/**',
       'test-results/**',

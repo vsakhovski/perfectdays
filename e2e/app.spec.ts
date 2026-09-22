@@ -396,6 +396,8 @@ test.describe('English application shell', () => {
     await page.goto('/');
     await finishOnboarding(page);
     await openRootDestination(page, 'Settings');
+    // Local reminders belong to the Android app, not the PWA distribution.
+    await expect(page.getByRole('heading', { name: 'Period start reminder' })).toHaveCount(0);
     const darkTheme = page.getByRole('radio', { name: 'Dark' });
     await darkTheme.focus();
     await darkTheme.press('Space');
@@ -416,7 +418,7 @@ test.describe('English application shell', () => {
     const today = page.locator('button[aria-current="date"]');
     await page.getByRole('button', { name: 'Write a note' }).click();
     const dialog = page.getByRole('dialog', { name: /^(Add|Edit) today’s entry$/ });
-    const startButton = dialog.getByRole('button', { name: 'Period started today' });
+    const startButton = dialog.getByRole('button', { name: 'Mark period start' });
     await startButton.click();
     await expect(startButton).toHaveAttribute('aria-pressed', 'true');
     const selectedPosition = await startButton.boundingBox();
@@ -467,7 +469,7 @@ test.describe('English application shell', () => {
 
     await page.getByRole('button', { name: 'Write a note' }).click();
     const dayDialog = page.getByRole('dialog', { name: /^(Add|Edit) today’s entry$/ });
-    await dayDialog.getByRole('button', { name: 'Period started today' }).click();
+    await dayDialog.getByRole('button', { name: 'Mark period start' }).click();
     await dayDialog.getByRole('checkbox', { name: 'Medium' }).check();
     await dayDialog.getByRole('button', { name: 'How did you feel? (optional)' }).click();
     await dayDialog.getByRole('radio', { name: 'Confidence: 5 out of 5' }).check();
@@ -724,7 +726,8 @@ test.describe('Phase 5 compact mobile shell', () => {
   test('uses browser Back and Forward and stays inside the initial Calendar boundary', async ({
     page,
   }) => {
-    await page.goto('/');
+    // The onboarding controls are the readiness signal, not Firefox's late load event.
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await finishOnboarding(page);
     const initialUrl = page.url();
 
@@ -896,7 +899,6 @@ test.describe('Phase 5 compact mobile shell', () => {
     await expect(monthScroller.getByRole('heading').first()).toHaveText(/\d{4}/);
     const weekdayBox = await page.getByTestId('calendar-weekday-header').first().boundingBox();
     const todayCell = page.locator('button[aria-current="date"]');
-    await expect(todayCell).toBeInViewport();
     let lastScrollPosition = -1;
     let stableScrollSamples = 0;
     await expect
@@ -913,6 +915,10 @@ test.describe('Phase 5 compact mobile shell', () => {
         { intervals: [200], timeout: 5000 },
       )
       .toBeGreaterThanOrEqual(4);
+    // Resizing changes month heights. Browsers need not preserve the same visible
+    // date at the previous pixel offset; explicitly return to today after layout settles.
+    if (await goToToday.isEnabled()) await goToToday.click();
+    await expect(todayCell).toBeInViewport();
     const initialScroll = await page.evaluate<number>(
       'document.querySelector("[data-testid=calendar-month-scroller]").scrollTop',
     );

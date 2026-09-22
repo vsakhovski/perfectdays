@@ -1,4 +1,44 @@
 export const en = {
+  reminders: {
+    enabledExplanation:
+      'This reminder will be shown shortly before your period is expected to start.',
+    explanation: 'Enable this to get a reminder shortly before your period is expected to start.',
+    closePreview: 'Close notification preview',
+    previewNote: 'Example notification. Its appearance depends on your Android device.',
+    title: 'Period start reminder',
+    enable: 'Enable period reminder',
+    days: 'Days before predicted start',
+    time: 'Reminder time',
+    message: 'Notification message',
+    custom: 'Custom text (up to 160 characters)',
+    preview: 'Preview',
+    privacy:
+      'Notification text may be visible on your lock screen. Android stores the reminder time and message outside your PIN-protected journal.',
+    delivery:
+      'One upcoming reminder is scheduled locally. Delivery time is approximate. Open the app after recording your next period to keep reminders up to date.',
+    allow: 'Allow reminders on this device',
+    skip: 'Skip this reminder',
+    invalid: 'Choose 1–7 days, a valid time, and non-empty custom text (up to 160 characters).',
+    failed: 'Reminder settings or scheduling could not be updated. Please retry.',
+    retry: 'Retry',
+    discreetText: 'A little time for yourself may be welcome soon.',
+    directText: 'Your next period may start soon.',
+    messages: {
+      discreet: 'Discreet',
+      direct: 'Period reminder',
+      custom: 'Custom text',
+    },
+    status: {
+      off: 'Period reminders are off on this device.',
+      waiting: 'Waiting for a next-period estimate.',
+      scheduled: 'Next reminder:',
+      skipped: 'This cycle’s reminder is skipped.',
+      past: 'The reminder time for this predicted period has passed.',
+      permission:
+        'Notifications are blocked. Allow them in Android notification settings, then try again.',
+      error: 'The reminder could not be scheduled.',
+    },
+  },
   meta: {
     title: 'My Perfect Days',
     description: 'A private, local-first menstrual pattern journal.',
@@ -323,10 +363,10 @@ export const en = {
       quickActionsTitle: 'Period',
       boundaryControls: {
         explanation: 'Flow and feelings are optional. You don’t need to record them every day.',
-        start: 'Period started on this day',
-        startToday: 'Period started today',
+        start: 'Mark period start',
+        startToday: 'Mark period start',
         flowLabel: 'Flow (optional)',
-        end: 'Period has ended',
+        end: 'Mark period end',
         ongoing: 'Period is ongoing · Day {{count}}',
         endTitle: 'Which was your last day of bleeding?',
         endYesterday:
@@ -338,11 +378,11 @@ export const en = {
         resultRange: 'Period: {{range}} (including both dates).',
         endBefore: '{{date}} — no bleeding on the check-in day. The check-in day is not counted.',
         endOnDay: '{{date}} — bleeding ended on the check-in day. This day is counted.',
-        confirm: 'End period',
+        confirm: 'Mark period end',
       },
       periodActions: {
         start: {
-          label: 'Start period',
+          label: 'Mark period start',
           description: 'The period starts on this day.',
         },
         continue: {
@@ -350,7 +390,7 @@ export const en = {
           description: 'The period continues on this day.',
         },
         end: {
-          label: 'End period here',
+          label: 'Mark period end',
           description: 'The period ends on this day.',
         },
         remove: {
@@ -475,8 +515,8 @@ export const en = {
         settings: 'Settings',
       },
       actions: {
-        startPeriod: 'My period started',
-        endPeriod: 'My period ended',
+        startPeriod: 'Mark period start',
+        endPeriod: 'Mark period end',
         viewPeriod: 'View period',
         editNote: 'Edit note',
         forDate: '{{action}} · {{date}}',

@@ -128,6 +128,8 @@ export interface OnboardingCopy {
 }
 
 export interface TrackerOnboardingProps {
+  readonly reminderContent?: ReactNode;
+  readonly onReminderContinue?: () => Promise<boolean>;
   readonly appVersion: string;
   readonly activeStep?: AppOnboardingStep;
   readonly busy?: boolean;
@@ -156,13 +158,14 @@ type TransitionDirection = 'backward' | 'forward';
 type PinEntryStep = 'first' | 'confirmation';
 type FieldErrors = ReadonlyMap<string, string>;
 
-const onboardingSteps = [
+const baseOnboardingSteps = [
   'splash',
   'introduction',
   'history',
   'bleeding',
   'fallbacks',
   'orange',
+  'reminder',
   'pin',
 ] as const satisfies readonly OnboardingStep[];
 
@@ -359,6 +362,8 @@ export function TrackerOnboarding({
   onChange,
   onComplete,
   onEnablePin,
+  reminderContent,
+  onReminderContinue,
   onRemoveHistory,
   onStepChange,
   pinEnabled,
@@ -366,6 +371,10 @@ export function TrackerOnboarding({
   today,
   weekStartsOn,
 }: TrackerOnboardingProps) {
+  const onboardingSteps: readonly OnboardingStep[] = baseOnboardingSteps.filter(
+    (item) => item !== 'reminder' || reminderContent !== undefined,
+  );
+  const [reminderPending, setReminderPending] = useState(false);
   const [internalStep, setInternalStep] = useState<OnboardingStep>('splash');
   const step = activeStep ?? internalStep;
   const [errors, setErrors] = useState<FieldErrors>(new Map());
@@ -386,7 +395,7 @@ export function TrackerOnboarding({
   const previousStepRef = useRef(step);
   const swipeStartRef = useRef<SwipeStart | null>(null);
   const stepIndex = onboardingSteps.indexOf(step);
-  const controlsDisabled = busy || pinPending;
+  const controlsDisabled = busy || pinPending || reminderPending;
   const displayedPin = pinEntryStep === 'first' ? pin : pinConfirmation;
   const displayedPinLabel =
     pinEntryStep === 'first' ? copy.pin.pinLabel : copy.pin.confirmationLabel;
@@ -415,6 +424,18 @@ export function TrackerOnboarding({
   };
 
   const next = (): void => {
+    if (step === 'reminder' && onReminderContinue) {
+      if (reminderPending) return;
+      setReminderPending(true);
+      void onReminderContinue()
+        .then((allowed) => {
+          if (allowed) moveToStep('pin');
+        })
+        .finally(() => {
+          setReminderPending(false);
+        });
+      return;
+    }
     if (step === 'history' || step === 'bleeding' || step === 'fallbacks' || step === 'orange') {
       const nextErrors = validateDraftStep(draft, copy, step);
       if (nextErrors.size > 0) {
@@ -886,6 +907,8 @@ export function TrackerOnboarding({
       fallbackContent(renderedStep)
     ) : renderedStep === 'orange' ? (
       orangeContent
+    ) : renderedStep === 'reminder' ? (
+      <div className={styles['stepBody']}>{reminderContent}</div>
     ) : (
       pinContent
     );

@@ -28,9 +28,13 @@ import {
   isSameMonth,
   startOfMonth,
 } from '../../domain/local-date';
+import { nextPeriodStart } from '../../domain/next-period';
 import { deriveDayMarkers } from '../../domain/markers';
 import type { DailyLog, LocalDate, Rating, VaultPayload } from '../../domain/models';
 import { completeOnboarding, skipOnboarding } from '../../domain/onboarding';
+import { DEFAULT_PERIOD_REMINDER } from '../../application/reminders/reminder-plan';
+import { reminderRuntime } from '../../application/reminders/reminder-runtime';
+import { PeriodReminderSettings } from '../settings/PeriodReminderSettings';
 import {
   formatLocalDate,
   formatLocalDateRange,
@@ -215,6 +219,9 @@ interface PendingHistoricalPeriodEnd {
 }
 
 export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayload }) {
+  const [reminderDraft, setReminderDraft] = useState(
+    payload.settings.periodReminder ?? { ...DEFAULT_PERIOD_REMINDER, enabled: true },
+  );
   const { t } = useTranslation();
   const { resolvedLanguage, systemLanguages } = useLanguage();
   const { navigate, reset, route } = useAppNavigation();
@@ -442,6 +449,7 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
         },
         journalEnvironment,
       );
+      if (reminderRuntime.available) nextPayload.settings.periodReminder = reminderDraft;
       void saveSetup(nextPayload);
     } catch (error) {
       setErrorMessage(
@@ -454,6 +462,40 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
 
   return (
     <TrackerOnboarding
+      {...(reminderRuntime.available
+        ? {
+            reminderContent: (
+              <PeriodReminderSettings
+                payload={payload}
+                onboardingDraft={reminderDraft}
+                onDraftChange={setReminderDraft}
+              />
+            ),
+            onReminderContinue: async () => {
+              setErrorMessage(undefined);
+              if (
+                reminderDraft.enabled &&
+                (!Number.isInteger(reminderDraft.daysBefore) ||
+                  reminderDraft.daysBefore < 1 ||
+                  reminderDraft.daysBefore > 7 ||
+                  !/^(?:[01]\d|2[0-3]):[0-5]\d$/u.test(reminderDraft.time) ||
+                  reminderDraft.customText.length > 160 ||
+                  (reminderDraft.message === 'custom' && !reminderDraft.customText.trim()))
+              ) {
+                setErrorMessage(t(($) => $.reminders.invalid));
+                return false;
+              }
+              try {
+                if (reminderDraft.enabled) await reminderRuntime.enable();
+                else await reminderRuntime.disable();
+                return true;
+              } catch {
+                setErrorMessage(t(($) => $.reminders.failed));
+                return false;
+              }
+            },
+          }
+        : {})}
       activeStep={onboardingStep}
       appVersion={__APP_VERSION__}
       busy={busy}
@@ -636,6 +678,8 @@ export function TrackerCalendar({
   const [selectedDate, setSelectedDate] = useState<LocalDate>(today);
   const [editorIntent, setEditorIntent] = useState<'note' | 'period'>();
   const [editorOpen, setEditorOpen] = useState(false);
+  const [noteFocused, setNoteFocused] = useState(false);
+  const entryRevision = useRef(0);
   const [editorReturnFocusElement, setEditorReturnFocusElement] = useState<HTMLElement | null>(
     null,
   );
@@ -682,13 +726,7 @@ export function TrackerCalendar({
     .filter((episode) => episode.endDate !== undefined)
     .sort((left, right) => left.startDate.localeCompare(right.startDate))
     .at(-1);
-  const activeNextEstimatedStart =
-    activeEpisode === undefined || forecast === null || latestCompletedEpisode === undefined
-      ? undefined
-      : addDays(
-          activeEpisode.startDate,
-          daysBetween(latestCompletedEpisode.startDate, forecast.centralStart),
-        );
+  const activeNextEstimatedStart = nextPeriodStart(payload.episodes, forecast);
   const numberFormatter = useMemo(
     () => new Intl.NumberFormat(resolvedLanguage),
     [resolvedLanguage],
@@ -1183,13 +1221,14 @@ export function TrackerCalendar({
         journalEnvironment,
       );
       if (validateOnly) return;
+      const savingRevision = entryRevision.current;
       setEntryStorageFailed(false);
       setBusy(true);
       setErrorMessage(undefined);
       setStatusMessage(undefined);
       void savePayload(nextPayload)
         .then(() => {
-          entryDirty.current = false;
+          entryDirty.current = entryRevision.current !== savingRevision;
           setEditorValue((current) => {
             const next = { ...current };
             delete next.periodTransition;
@@ -1365,6 +1404,7 @@ export function TrackerCalendar({
   useEffect(() => {
     if (
       !editorOpen ||
+      noteFocused ||
       busy ||
       !entryDirty.current ||
       errorMessage !== undefined ||
@@ -1672,7 +1712,9 @@ export function TrackerCalendar({
           {...(noneRequiresPeriodCorrection ? { disabledFlows: ['none'] as const } : {})}
           {...(errorMessage === undefined ? {} : { errorMessage })}
           autoSave
+          onNoteFocusChange={setNoteFocused}
           onChange={(value) => {
+            entryRevision.current += 1;
             entryDirty.current = true;
             setEditorValue(value);
             setErrorMessage(undefined);

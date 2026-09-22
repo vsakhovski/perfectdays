@@ -11,6 +11,7 @@ import { LanguageControl } from '../settings/LanguageControl';
 import { EraseDataControl, PinSecurityPanel } from '../settings/PinSecurityPanel';
 import { ThemeControl } from '../settings/ThemeControl';
 import { TrackerPreferenceCards } from '../settings/TrackerPreferenceCards';
+import { PeriodReminderSettings } from '../settings/PeriodReminderSettings';
 import { WeekStartControl } from '../settings/WeekStartControl';
 import {
   MobileAppShell,
@@ -129,6 +130,7 @@ function SettingsDestination({ payload }: { readonly payload: VaultPayload }) {
       </div>
       <div className={styles['settingsColumn']}>
         <TrackerPreferenceCards payload={payload} />
+        <PeriodReminderSettings payload={payload} />
       </div>
       <section className={[styles['informationCard'], styles['aboutCard']].join(' ')}>
         <h2>{t(($) => $.mobile.settings.about.title)}</h2>

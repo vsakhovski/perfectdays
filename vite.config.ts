@@ -15,9 +15,10 @@ const SECURITY_HEADERS = {
   'X-Frame-Options': 'DENY',
 } as const;
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   build: {
     chunkSizeWarningLimit: 1024,
+    outDir: mode === 'android' ? 'dist-android' : 'dist',
   },
   define: {
     __APP_VERSION__: JSON.stringify(process.env['npm_package_version'] ?? '0.6.0'),
@@ -25,6 +26,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      disable: mode === 'android',
       devOptions: { enabled: false },
       injectRegister: 'script-defer',
       manifest: {
@@ -68,4 +70,4 @@ export default defineConfig({
   preview: {
     headers: SECURITY_HEADERS,
   },
-});
+}));

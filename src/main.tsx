@@ -42,6 +42,10 @@ const initialLanguage = resolveLanguage(
   browserLanguageStore.read(),
   browserSystemLanguageSource.read(),
 );
+if (import.meta.env.MODE === 'android') {
+  const { initializeAndroid } = await import('./infrastructure/native/android-platform');
+  await initializeAndroid();
+}
 const i18n = await createAppI18n(initialLanguage);
 synchronizeDocumentVaultState(i18n, initialLanguage, true);
 
