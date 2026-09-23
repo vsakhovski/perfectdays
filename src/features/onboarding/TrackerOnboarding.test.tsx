@@ -208,7 +208,7 @@ function Harness({
     <TrackerOnboarding
       {...(reminderContent !== undefined ? { reminderContent } : {})}
       {...(onReminderContinue ? { onReminderContinue } : {})}
-      appVersion="0.7.0"
+      appVersion="0.7.1"
       copy={copy}
       draft={draft}
       languageControl={
@@ -279,7 +279,7 @@ describe('TrackerOnboarding', () => {
     render(<Harness onSkip={onSkip} />);
 
     expect(screen.getByRole('heading', { name: copy.splash.appName })).toBeVisible();
-    expect(screen.queryByText(copy.splash.version('0.7.0'))).not.toBeInTheDocument();
+    expect(screen.queryByText(copy.splash.version('0.7.1'))).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: copy.actions.skip })).not.toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: languageControlCopy.label })).toBeVisible();
     expect(screen.queryByRole('combobox', { name: 'Theme' })).toBeNull();

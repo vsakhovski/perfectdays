@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => ({
     outDir: mode === 'android' ? 'dist-android' : 'dist',
   },
   define: {
-    __APP_VERSION__: JSON.stringify(process.env['npm_package_version'] ?? '0.7.0'),
+    __APP_VERSION__: JSON.stringify(process.env['npm_package_version'] ?? '0.7.1'),
   },
   plugins: [
     react(),
