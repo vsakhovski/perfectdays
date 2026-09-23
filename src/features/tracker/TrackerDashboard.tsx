@@ -1719,7 +1719,7 @@ export function TrackerCalendar({
             setEditorValue(value);
             setErrorMessage(undefined);
             setEntryStorageFailed(false);
-            saveCheckIn(value, selectedDate, false, true);
+            if (!noteFocused) saveCheckIn(value, selectedDate, false, true);
           }}
           {...(entryStorageFailed && errorMessage !== undefined
             ? {

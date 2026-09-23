@@ -48,7 +48,8 @@
   font-weight: 500;
 }
 
-.numberField input {
+.numberField input,
+.numberField textarea {
   inline-size: 100%;
   min-block-size: 2.75rem;
   padding-inline: 0.75rem;
@@ -66,6 +67,7 @@
 }
 
 .numberField input:focus-visible,
+.numberField textarea:focus-visible,
 .toggle input:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;

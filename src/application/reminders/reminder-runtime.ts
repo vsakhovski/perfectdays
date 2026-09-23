@@ -64,12 +64,21 @@ export class ReminderRuntime {
   skip(plan: ReminderPlan): Promise<void> {
     return this.run(async (adapter) => {
       const receipt = await adapter.read();
-      await adapter.write({ ...receipt, skippedCycle: plan.cycleKey });
+      receipt.skippedCycle = plan.cycleKey;
+      receipt.skippedAt = receipt.scheduledAt ?? plan.at;
+      receipt.skippedFingerprint = receipt.fingerprint ?? JSON.stringify(plan);
+      delete receipt.scheduledAt;
+      delete receipt.scheduledCycle;
+      delete receipt.fingerprint;
+      await adapter.write(receipt);
       await adapter.clear();
-      this.publish({ status: 'skipped' });
+      this.publish({ status: 'skipped', at: receipt.skippedAt });
     });
   }
-  reconcile(plan: ReminderPlan | undefined): Promise<void> {
+  reconcile(
+    plan: ReminderPlan | undefined,
+    options: { readonly reschedule?: boolean } = {},
+  ): Promise<void> {
     return this.run(async (adapter) => {
       const receipt = await adapter.read();
       if (!receipt.armed) {
@@ -79,7 +88,8 @@ export class ReminderRuntime {
       }
       const now = Date.now();
       if (receipt.scheduledAt !== undefined && receipt.scheduledAt <= now) {
-        if (receipt.scheduledCycle !== undefined) receipt.handledCycle = receipt.scheduledCycle;
+        if (receipt.scheduledCycle !== undefined && receipt.scheduledCycle !== receipt.skippedCycle)
+          receipt.handledCycle = receipt.scheduledCycle;
         delete receipt.scheduledAt;
         delete receipt.scheduledCycle;
         delete receipt.fingerprint;
@@ -87,17 +97,37 @@ export class ReminderRuntime {
       }
       if (!plan) {
         await adapter.clear();
-        this.publish({ status: 'waiting' });
+        this.publish(
+          receipt.skippedCycle
+            ? {
+                status: 'skipped',
+                ...(receipt.skippedAt === undefined ? {} : { at: receipt.skippedAt }),
+              }
+            : { status: 'waiting' },
+        );
         return;
       }
-      if (receipt.skippedCycle === plan.cycleKey || receipt.handledCycle === plan.cycleKey) {
-        // Never resurrect skipped, delivered, or potentially already-delivered occurrences.
-        const status = receipt.skippedCycle === plan.cycleKey ? 'skipped' : 'past';
-        if (status === 'skipped') await adapter.clear();
-        this.publish({ status });
+      const fingerprint = JSON.stringify(plan);
+      const reschedule = options.reschedule === true && Number.isFinite(plan.at) && plan.at > now;
+      const skippedFingerprint = receipt.skippedFingerprint ?? receipt.fingerprint;
+      if (
+        !reschedule &&
+        receipt.skippedCycle === plan.cycleKey &&
+        (skippedFingerprint === undefined || skippedFingerprint === fingerprint)
+      ) {
+        // Opening the app or editing a note must not resurrect the same skipped reminder.
+        await adapter.clear();
+        this.publish({
+          status: 'skipped',
+          ...(receipt.skippedAt === undefined ? {} : { at: receipt.skippedAt }),
+        });
         return;
       }
-      if (plan.at <= now) {
+      if (!reschedule && receipt.handledCycle === plan.cycleKey) {
+        this.publish({ status: 'past' });
+        return;
+      }
+      if (!Number.isFinite(plan.at) || plan.at <= now) {
         await adapter.clear();
         this.publish({ status: 'past' });
         return;
@@ -107,10 +137,14 @@ export class ReminderRuntime {
         this.publish({ status: 'permission' });
         return;
       }
-      const fingerprint = JSON.stringify(plan);
-      if (receipt.fingerprint !== fingerprint || !(await adapter.pending())) {
+      if (reschedule || receipt.fingerprint !== fingerprint || !(await adapter.pending())) {
         await adapter.clear();
         await adapter.schedule(plan);
+        // Clear skipped history only after its replacement has actually been scheduled.
+        delete receipt.skippedCycle;
+        delete receipt.skippedAt;
+        delete receipt.skippedFingerprint;
+        if (reschedule && receipt.handledCycle === plan.cycleKey) delete receipt.handledCycle;
         await adapter.write({
           ...receipt,
           fingerprint,

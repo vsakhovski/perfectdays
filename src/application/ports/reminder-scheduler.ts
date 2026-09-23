@@ -3,6 +3,8 @@ import type { ReminderPlan } from '../reminders/reminder-plan';
 export interface ReminderReceipt {
   armed: boolean;
   skippedCycle?: string;
+  skippedAt?: number;
+  skippedFingerprint?: string;
   handledCycle?: string;
   scheduledCycle?: string;
   scheduledAt?: number;

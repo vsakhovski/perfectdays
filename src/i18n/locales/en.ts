@@ -1,5 +1,8 @@
 export const en = {
   reminders: {
+    skippedFor: 'You skipped the reminder scheduled for {{date}}. It will not be shown.',
+    skippedReminder: 'You skipped the next reminder. It will not be shown.',
+    scheduledFor: 'The next reminder is scheduled for {{date}}.',
     enabledExplanation:
       'This reminder will be shown shortly before your period is expected to start.',
     explanation: 'Enable this to get a reminder shortly before your period is expected to start.',
@@ -613,6 +616,9 @@ export const en = {
         version: 'Version {{version}}',
         description:
           'Perfect Days is a private, local-first journal for recording periods, daily observations, and personal estimates.',
+        technologyTitle: 'Built with',
+        technology:
+          'Built with React and TypeScript, using Vite for the web app and Capacitor for Android. Journal data is stored locally in IndexedDB with Dexie; PIN protection uses the Web Crypto API. Translations use i18next, and automated checks use Vitest and Playwright. Android reminders use local notifications, without a notification server.',
         development:
           'It is being developed as an installable web app with offline support and optional on-device encryption.',
         limitationsTitle: 'What this journal cannot determine',

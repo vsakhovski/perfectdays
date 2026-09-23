@@ -794,7 +794,7 @@ export function TrackerOnboarding({
               required
               step={1}
               type="number"
-              value={draft.orangeDays}
+              value={Number.isFinite(draft.orangeDays) ? draft.orangeDays : ''}
             />
             <button
               aria-label={copy.orange.increase}

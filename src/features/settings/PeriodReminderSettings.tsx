@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useVault } from '../../app/vault/use-vault';
 import {
@@ -20,14 +20,17 @@ export function PeriodReminderSettings({
   readonly onboardingDraft?: Settings;
   readonly onDraftChange?: (value: Settings) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { savePayload, journalEnvironment } = useVault();
   const [value, setValue] = useState(
     onboardingDraft ?? payload.settings.periodReminder ?? DEFAULT_PERIOD_REMINDER,
   );
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [daysInput, setDaysInput] = useState(String(value.daysBefore));
+  const [validationError, setValidationError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const pendingTimeReschedule = useRef(false);
   const state = useSyncExternalStore(reminderRuntime.subscribe, reminderRuntime.getSnapshot);
   const text = {
     title: t(($) => $.meta.title),
@@ -61,6 +64,16 @@ export function PeriodReminderSettings({
           enabled: false,
         };
     setValue(next);
+    const invalid =
+      next.enabled &&
+      (!Number.isInteger(next.daysBefore) ||
+        next.daysBefore < 1 ||
+        next.daysBefore > 7 ||
+        !/^(?:[01]\d|2[0-3]):[0-5]\d$/u.test(next.time) ||
+        next.customText.length > 160 ||
+        (next.message === 'custom' && !next.customText.trim()));
+    setValidationError(invalid);
+    if (!next.enabled) setDaysInput(String(next.daysBefore));
     if (onDraftChange) {
       onDraftChange(next);
       return;
@@ -75,6 +88,13 @@ export function PeriodReminderSettings({
     )
       return;
     run(async () => {
+      const previous = payload.settings.periodReminder ?? DEFAULT_PERIOD_REMINDER;
+      if (
+        next.enabled &&
+        (next.time !== previous.time || next.daysBefore !== previous.daysBefore)
+      ) {
+        pendingTimeReschedule.current = true;
+      }
       if (!next.enabled) await reminderRuntime.disable();
       const nextPayload = {
         ...payload,
@@ -85,7 +105,11 @@ export function PeriodReminderSettings({
       if (next.enabled && activate) await reminderRuntime.enable();
       await reminderRuntime.reconcile(
         planPeriodReminder(nextPayload, journalEnvironment.today(), text),
+        { reschedule: next.enabled && pendingTimeReschedule.current },
       );
+      if (!next.enabled || reminderRuntime.getSnapshot().status === 'scheduled') {
+        pendingTimeReschedule.current = false;
+      }
     });
   };
   if (!reminderRuntime.available) return null;
@@ -121,10 +145,17 @@ export function PeriodReminderSettings({
               type="number"
               min={1}
               max={7}
-              value={value.daysBefore}
+              value={daysInput}
               disabled={busy}
               onChange={(event) => {
-                persist({ ...value, daysBefore: Number(event.currentTarget.value) });
+                setDaysInput(event.currentTarget.value);
+                setValidationError(false);
+              }}
+              onBlur={() => {
+                persist({
+                  ...value,
+                  daysBefore: daysInput.trim() === '' ? NaN : Number(daysInput),
+                });
               }}
             />
           </label>
@@ -135,7 +166,11 @@ export function PeriodReminderSettings({
               value={value.time}
               disabled={busy}
               onChange={(event) => {
-                persist({ ...value, time: event.currentTarget.value });
+                setValue({ ...value, time: event.currentTarget.value });
+                setValidationError(false);
+              }}
+              onBlur={() => {
+                persist(value);
               }}
             />
           </label>
@@ -152,7 +187,7 @@ export function PeriodReminderSettings({
             }}
           />
           {value.message === 'custom' ? (
-            <label>
+            <label className={styles['numberField']}>
               {t(($) => $.reminders.custom)}
               <textarea
                 maxLength={160}
@@ -160,7 +195,7 @@ export function PeriodReminderSettings({
                 disabled={busy}
                 onChange={(event) => {
                   setValue({ ...value, customText: event.currentTarget.value });
-                  onDraftChange?.({ ...value, customText: event.currentTarget.value });
+                  setValidationError(false);
                 }}
                 onBlur={() => {
                   persist(value);
@@ -168,7 +203,7 @@ export function PeriodReminderSettings({
               />
             </label>
           ) : null}
-          {!valid ? (
+          {validationError ? (
             <p role="alert" className={styles['error']}>
               {t(($) => $.reminders.invalid)}
             </p>
@@ -193,6 +228,7 @@ export function PeriodReminderSettings({
           ) : null}
           {!onDraftChange && (state.status === 'off' || state.status === 'permission') ? (
             <button
+              className={styles['previewButton']}
               disabled={busy || !valid}
               type="button"
               onClick={() => {
@@ -202,16 +238,39 @@ export function PeriodReminderSettings({
               {t(($) => $.reminders.allow)}
             </button>
           ) : null}
+          {!onDraftChange && state.status === 'skipped' ? (
+            <p role="status">
+              {state.at === undefined
+                ? t(($) => $.reminders.skippedReminder)
+                : t(($) => $.reminders.skippedFor, {
+                    date: new Intl.DateTimeFormat(i18n.resolvedLanguage, {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    }).format(state.at),
+                  })}
+            </p>
+          ) : null}
           {!onDraftChange && state.status === 'scheduled' && plan ? (
-            <button
-              disabled={busy}
-              type="button"
-              onClick={() => {
-                run(() => reminderRuntime.skip(plan));
-              }}
-            >
-              {t(($) => $.reminders.skip)}
-            </button>
+            <>
+              <p>
+                {t(($) => $.reminders.scheduledFor, {
+                  date: new Intl.DateTimeFormat(i18n.resolvedLanguage, {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  }).format(state.at ?? plan.at),
+                })}
+              </p>
+              <button
+                className={styles['previewButton']}
+                disabled={busy}
+                type="button"
+                onClick={() => {
+                  run(() => reminderRuntime.skip(plan));
+                }}
+              >
+                {t(($) => $.reminders.skip)}
+              </button>
+            </>
           ) : null}
         </>
       ) : null}
@@ -219,6 +278,7 @@ export function PeriodReminderSettings({
         <p role="alert" className={styles['error']}>
           {t(($) => $.reminders.failed)}{' '}
           <button
+            className={styles['previewButton']}
             type="button"
             disabled={busy || !valid}
             onClick={() => {

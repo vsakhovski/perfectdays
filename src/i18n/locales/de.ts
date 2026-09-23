@@ -2,6 +2,10 @@ import type { TranslationResource } from './en';
 
 export const de = {
   reminders: {
+    skippedFor:
+      'Du hast die für {{date}} geplante Erinnerung übersprungen. Sie wird nicht angezeigt.',
+    skippedReminder: 'Du hast die nächste Erinnerung übersprungen. Sie wird nicht angezeigt.',
+    scheduledFor: 'Die nächste Erinnerung ist für {{date}} geplant.',
     enabledExplanation:
       'Diese Erinnerung wird kurz vor dem erwarteten Beginn deiner Periode angezeigt.',
     explanation:
@@ -634,6 +638,9 @@ export const de = {
         version: 'Version {{version}}',
         description:
           'Perfect Days ist ein privates, lokal gespeichertes Tagebuch für Perioden, tägliche Beobachtungen und persönliche Schätzungen.',
+        technologyTitle: 'Verwendete Technologien',
+        technology:
+          'Entwickelt mit React und TypeScript, Vite für die Web-App und Capacitor für Android. Journaldaten werden mit Dexie lokal in IndexedDB gespeichert; der PIN-Schutz nutzt die Web Crypto API. Übersetzungen verwenden i18next, automatisierte Prüfungen Vitest und Playwright. Android-Erinnerungen nutzen lokale Benachrichtigungen ohne Benachrichtigungsserver.',
         development:
           'Die App wird als installierbare Web-App mit Offline-Unterstützung und optionaler Verschlüsselung auf dem Gerät entwickelt.',
         limitationsTitle: 'Was dieses Tagebuch nicht bestimmen kann',

@@ -137,6 +137,8 @@ function SettingsDestination({ payload }: { readonly payload: VaultPayload }) {
         <p>{t(($) => $.mobile.settings.about.version, { version: __APP_VERSION__ })}</p>
         <p>{t(($) => $.mobile.settings.about.description)}</p>
         <p>{t(($) => $.mobile.settings.about.development)}</p>
+        <h3>{t(($) => $.mobile.settings.about.technologyTitle)}</h3>
+        <p>{t(($) => $.mobile.settings.about.technology)}</p>
         <h3>{t(($) => $.mobile.settings.about.limitationsTitle)}</h3>
         <p>{t(($) => $.mobile.settings.about.limitations)}</p>
         <h3>{t(($) => $.mobile.settings.about.authorTitle)}</h3>
