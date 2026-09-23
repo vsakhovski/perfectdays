@@ -82,18 +82,68 @@ describe('local reminder runtime', () => {
     await runtime.reconcile({ ...plan, body: 'Updated' });
     expect(adapter.schedule).toHaveBeenCalledTimes(3);
   });
-  it('preserves skipping across restarts and estimate changes, but allows a new cycle', async () => {
+  it('preserves the skipped time across restarts and clears it on rescheduling', async () => {
     const { runtime, adapter } = setup();
     await runtime.enable();
     await runtime.reconcile(plan);
     await runtime.skip(plan);
     const restarted = new ReminderRuntime();
     restarted.install(adapter);
-    await restarted.reconcile({ ...plan, at: plan.at + 86400000 });
-    expect(restarted.getSnapshot().status).toBe('skipped');
+    await restarted.reconcile(plan);
+    expect(restarted.getSnapshot()).toEqual({ status: 'skipped', at: plan.at });
     expect(adapter.schedule).toHaveBeenCalledTimes(1);
-    await restarted.reconcile({ ...plan, cycleKey: 'cycle-2' });
+    await restarted.reconcile({ ...plan, at: plan.at + 86400000 });
     expect(adapter.schedule).toHaveBeenCalledTimes(2);
+    expect((await adapter.read()).skippedAt).toBeUndefined();
+    expect((await adapter.read()).skippedCycle).toBeUndefined();
+  });
+  it('explicitly reschedules a handled cycle for a future time and then deduplicates resume', async () => {
+    const { runtime, adapter } = setup();
+    await runtime.enable();
+    await runtime.reconcile(plan);
+    vi.spyOn(Date, 'now').mockReturnValue(plan.at + 1);
+    const next = { ...plan, at: plan.at + 3600000 };
+    await runtime.reconcile(next, { reschedule: true });
+    expect(adapter.schedule).toHaveBeenLastCalledWith(next);
+    expect(adapter.schedule).toHaveBeenCalledTimes(2);
+    expect(runtime.getSnapshot()).toEqual({ status: 'scheduled', at: next.at });
+    expect((await adapter.read()).handledCycle).toBeUndefined();
+    await runtime.reconcile(next);
+    expect(adapter.schedule).toHaveBeenCalledTimes(2);
+  });
+
+  it('explicitly replaces even an unchanged future registration', async () => {
+    const { runtime, adapter } = setup();
+    await runtime.enable();
+    await runtime.reconcile(plan);
+    await runtime.skip(plan);
+    await runtime.reconcile(plan, { reschedule: true });
+    expect(adapter.schedule).toHaveBeenCalledTimes(2);
+    await runtime.reconcile(plan, { reschedule: true });
+    expect(adapter.schedule).toHaveBeenCalledTimes(3);
+  });
+
+  it.each([0, -1, Number.NaN])(
+    'rejects invalid or elapsed explicit time offset %s',
+    async (offset) => {
+      const { runtime, adapter } = setup();
+      await runtime.enable();
+      await runtime.reconcile({ ...plan, at: Date.now() + offset }, { reschedule: true });
+      expect(adapter.schedule).not.toHaveBeenCalled();
+      expect(runtime.getSnapshot().status).toBe('past');
+    },
+  );
+
+  it('keeps skipped details after failed rescheduling until retry succeeds', async () => {
+    const { runtime, adapter } = setup();
+    await runtime.enable();
+    await runtime.reconcile(plan);
+    await runtime.skip(plan);
+    adapter.schedule.mockRejectedValueOnce(new Error('OS failure'));
+    await expect(runtime.reconcile(plan, { reschedule: true })).rejects.toThrow();
+    expect((await adapter.read()).skippedAt).toBe(plan.at);
+    await runtime.reconcile(plan, { reschedule: true });
+    expect((await adapter.read()).skippedAt).toBeUndefined();
   });
   it('never recreates an elapsed occurrence even if the prediction moves forward', async () => {
     const { runtime, adapter } = setup();

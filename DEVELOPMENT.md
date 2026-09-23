@@ -14,6 +14,8 @@ Store packaging, submission requirements, and release-readiness planning are tra
 
 ### Reminder setup and preview
 
+Latest reminder regression verification: 464 unit tests pass, including ten added cases for empty numeric drafts, blur-only time saves, skipped-time display, explicit rescheduling of handled/skipped reminders, invalid/past times, and retry cleanup. All 84 applicable E2E scenarios pass in one four-browser run (eight existing platform-specific skips). Production PWA and Android web builds, four PWA artifact checks, lint and formatting pass. Native notification delivery still requires device verification.
+
 Explicit changes to reminder time or days-before now request rescheduling after blur/save. A valid future plan replaces the pending notification even if the prior occurrence was handled or skipped; those flags clear only after scheduling succeeds. Retry retains this intent. Normal startup/resume reconciliation keeps duplicate-prevention rules, and past times are never scheduled. Typecheck/lint checked; tests/build deferred.
 
 Skipped reminders now persist their originally scheduled time and plan fingerprint in the native receipt. Settings displays that skipped date/time instead of the next-reminder status, including after restart. Reconciliation keeps an unchanged skipped reminder cancelled; a changed future plan can replace it, clearing skipped information only after scheduling succeeds. Already delivered occurrences remain protected against duplicate delivery. Older receipts without a timestamp use a generic skipped-reminder message. Typecheck/lint only for this change; tests/build deferred.

@@ -6,16 +6,20 @@ import { createEmptyVaultPayload } from '../../test/reminder-fixtures';
 import { DEFAULT_PERIOD_REMINDER } from '../../application/reminders/reminder-plan';
 import { PeriodReminderSettings } from './PeriodReminderSettings';
 import type { VaultPayload } from '../../domain/models';
+import type { ReminderSnapshot } from '../../application/reminders/reminder-runtime';
 
-const mocks = vi.hoisted(() => ({
-  savePayload: vi.fn<(payload: VaultPayload) => Promise<void>>().mockResolvedValue(undefined),
-  available: true,
-  state: { status: 'off' as const },
-  enable: vi.fn().mockResolvedValue(undefined),
-  disable: vi.fn().mockResolvedValue(undefined),
-  reconcile: vi.fn().mockResolvedValue(undefined),
-  skip: vi.fn().mockResolvedValue(undefined),
-}));
+const mocks = vi.hoisted(() => {
+  const state: ReminderSnapshot = { status: 'off' };
+  return {
+    savePayload: vi.fn<(payload: VaultPayload) => Promise<void>>().mockResolvedValue(undefined),
+    available: true,
+    state,
+    enable: vi.fn().mockResolvedValue(undefined),
+    disable: vi.fn().mockResolvedValue(undefined),
+    reconcile: vi.fn().mockResolvedValue(undefined),
+    skip: vi.fn().mockResolvedValue(undefined),
+  };
+});
 vi.mock('../../app/vault/use-vault', () => ({
   useVault: () => ({
     savePayload: mocks.savePayload,
@@ -58,9 +62,59 @@ async function setup(
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.available = true;
+  mocks.state = { status: 'off' };
 });
 
 describe('native reminder settings', () => {
+  it('preserves an empty number draft and saves its replacement only on blur', async () => {
+    await setup(true);
+    const days = screen.getByLabelText('Days before predicted start');
+    fireEvent.change(days, { target: { value: '' } });
+    expect(days).toHaveValue(null);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(mocks.savePayload).not.toHaveBeenCalled();
+    fireEvent.change(days, { target: { value: '4' } });
+    expect(mocks.reconcile).not.toHaveBeenCalled();
+    fireEvent.blur(days);
+    await waitFor(() => {
+      expect(mocks.reconcile).toHaveBeenCalledWith(undefined, { reschedule: true });
+    });
+    expect(mocks.savePayload.mock.calls[0]?.[0].settings.periodReminder?.daysBefore).toBe(4);
+  });
+
+  it('commits time on blur and explicitly requests rescheduling', async () => {
+    await setup(true);
+    const time = screen.getByLabelText('Reminder time');
+    fireEvent.change(time, { target: { value: '18:30' } });
+    expect(mocks.savePayload).not.toHaveBeenCalled();
+    fireEvent.blur(time);
+    await waitFor(() => {
+      expect(mocks.reconcile).toHaveBeenCalledWith(undefined, { reschedule: true });
+    });
+    expect(mocks.savePayload.mock.calls[0]?.[0].settings.periodReminder?.time).toBe('18:30');
+  });
+
+  it('does not request explicit rescheduling for an unchanged time', async () => {
+    await setup(true);
+    fireEvent.blur(screen.getByLabelText('Reminder time'));
+    await waitFor(() => {
+      expect(mocks.reconcile).toHaveBeenCalledWith(undefined, { reschedule: false });
+    });
+  });
+
+  it('shows the persisted skipped time instead of a next-reminder status', async () => {
+    const at = new Date(2026, 9, 10, 9).getTime();
+    mocks.state = { status: 'skipped', at };
+    await setup(true);
+    const date = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(
+      at,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      `You skipped the reminder scheduled for ${date}. It will not be shown.`,
+    );
+    expect(screen.queryByRole('button', { name: 'Skip this reminder' })).toBeNull();
+    expect(screen.queryByText(/The next reminder is scheduled/)).toBeNull();
+  });
   it('offers actual notification text and validates custom text before saving', async () => {
     await setup(true);
     const selection = screen.getByRole('combobox', { name: 'Notification message' });
@@ -92,6 +146,7 @@ describe('native reminder settings', () => {
     fireEvent.change(screen.getByLabelText('Days before predicted start'), {
       target: { value: '3' },
     });
+    fireEvent.blur(screen.getByLabelText('Days before predicted start'));
     await waitFor(() =>
       expect(screen.getByRole('alert')).toHaveTextContent('could not be updated'),
     );
@@ -136,11 +191,13 @@ describe('native reminder settings', () => {
     ).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
   });
-  it('validates immediately and does not persist invalid day counts', async () => {
+  it('validates on blur and does not persist invalid day counts', async () => {
     await setup(true);
     fireEvent.change(screen.getByLabelText('Days before predicted start'), {
       target: { value: '8' },
     });
+    expect(screen.queryByRole('alert')).toBeNull();
+    fireEvent.blur(screen.getByLabelText('Days before predicted start'));
     expect(screen.getByRole('alert')).toHaveTextContent('Choose 1–7 days');
     expect(mocks.savePayload).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Preview' })).toBeDisabled();
@@ -154,6 +211,8 @@ describe('native reminder settings', () => {
     fireEvent.change(screen.getByLabelText('Days before predicted start'), {
       target: { value: '7' },
     });
+    expect(onDraftChange).not.toHaveBeenCalled();
+    fireEvent.blur(screen.getByLabelText('Days before predicted start'));
     expect(onDraftChange).toHaveBeenLastCalledWith({
       ...DEFAULT_PERIOD_REMINDER,
       enabled: true,
