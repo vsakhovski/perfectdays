@@ -9,7 +9,7 @@ import {
   MAX_TYPICAL_CYCLE_LENGTH,
 } from '../../domain/tracking-settings';
 
-export const CURRENT_VAULT_SCHEMA_VERSION = 7 as const;
+export const CURRENT_VAULT_SCHEMA_VERSION = 8 as const;
 
 const localDateSchema = z.custom<LocalDate>(
   (value) => typeof value === 'string' && isLocalDate(value),
@@ -330,6 +330,29 @@ export const vaultPayloadV7Schema = z
   })
   .superRefine(validateDomainInvariants);
 
+export const vaultPayloadV8Schema = z
+  .strictObject({
+    ...vaultPayloadV7Schema.shape,
+    schemaVersion: z.literal(8),
+    missingPeriodDismissals: z
+      .array(
+        z.strictObject({
+          id: z.string().min(1),
+          fingerprint: z.string().min(1),
+          reviewedAt: timestampSchema,
+        }),
+      )
+      .refine((items) => new Set(items.map((item) => item.id)).size === items.length)
+      .optional(),
+    episodes: z.array(
+      periodEpisodeSchema.extend({
+        source: z.enum(['calendar', 'history', 'onboarding', 'import']).optional(),
+        dateCertainty: z.enum(['exact', 'approximate']).optional(),
+      }),
+    ),
+  })
+  .superRefine(validateDomainInvariants);
+
 const vaultPayloadV0Schema = z.strictObject({
   schemaVersion: z.literal(0),
   episodes: z.array(periodEpisodeSchema),
@@ -496,6 +519,10 @@ export function migrateVaultPayload(input: unknown): VaultPayload {
         candidate = { ...vaultPayloadV6Schema.parse(candidate), schemaVersion: 7 };
         candidateVersion = 7;
         break;
+      case 7:
+        candidate = { ...vaultPayloadV7Schema.parse(candidate), schemaVersion: 8 };
+        candidateVersion = 8;
+        break;
       default:
         throw new UnsupportedVaultSchemaVersionError(candidateVersion);
     }
@@ -505,7 +532,7 @@ export function migrateVaultPayload(input: unknown): VaultPayload {
     throw new UnsupportedVaultSchemaVersionError(candidateVersion);
   }
 
-  return vaultPayloadV7Schema.parse(candidate) as VaultPayload;
+  return vaultPayloadV8Schema.parse(candidate) as VaultPayload;
 }
 
 const encoder = new TextEncoder();
@@ -513,7 +540,7 @@ const decoder = new TextDecoder('utf-8', { fatal: true });
 
 export function encodeVaultPayload(payload: VaultPayload): Uint8Array {
   try {
-    const validatedPayload = vaultPayloadV7Schema.parse(payload);
+    const validatedPayload = vaultPayloadV8Schema.parse(payload);
     return encoder.encode(JSON.stringify(validatedPayload));
   } catch (error) {
     if (error instanceof InvalidVaultPayloadError) {

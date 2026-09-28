@@ -10,10 +10,12 @@ import { TrackerHistorySection } from '../tracker/TrackerHistorySection';
 import styles from './journal.module.css';
 
 export function JournalView({
+  newPeriodNearDate,
   payload,
   today,
   onOpenEntry,
 }: {
+  readonly newPeriodNearDate?: LocalDate;
   readonly payload: VaultPayload;
   readonly today: LocalDate;
   readonly onOpenEntry: (date: LocalDate, trigger: HTMLButtonElement) => void;
@@ -21,8 +23,11 @@ export function JournalView({
   const { t } = useTranslation();
   const { resolvedLanguage } = useLanguage();
   const id = useId();
-  const [view, setView] = useState<'entries' | 'periods'>('entries');
+  const [view, setView] = useState<'entries' | 'periods'>(
+    newPeriodNearDate === undefined ? 'entries' : 'periods',
+  );
   const [allDays, setAllDays] = useState(false);
+  const [pendingPeriodDate, setPendingPeriodDate] = useState(newPeriodNearDate);
   const [limit, setLimit] = useState(30);
   const [expanded, setExpanded] = useState<ReadonlySet<LocalDate>>(new Set());
   const logs = new Map(
@@ -45,6 +50,7 @@ export function JournalView({
             type="button"
             aria-pressed={view === item}
             onClick={() => {
+              setPendingPeriodDate(undefined);
               setView(item);
             }}
           >
@@ -53,7 +59,11 @@ export function JournalView({
         ))}
       </div>
       {view === 'periods' ? (
-        <TrackerHistorySection payload={payload} showSectionLabel={false} />
+        <TrackerHistorySection
+          payload={payload}
+          showSectionLabel={false}
+          {...(pendingPeriodDate === undefined ? {} : { newPeriodNearDate: pendingPeriodDate })}
+        />
       ) : (
         <>
           <label className={styles['filter']}>

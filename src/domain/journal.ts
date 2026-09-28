@@ -306,6 +306,8 @@ export function startPeriod(
   journal.logs = [...journal.logs.filter((log) => log.date !== date), startLog];
   journal.episodes.push({
     id,
+    source: 'calendar',
+    dateCertainty: 'exact',
     startDate: date,
     createdAt: timestamp,
     updatedAt: timestamp,

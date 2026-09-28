@@ -31,6 +31,7 @@ function OnboardingHome({ payload }: { readonly payload: VaultPayload }) {
 }
 
 function CalendarDestination({
+  onAddMissingPeriod,
   checkInIntent,
   checkInReturnFocusElement,
   checkInRequest,
@@ -44,6 +45,7 @@ function CalendarDestination({
   onViewingCurrentMonthChange,
   rememberedDetailsOpen,
 }: {
+  readonly onAddMissingPeriod: (date: LocalDate) => void;
   readonly checkInIntent: 'note' | 'period';
   readonly checkInReturnFocusElement: HTMLButtonElement | null;
   readonly checkInRequest: number;
@@ -59,6 +61,7 @@ function CalendarDestination({
 }) {
   return (
     <TrackerDashboard
+      onAddMissingPeriod={onAddMissingPeriod}
       checkInIntent={checkInIntent}
       checkInReturnFocusElement={checkInReturnFocusElement}
       checkInRequest={checkInRequest}
@@ -178,6 +181,7 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   const [calendarCheckInDate, setCalendarCheckInDate] = useState<LocalDate>(today);
   const [checkInIntent, setCheckInIntent] = useState<'note' | 'period'>('note');
   const [journalEntryDate, setJournalEntryDate] = useState<LocalDate>(today);
+  const [newPeriodNearDate, setNewPeriodNearDate] = useState<LocalDate>();
   const hasTodayCheckIn = payload.logs.some((log) => log.date === today);
   const selectedDateHasCheckIn = payload.logs.some((log) => log.date === calendarCheckInDate);
   const selectedDateLabel = formatLocalDate(calendarCheckInDate, resolvedLanguage, {
@@ -250,12 +254,17 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
   }, [destination, today]);
 
   const navigate = (nextDestination: RootDestination): void => {
+    setNewPeriodNearDate(undefined);
     navigateHistory({ kind: 'root', destination: nextDestination });
   };
 
   const content =
     destination === 'calendar' ? (
       <CalendarDestination
+        onAddMissingPeriod={(date) => {
+          setNewPeriodNearDate(date);
+          navigateHistory({ kind: 'root', destination: 'history' });
+        }}
         checkInIntent={checkInIntent}
         checkInReturnFocusElement={checkInReturnFocusElement}
         checkInRequest={checkInRequest ?? 0}
@@ -276,6 +285,7 @@ function UnlockedMobileHome({ payload }: { readonly payload: VaultPayload }) {
     ) : destination === 'history' ? (
       <>
         <JournalView
+          {...(newPeriodNearDate === undefined ? {} : { newPeriodNearDate })}
           payload={payload}
           today={today}
           onOpenEntry={(date, trigger) => {

@@ -11,6 +11,9 @@ export interface PeriodEpisode {
   endDate?: LocalDate;
   /** False only when historical duration was not supplied; omitted means known when ended. */
   durationKnown?: boolean;
+  /** Origin is not a reliability score. Missing metadata means unknown legacy data. */
+  source?: 'calendar' | 'history' | 'onboarding' | 'import';
+  dateCertainty?: 'exact' | 'approximate';
   createdAt: string;
   updatedAt: string;
 }
@@ -81,6 +84,8 @@ export interface UserSettings {
 export type VaultSettings = Omit<UserSettings, 'theme' | 'language' | 'pinEnabled'>;
 
 export interface VaultPayload {
+  /** User-confirmed absence in a fingerprinted inferred window; never a period record. */
+  missingPeriodDismissals?: { id: string; fingerprint: string; reviewedAt: string }[];
   schemaVersion: number;
   episodes: PeriodEpisode[];
   logs: DailyLog[];

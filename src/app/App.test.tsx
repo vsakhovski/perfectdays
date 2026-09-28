@@ -1014,8 +1014,11 @@ describe('App', () => {
     expect(snapshot.payload.episodes).toEqual(payload.episodes);
 
     await user.click(screen.getByRole('button', { name: /Thursday, April 23, 2026/i }));
-    expect(screen.getByRole('dialog', { name: /Apr 23, 2026/ })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Start a new period here' })).toBeVisible();
+    expect(screen.getByRole('dialog', { name: 'Possible unrecorded period' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Add actual dates' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Not sure' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(vaultController.getSnapshot()).toEqual(snapshot);
   });
 
   it('persists an explicit still-active acknowledgement without closing the period', async () => {

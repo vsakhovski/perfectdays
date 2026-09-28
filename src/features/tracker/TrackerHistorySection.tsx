@@ -9,6 +9,7 @@ import {
   detectPossiblyStaleActivePeriod,
   setCycleCheckAcknowledgement,
   type PossibleMissingPeriodFinding,
+  type PossibleSplitPeriodFinding,
   type PossiblyStaleActivePeriodFinding,
 } from '../../domain/cycle-checks';
 import { setEstimateDecision } from '../../domain/estimate-review';
@@ -45,6 +46,14 @@ import {
   type CalendarWeekday,
 } from '../calendar/MonthlyCalendar';
 import { CycleChecksPanel, type CycleChecksPanelCopy } from '../history/CycleChecksPanel';
+import { PeriodQualityFields } from '../history/PeriodQualityFields';
+import { PersonalOutliersPanel } from '../history/PersonalOutliersPanel';
+import { MissingPeriodDialog } from '../history/MissingPeriodDialog';
+import { MergePeriodsDialog } from '../history/MergePeriodsDialog';
+import {
+  missingPeriodOverlays,
+  type MissingPeriodOverlay,
+} from '../../domain/missing-period-overlays';
 import {
   PeriodHistory,
   type PeriodHistoryCopy,
@@ -54,11 +63,13 @@ import {
 import styles from './tracker-history-section.module.css';
 
 interface TrackerHistorySectionProps {
+  readonly newPeriodNearDate?: LocalDate;
   readonly payload: VaultPayload;
   readonly showSectionLabel?: boolean;
 }
 
 interface BoundaryDraft {
+  readonly approximate?: boolean;
   readonly episodeId?: string;
   readonly firstDate?: LocalDate;
   readonly startDate?: LocalDate;
@@ -115,6 +126,7 @@ function selectionForDate(
 }
 
 export function TrackerHistorySection({
+  newPeriodNearDate,
   payload,
   showSectionLabel = true,
 }: TrackerHistorySectionProps) {
@@ -126,20 +138,45 @@ export function TrackerHistorySection({
   const latestPeriod = [...payload.episodes].sort((left, right) =>
     right.startDate.localeCompare(left.startDate),
   )[0];
-  const initialMonth = startOfMonth(latestPeriod?.startDate ?? today);
+  const initialMonth = startOfMonth(newPeriodNearDate ?? latestPeriod?.startDate ?? today);
   const [visibleMonth, setVisibleMonth] = useState(initialMonth);
   const [calendarRangeStart, setCalendarRangeStart] = useState(() => addMonths(initialMonth, -1));
   const [calendarRangeEnd, setCalendarRangeEnd] = useState(() => {
     const initialEnd = addMonths(initialMonth, 1);
     return initialEnd > currentMonth ? currentMonth : initialEnd;
   });
-  const [draft, setDraft] = useState<BoundaryDraft>();
+  const [draft, setDraft] = useState<BoundaryDraft | undefined>(
+    newPeriodNearDate === undefined ? undefined : { stage: 'selecting' },
+  );
+  const [selectedMissing, setSelectedMissing] = useState<MissingPeriodOverlay>();
+  const [mergeCandidate, setMergeCandidate] = useState<PossibleSplitPeriodFinding>();
+  const missingOverlays = useMemo(
+    () =>
+      missingPeriodOverlays(
+        payload.episodes,
+        payload.estimateDecisions,
+        today,
+        payload.missingPeriodDismissals,
+        payload.settings,
+      ),
+    [
+      payload.episodes,
+      payload.estimateDecisions,
+      today,
+      payload.missingPeriodDismissals,
+      payload.settings,
+    ],
+  );
   const [selectedEntryId, setSelectedEntryId] = useState<string>();
   const [selectedEmptyDate, setSelectedEmptyDate] = useState<LocalDate>();
   const [deleteCandidate, setDeleteCandidate] = useState<PeriodHistoryEntry>();
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
-  const [statusMessage, setStatusMessage] = useState<string>();
+  const [statusMessage, setStatusMessage] = useState<string | undefined>(
+    newPeriodNearDate === undefined
+      ? undefined
+      : t(($) => $.tracker.history.calendar.selectBoundary),
+  );
   const [reviewBusySampleId, setReviewBusySampleId] = useState<string>();
   const [reviewErrorMessage, setReviewErrorMessage] = useState<string>();
   const [reviewStatusMessage, setReviewStatusMessage] = useState<string>();
@@ -345,6 +382,10 @@ export function TrackerHistorySection({
       const selection = selectionForDate(date, selectionStart, effectiveSelectionEnd);
       return {
         date,
+        ...(recordedEpisode === undefined &&
+        missingOverlays.some((overlay) => date >= overlay.start && date <= overlay.end)
+          ? { missingPeriodDescription: t(($) => $.intelligence.ghost) }
+          : {}),
         accessibleName: formatLocalDate(date, resolvedLanguage, {
           weekday: 'long',
           day: 'numeric',
@@ -437,16 +478,17 @@ export function TrackerHistorySection({
   const saveBoundaryDraft = (
     nextDraft: BoundaryDraft & { startDate: LocalDate; endDate: LocalDate },
   ): void => {
-    if (nextDraft.startDate === nextDraft.endDate) {
-      cancelEditing();
-      return;
-    }
-
     try {
       if (nextDraft.episodeId === undefined) {
         const result = importHistoricalEpisodes(
           payload,
-          [{ startDate: nextDraft.startDate, endDate: nextDraft.endDate }],
+          [
+            {
+              startDate: nextDraft.startDate,
+              endDate: nextDraft.endDate,
+              dateCertainty: nextDraft.approximate ? 'approximate' : 'exact',
+            },
+          ],
           journalEnvironment,
         );
         void persist(
@@ -474,7 +516,19 @@ export function TrackerHistorySection({
         journalEnvironment,
       );
       void persist(
-        result,
+        {
+          ...result,
+          episodes: result.episodes.map((candidate) =>
+            candidate.id === nextDraft.episodeId
+              ? {
+                  ...candidate,
+                  dateCertainty: nextDraft.approximate
+                    ? ('approximate' as const)
+                    : ('exact' as const),
+                }
+              : candidate,
+          ),
+        },
         t(($) => $.tracker.history.calendar.saved),
       );
     } catch (error) {
@@ -486,7 +540,13 @@ export function TrackerHistorySection({
   const beginEditing = (entry: PeriodHistoryEntry): void => {
     setSelectedEntryId(entry.id);
     setSelectedEmptyDate(undefined);
-    setDraft({ episodeId: entry.id, stage: 'selecting' });
+    setDraft({
+      episodeId: entry.id,
+      stage: 'selecting',
+      approximate:
+        payload.episodes.find((episode) => episode.id === entry.id)?.dateCertainty ===
+        'approximate',
+    });
     setVisibleMonth(startOfMonth(entry.startDate));
     setErrorMessage(undefined);
     setStatusMessage(t(($) => $.tracker.history.calendar.selectBoundary));
@@ -529,6 +589,8 @@ export function TrackerHistorySection({
     fingerprint: string,
     use: 'include' | 'exclude',
     reason: EstimateDecisionReason,
+    sampleKind: 'cycle' | 'duration' = 'cycle',
+    additionalSamples: readonly { id: string; fingerprint: string }[] = [],
   ): void => {
     setReviewBusySampleId(sampleId);
     setReviewErrorMessage(undefined);
@@ -536,14 +598,25 @@ export function TrackerHistorySection({
     const reviewedAt = journalEnvironment.now();
     void savePayload({
       ...payload,
-      estimateDecisions: setEstimateDecision(payload.estimateDecisions, {
-        sampleId,
-        sampleKind: 'cycle',
-        fingerprint,
-        use,
-        reason,
-        reviewedAt,
-      }),
+      estimateDecisions: additionalSamples.reduce(
+        (decisions, sample) =>
+          setEstimateDecision(decisions, {
+            sampleId: sample.id,
+            sampleKind,
+            fingerprint: sample.fingerprint,
+            use,
+            reason,
+            reviewedAt,
+          }),
+        setEstimateDecision(payload.estimateDecisions, {
+          sampleId,
+          sampleKind,
+          fingerprint,
+          use,
+          reason,
+          reviewedAt,
+        }),
+      ),
       updatedAt: reviewedAt,
     })
       .then(() => {
@@ -566,7 +639,11 @@ export function TrackerHistorySection({
     trigger: HTMLButtonElement,
   ): void => {
     selectionTriggerRef.current = trigger;
-    const targetMonth = startOfMonth(finding.suggestedStartDate);
+
+    const targetMonth = startOfMonth(
+      missingOverlays.find((overlay) => overlay.finding?.sampleId === finding.sampleId)?.start ??
+        finding.suggestedStartDate,
+    );
     const requestedStart = addMonths(targetMonth, -1);
     const requestedEnd = addMonths(targetMonth, 1);
     setCalendarRangeStart((current) => (requestedStart < current ? requestedStart : current));
@@ -622,12 +699,21 @@ export function TrackerHistorySection({
     if (busy) return;
 
     selectionTriggerRef.current = trigger;
+    const missing =
+      draft === undefined && episodeOnDate(payload.episodes, date, today) === undefined
+        ? missingOverlays.find((overlay) => date >= overlay.start && date <= overlay.end)
+        : undefined;
+    if (missing !== undefined) {
+      setSelectedMissing(missing);
+      return;
+    }
 
     if (draft?.stage === 'selecting' && draft.firstDate === undefined) {
       setDraft({
         ...(draft.episodeId === undefined ? {} : { episodeId: draft.episodeId }),
         firstDate: date,
         stage: 'selecting',
+        approximate: draft.approximate ?? false,
       });
       setErrorMessage(undefined);
       setStatusMessage(
@@ -639,11 +725,6 @@ export function TrackerHistorySection({
     }
 
     if (draft?.stage === 'selecting' && draft.firstDate !== undefined) {
-      if (date === draft.firstDate) {
-        cancelEditing();
-        return;
-      }
-
       if (draft.episodeId === undefined && date < draft.firstDate) {
         setErrorMessage(t(($) => $.tracker.history.calendar.endAfterStart));
         return;
@@ -656,6 +737,7 @@ export function TrackerHistorySection({
         endDate,
         firstDate: draft.firstDate,
         stage: 'confirming' as const,
+        approximate: draft.approximate ?? false,
         startDate,
       };
       setDraft(completedDraft);
@@ -864,9 +946,75 @@ export function TrackerHistorySection({
       ) : null}
 
       <div className={styles['historyColumn']}>
+        {mergeCandidate === undefined ? null : (
+          <MergePeriodsDialog
+            finding={mergeCandidate}
+            onClose={() => {
+              setMergeCandidate(undefined);
+              selectionTriggerRef.current?.focus();
+            }}
+          />
+        )}
+        {selectedMissing === undefined ? null : (
+          <MissingPeriodDialog
+            overlay={selectedMissing}
+            onClose={() => {
+              setSelectedMissing(undefined);
+              selectionTriggerRef.current?.focus();
+            }}
+            onAdd={() => {
+              setSelectedMissing(undefined);
+              setDraft({ stage: 'selecting' });
+              setVisibleMonth(startOfMonth(selectedMissing.start));
+              setStatusMessage(t(($) => $.tracker.history.calendar.selectBoundary));
+              window.requestAnimationFrame(() =>
+                calendarContainerRef.current?.scrollIntoView({
+                  behavior: 'smooth',
+                  block: 'start',
+                }),
+              );
+            }}
+          />
+        )}
+        <PersonalOutliersPanel
+          onDecidePair={(finding, use) => {
+            persistCycleDecision(
+              finding.first.id,
+              finding.first.fingerprint,
+              use,
+              use === 'include' ? 'confirmed-correct' : 'recording-artifact',
+              'cycle',
+              [finding.second],
+            );
+          }}
+          {...(reviewErrorMessage === undefined ? {} : { errorMessage: reviewErrorMessage })}
+          dataset={estimateDataset}
+          busy={reviewBusySampleId !== undefined}
+          formatDate={(date) => formatLocalDate(date, resolvedLanguage)}
+          onReview={(id, trigger) => {
+            const entry = entries.find((candidate) => candidate.id === id);
+            if (entry !== undefined) selectPeriod(entry, trigger);
+          }}
+          onDecide={(id, fingerprint, kind, use) => {
+            persistCycleDecision(
+              id,
+              fingerprint,
+              use,
+              use === 'include' ? 'confirmed-correct' : 'recording-artifact',
+              kind,
+            );
+          }}
+        />
         <CycleChecksPanel
+          onMerge={(finding, trigger) => {
+            selectionTriggerRef.current = trigger;
+            setMergeCandidate(finding);
+          }}
           copy={cycleChecksCopy}
-          excludedSamples={estimateDataset.excludedCycleSamples}
+          excludedSamples={estimateDataset.excludedCycleSamples.filter(
+            (sample) =>
+              !estimateDataset.outlierFindings.some((finding) => finding.sampleId === sample.id),
+          )}
           findings={cycleCheckFindings}
           formatDate={(date) => formatLocalDate(date, resolvedLanguage)}
           onAddMissingPeriod={showPossibleMissingRange}
@@ -947,6 +1095,15 @@ export function TrackerHistorySection({
               })}
             </h2>
             <p>{t(($) => $.tracker.history.calendar.configure.description)}</p>
+            <PeriodQualityFields
+              startDate={draft.startDate}
+              endDate={draft.endDate}
+              others={payload.episodes.filter((episode) => episode.id !== draft.episodeId)}
+              approximate={draft.approximate ?? false}
+              onChange={(approximate) => {
+                setDraft({ ...draft, approximate });
+              }}
+            />
             {errorMessage === undefined ? null : (
               <p className={styles['error']} role="alert">
                 {errorMessage}

@@ -1,6 +1,49 @@
 import type { TranslationResource } from './en';
 
 export const de = {
+  intelligence: {
+    reviewActiveOverdue:
+      'Prüfe, ob die aktive Periode beendet ist, und trage gegebenenfalls das tatsächliche Enddatum ein.',
+    estimatePassed:
+      'Der zuvor geschätzte Beginn war am {{date}}. Ein neuer Beginn lässt sich noch nicht zuverlässig schätzen.',
+    reviewOverdue:
+      'Prüfe, ob eine Periode fehlt oder die Daten korrigiert werden müssen. Wenn keine Periode stattgefunden hat, füge keine hinzu, nur um die Vorhersage zu erfüllen.',
+    pairedTitle: 'Diesen Periodenbeginn prüfen',
+    pairedDescription:
+      'Der am {{date}} erfasste Beginn ergibt Zyklen von {{first}} und {{second}} Tagen. Andere aktuelle Zyklen dauern etwa {{baseline}} Tage. Bitte prüfe dieses gemeinsame Grenzdatum.',
+    keepBoth: 'Beide Zyklen beibehalten und verwenden',
+    excludeBoth: 'Beide Zyklen beibehalten, aber von Schätzungen ausschließen',
+    merge: 'Diese Perioden zusammenführen',
+    mergeTitle: 'Zu einer Periode zusammenführen?',
+    mergeDescription:
+      'Die zusammengeführte Periode umfasst auch die Tage zwischen den Einträgen. Alle Notizen, Blutungsangaben und Gefühle bleiben erhalten. Bestätige nur, wenn dies dieselbe Periode war.',
+    mergeFailed:
+      'Diese Perioden konnten nicht zusammengeführt werden. Die Daten könnten sich geändert haben. Schließe diesen Dialog und prüfe die Einträge, bevor du es erneut versuchst.',
+    approximate: 'Diese Daten sind ungefähr',
+    oneDay: 'Damit wird ein Blutungstag erfasst. Prüfe die Daten vor dem Speichern.',
+    nearby:
+      'Diese Periode liegt sehr nahe an einer anderen erfassten Periode. Könnte es dieselbe Periode sein? Prüfe die Daten oder speichere sie getrennt.',
+    outlierCycle: 'Diese Zykluslänge prüfen',
+    outlierDuration: 'Diese Blutungsdauer prüfen',
+    comparison:
+      'Erfasst: {{value}} Tage. Andere ähnliche aktuelle Einträge: etwa {{baseline}} Tage.',
+    provisional:
+      'Diese ungefähren Daten werden bis zur Prüfung nicht für diese Schätzung verwendet. Dein Eintrag bleibt unverändert.',
+    reviewOnly:
+      'Dies weicht von deinen letzten Einträgen ab. Es wird weiterhin berücksichtigt, bis du anders entscheidest.',
+    review: 'Daten prüfen',
+    include: 'Beibehalten und für Schätzungen verwenden',
+    exclude: 'Beibehalten, aber von Schätzungen ausschließen',
+    ghost: 'Möglicherweise nicht erfasste Periode',
+    ghostDescription:
+      'Dein bisheriges Muster deutet darauf hin, dass hier eine Periode fehlen könnte. Dies ist ein Hinweis, keine erfasste Periode.',
+    noPeriod: 'Es gab keine Periode',
+    unsure: 'Nicht sicher',
+    add: 'Tatsächliche Daten hinzufügen',
+    excludedDuration: 'Blutungsdauer von Schätzungen ausgeschlossen',
+    excludedDescription:
+      'Die erfassten Daten bleiben unverändert. Du kannst diese Dauer wieder berücksichtigen.',
+  },
   reminders: {
     skippedFor:
       'Du hast die für {{date}} geplante Erinnerung übersprungen. Sie wird nicht angezeigt.',

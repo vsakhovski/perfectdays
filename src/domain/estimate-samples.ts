@@ -73,6 +73,17 @@ export function deriveCycleEstimateSamples(
         next.startDate,
         next.endDate,
         next.updatedAt,
+        ...(previous.source === undefined &&
+        previous.dateCertainty === undefined &&
+        next.source === undefined &&
+        next.dateCertainty === undefined
+          ? []
+          : [
+              previous.source ?? 'unknown',
+              previous.dateCertainty ?? 'unknown',
+              next.source ?? 'unknown',
+              next.dateCertainty ?? 'unknown',
+            ]),
       ].join('|'),
       previousEpisodeId: previous.id,
       nextEpisodeId: next.id,
@@ -101,7 +112,15 @@ export function deriveDurationEstimateSamples(
     return [
       {
         id: durationEstimateSampleId(episode.id),
-        fingerprint: [episode.id, episode.startDate, episode.endDate, episode.updatedAt].join('|'),
+        fingerprint: [
+          episode.id,
+          episode.startDate,
+          episode.endDate,
+          episode.updatedAt,
+          ...(episode.source === undefined && episode.dateCertainty === undefined
+            ? []
+            : [episode.source ?? 'unknown', episode.dateCertainty ?? 'unknown']),
+        ].join('|'),
         episodeId: episode.id,
         startDate: episode.startDate,
         endDate: episode.endDate,

@@ -121,7 +121,12 @@ export function deriveDayMarkers(input: DayMarkerInput): DayMarkers {
     input.date >= activeEpisode.startDate &&
     input.date <= activePredictedEnd;
 
-  if (forecast === null || forecast.calendarMarkersSuppressed || recordedRed) {
+  if (
+    forecast === null ||
+    forecast.calendarMarkersSuppressed ||
+    recordedRed ||
+    (today !== undefined && input.date < today)
+  ) {
     return {
       recordedRed,
       spotting,

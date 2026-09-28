@@ -29,6 +29,7 @@ import {
   type PeriodHistoryEntry,
 } from '../history/PeriodHistory';
 import type { HistoricalPeriodDraft } from './TrackerOnboarding';
+import { PeriodQualityFields } from '../history/PeriodQualityFields';
 import styles from './OnboardingPeriodHistoryEditor.module.css';
 
 export interface OnboardingPeriodHistoryEditorCopy {
@@ -74,6 +75,7 @@ export interface OnboardingPeriodHistoryEditorProps {
 }
 
 interface BoundaryDraft {
+  readonly approximate?: boolean;
   readonly entryId?: string;
   readonly firstDate?: LocalDate;
   readonly startDate?: LocalDate;
@@ -348,10 +350,6 @@ export function OnboardingPeriodHistoryEditor({
     }
 
     if (draft?.stage === 'selecting' && draft.firstDate !== undefined) {
-      if (date === draft.firstDate) {
-        cancelEditing();
-        return;
-      }
       if (draft.entryId === undefined && date < draft.firstDate) {
         setLocalErrorMessage(copy.endAfterStart);
         return;
@@ -367,6 +365,9 @@ export function OnboardingPeriodHistoryEditor({
         startDate: range.startDate,
         endDate: range.endDate,
         stage: 'confirming',
+        approximate:
+          draft.approximate ??
+          entries.find((entry) => entry.id === draft.entryId)?.dateCertainty === 'approximate',
       });
       setLocalErrorMessage(undefined);
       setStatusMessage(undefined);
@@ -397,7 +398,16 @@ export function OnboardingPeriodHistoryEditor({
       return;
     }
     onChangeEntries(
-      entries.map((entry) => (entry.id === targetId ? { ...entry, startDate, endDate } : entry)),
+      entries.map((entry) =>
+        entry.id === targetId
+          ? {
+              ...entry,
+              startDate,
+              endDate,
+              dateCertainty: draft?.approximate ? ('approximate' as const) : ('exact' as const),
+            }
+          : entry,
+      ),
     );
     setDraft(undefined);
     setSelectedEntryId(undefined);
@@ -427,6 +437,8 @@ export function OnboardingPeriodHistoryEditor({
       startDate: draft.firstDate,
       startOnly: true,
       stage: 'confirming',
+      approximate:
+        entries.find((entry) => entry.id === draft.entryId)?.dateCertainty === 'approximate',
     });
     setLocalErrorMessage(undefined);
     setStatusMessage(undefined);
@@ -643,6 +655,22 @@ export function OnboardingPeriodHistoryEditor({
                 role="dialog"
               >
                 <h2 id="onboarding-configure-period-title">{copy.configureTitle(dialogRange)}</h2>
+                {draft.startDate === undefined ? null : (
+                  <PeriodQualityFields
+                    startDate={draft.startDate}
+                    {...(draft.endDate === undefined ? {} : { endDate: draft.endDate })}
+                    others={datedEntries
+                      .filter((entry) => entry.id !== draft.entryId)
+                      .map((entry) => ({
+                        startDate: entry.startDate,
+                        ...(entry.endDate === '' ? {} : { endDate: entry.endDate }),
+                      }))}
+                    approximate={draft.approximate ?? false}
+                    onChange={(approximate) => {
+                      setDraft({ ...draft, approximate });
+                    }}
+                  />
+                )}
                 <p>
                   {draft.startOnly ? copy.configureStartOnlyDescription : copy.configureDescription}
                 </p>

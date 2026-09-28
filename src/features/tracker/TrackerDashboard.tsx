@@ -12,6 +12,11 @@ import {
   type PeriodTransition,
 } from '../../application/tracker/daily-check-in';
 import { buildReviewedEstimateDataset } from '../../domain/cycle-checks';
+import {
+  missingPeriodOverlays,
+  type MissingPeriodOverlay,
+} from '../../domain/missing-period-overlays';
+import { MissingPeriodDialog } from '../history/MissingPeriodDialog';
 import { calculateForecast, completedBleedDurations, integerMedian } from '../../domain/forecast';
 import {
   deleteDailyCheckIn,
@@ -431,6 +436,7 @@ export function TrackerOnboardingFlow({ payload }: { readonly payload: VaultPayl
         )
         .map((entry) => ({
           startDate: entry.startDate,
+          dateCertainty: entry.dateCertainty ?? 'exact',
           ...(entry.endDate === '' ? {} : { endDate: entry.endDate }),
         }));
 
@@ -639,6 +645,7 @@ export interface TrackerCalendarProps {
   readonly onEditorOpenChange?: (open: boolean) => void;
   readonly onGoTodayRequestHandled?: (request: number) => void;
   readonly onOpenHistory?: () => void;
+  readonly onAddMissingPeriod?: (date: LocalDate) => void;
   readonly onOpenInsights?: () => void;
   readonly onSelectedDateChange?: (date: LocalDate) => void;
   readonly onViewingCurrentMonthChange?: (isCurrentMonth: boolean) => void;
@@ -660,6 +667,7 @@ export function TrackerCalendar({
   onEditorOpenChange,
   onGoTodayRequestHandled,
   onOpenHistory,
+  onAddMissingPeriod,
   onOpenInsights,
   onSelectedDateChange,
   onViewingCurrentMonthChange,
@@ -676,6 +684,24 @@ export function TrackerCalendar({
   );
   const [calendarRangeEnd, setCalendarRangeEnd] = useState(() => addMonths(startOfMonth(today), 1));
   const [selectedDate, setSelectedDate] = useState<LocalDate>(today);
+  const [selectedMissing, setSelectedMissing] = useState<MissingPeriodOverlay>();
+  const missingOverlays = useMemo(
+    () =>
+      missingPeriodOverlays(
+        payload.episodes,
+        payload.estimateDecisions,
+        today,
+        payload.missingPeriodDismissals,
+        payload.settings,
+      ),
+    [
+      payload.episodes,
+      payload.estimateDecisions,
+      today,
+      payload.missingPeriodDismissals,
+      payload.settings,
+    ],
+  );
   const [editorIntent, setEditorIntent] = useState<'note' | 'period'>();
   const [editorOpen, setEditorOpen] = useState(false);
   const [noteFocused, setNoteFocused] = useState(false);
@@ -869,6 +895,9 @@ export function TrackerCalendar({
         (date) => {
           const log = payload.logs.find((candidate) => candidate.date === date);
           const episode = date <= today ? periodContainingDate(payload, date) : undefined;
+          const isMissing =
+            episode === undefined &&
+            missingOverlays.some((overlay) => date >= overlay.start && date <= overlay.end);
           const flow = isBleedingFlow(log?.flow)
             ? log.flow
             : log?.flow === undefined && episode !== undefined
@@ -885,6 +914,7 @@ export function TrackerCalendar({
 
           return {
             date,
+            ...(isMissing ? { missingPeriodDescription: t(($) => $.intelligence.ghost) } : {}),
             accessibleName: formatLocalDate(date, resolvedLanguage, {
               weekday: 'long',
               day: 'numeric',
@@ -893,17 +923,27 @@ export function TrackerCalendar({
             }),
             dayNumberLabel: numberFormatter.format(Number(date.slice(8, 10))),
             isCurrentMonth: isSameMonth(date, renderedMonth),
-            markers: deriveDayMarkers({
-              ...(calendarActivePredictedDuration === undefined
-                ? {}
-                : { activePredictedDuration: calendarActivePredictedDuration }),
-              date,
-              episodes: payload.episodes,
-              logs: payload.logs,
-              forecast,
-              settings: payload.settings,
-              today,
-            }),
+            markers: isMissing
+              ? {
+                  recordedRed: false,
+                  predictedRed: false,
+                  predictedStart: false,
+                  possibleStart: false,
+                  orange: false,
+                  green: false,
+                  spotting: false,
+                }
+              : deriveDayMarkers({
+                  ...(calendarActivePredictedDuration === undefined
+                    ? {}
+                    : { activePredictedDuration: calendarActivePredictedDuration }),
+                  date,
+                  episodes: payload.episodes,
+                  logs: payload.logs,
+                  forecast,
+                  settings: payload.settings,
+                  today,
+                }),
             ...(flow === undefined
               ? {}
               : {
@@ -931,6 +971,7 @@ export function TrackerCalendar({
   }, [
     calendarRangeEnd,
     calendarRangeStart,
+    missingOverlays,
     expectedBleedDuration,
     firstDay,
     forecast,
@@ -950,6 +991,18 @@ export function TrackerCalendar({
   const selectCalendarDate = useCallback(
     (date: LocalDate, trigger: HTMLButtonElement): void => {
       if (date > today) return;
+      const missing =
+        periodContainingDate(payload, date) === undefined
+          ? missingOverlays.find((overlay) => date >= overlay.start && date <= overlay.end)
+          : undefined;
+      if (
+        missing !== undefined &&
+        missing.belongsToCurrentPrediction !== true &&
+        (onAddMissingPeriod !== undefined || onOpenHistory !== undefined)
+      ) {
+        setSelectedMissing(missing);
+        return;
+      }
       setSelectedDate(date);
       onSelectedDateChange?.(date);
       setEditorReturnFocusElement(trigger);
@@ -962,7 +1015,15 @@ export function TrackerCalendar({
       setEditorOpen(true);
       onEditorOpenChange?.(true);
     },
-    [onEditorOpenChange, onSelectedDateChange, payload.logs, today],
+    [
+      onEditorOpenChange,
+      onSelectedDateChange,
+      payload,
+      today,
+      missingOverlays,
+      onOpenHistory,
+      onAddMissingPeriod,
+    ],
   );
 
   const selectedEpisodeForDescription = periodContainingDate(payload, selectedDate);
@@ -1126,6 +1187,17 @@ export function TrackerCalendar({
   const handlePeriodAction = (action: PeriodQuickAction, date: LocalDate): void => {
     try {
       if (action !== 'remove') {
+        if (action === 'start') {
+          const extension = periodExtensionCandidateForDate(payload, date, editorValue.flow, true);
+          if (extension !== undefined) {
+            setPendingPeriodExtension({
+              ...extension,
+              date,
+              value: { ...editorValue, periodTransition: 'start' },
+            });
+            return;
+          }
+        }
         const flow = editorValue.flow ?? null;
         const nextPayload = buildDailyCheckInPayload(
           payload,
@@ -1431,6 +1503,7 @@ export function TrackerCalendar({
     forecast === null || nextEstimateCentral === undefined
       ? undefined
       : addDays(nextEstimateCentral, -daysBetween(forecast.earliestStart, forecast.centralStart));
+  const estimateStartPassed = nextEstimateCentral !== undefined && nextEstimateCentral < today;
   const nextEstimateLatest =
     forecast === null || nextEstimateCentral === undefined
       ? undefined
@@ -1456,6 +1529,19 @@ export function TrackerCalendar({
           </h2>
 
           <div className={styles['calendarTarget']} ref={calendarContainerRef}>
+            {selectedMissing === undefined ? null : (
+              <MissingPeriodDialog
+                overlay={selectedMissing}
+                onClose={() => {
+                  setSelectedMissing(undefined);
+                }}
+                onAdd={() => {
+                  setSelectedMissing(undefined);
+                  if (onAddMissingPeriod !== undefined) onAddMissingPeriod(selectedMissing.start);
+                  else onOpenHistory?.();
+                }}
+              />
+            )}
             <MonthlyCalendar
               copy={calendarCopy}
               focusTodayRequest={goTodayRequest}
@@ -1467,6 +1553,9 @@ export function TrackerCalendar({
               visibleMonth={visibleMonth}
               weekdays={weekdays}
             />
+            {missingOverlays.length === 0 ? null : (
+              <p>{t(($) => $.intelligence.ghostDescription)}</p>
+            )}
           </div>
 
           <div className={styles['estimateColumn']}>
@@ -1485,6 +1574,29 @@ export function TrackerCalendar({
                       ? t(($) => $.tracker.history.estimate.reviewRequired)
                       : t(($) => $.tracker.insights.forecast.unavailable, { count: 2 })}
                 </p>
+              ) : estimateStartPassed ? (
+                <div className={styles['estimateMessage']}>
+                  <p>
+                    {t(($) => $.intelligence.estimatePassed, {
+                      date: formatLocalDate(nextEstimateCentral, resolvedLanguage),
+                    })}
+                  </p>
+                  <p>
+                    {activeEpisode === undefined
+                      ? t(($) => $.intelligence.reviewOverdue)
+                      : t(($) => $.intelligence.reviewActiveOverdue)}
+                  </p>
+                  {onAddMissingPeriod === undefined || activeEpisode !== undefined ? null : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onAddMissingPeriod(nextEstimateCentral);
+                      }}
+                    >
+                      {t(($) => $.intelligence.review)}
+                    </button>
+                  )}
+                </div>
               ) : (
                 <dl className={styles['estimateDetails']}>
                   <div className={styles['estimateHighlight']}>
@@ -1522,7 +1634,7 @@ export function TrackerCalendar({
                   {t(($) => $.mobile.calendar.forecast.states.variable.description)}
                 </p>
               ) : null}
-              {forecast?.isLate && activeEpisode === undefined ? (
+              {forecast?.isLate && activeEpisode === undefined && !estimateStartPassed ? (
                 <p className={styles['estimateMessage']}>
                   {t(($) => $.mobile.calendar.forecast.states.late.description)}
                 </p>
@@ -1849,6 +1961,7 @@ export function TrackerCalendar({
 }
 
 export interface TrackerDashboardProps {
+  readonly onAddMissingPeriod?: (date: LocalDate) => void;
   readonly checkInReturnFocusElement?: HTMLElement | null;
   readonly checkInRequest?: number;
   readonly checkInRequestDate?: LocalDate;

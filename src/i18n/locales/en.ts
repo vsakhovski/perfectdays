@@ -1,4 +1,45 @@
 export const en = {
+  intelligence: {
+    reviewActiveOverdue:
+      'Check whether the active period has ended and record its actual end date if needed.',
+    estimatePassed:
+      'The previous estimated start was {{date}}. A new start date cannot yet be estimated reliably.',
+    reviewOverdue:
+      'Check whether a period is missing or whether your dates need correcting. If no period occurred, do not add one just to match the prediction.',
+    pairedTitle: 'Check this period start date',
+    pairedDescription:
+      'The start recorded on {{date}} creates cycles of {{first}} and {{second}} days. Other recent cycles are about {{baseline}} days. Please check this shared boundary.',
+    keepBoth: 'Keep and use both cycles',
+    excludeBoth: 'Keep, but exclude both cycles from estimates',
+    merge: 'Merge these periods',
+    mergeTitle: 'Combine these into one period?',
+    mergeDescription:
+      'The resulting period includes the dates between these records. All notes, flow observations and feelings will be kept. Only confirm if these were part of the same period.',
+    mergeFailed:
+      'Could not merge these periods. Their dates may have changed. Close this dialog and review the records before trying again.',
+    approximate: 'These dates are approximate',
+    oneDay: 'This records one day of bleeding. Check the dates before saving.',
+    nearby:
+      'This period is very close to another recorded period. Could these be the same period? Review the dates, or save to keep them separate.',
+    outlierCycle: 'Review this cycle length',
+    outlierDuration: 'Review this bleeding duration',
+    comparison: 'Recorded: {{value}} days. Other similar recent records: about {{baseline}} days.',
+    provisional:
+      'These approximate dates are left out of this estimate until reviewed. Your record has not been changed.',
+    reviewOnly:
+      'This differs from your recent records. It is still included unless you choose otherwise.',
+    review: 'Review dates',
+    include: 'Keep and use for estimates',
+    exclude: 'Keep, but exclude from estimates',
+    ghost: 'Possible unrecorded period',
+    ghostDescription:
+      'Your previous pattern suggests a period may be missing around these dates. This is a suggestion, not a recorded period.',
+    noPeriod: 'No period occurred',
+    unsure: 'Not sure',
+    add: 'Add actual dates',
+    excludedDuration: 'Bleeding duration excluded from estimates',
+    excludedDescription: 'The recorded dates are unchanged. You can include this duration again.',
+  },
   reminders: {
     skippedFor: 'You skipped the reminder scheduled for {{date}}. It will not be shown.',
     skippedReminder: 'You skipped the next reminder. It will not be shown.',

@@ -29,6 +29,7 @@ export type CalendarFlow = Exclude<Flow, 'none' | 'spotting'>;
 export type CalendarDaySelection = 'start' | 'end' | 'range' | 'single';
 
 export interface CalendarDay {
+  readonly missingPeriodDescription?: string;
   readonly date: LocalDate;
   readonly accessibleName: string;
   readonly dayNumberLabel: string;
@@ -607,7 +608,10 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
     const isToday = day.date === today;
     const dayMonth = startOfMonth(day.date);
     const isActiveMonth = true;
-    const hasMarkers = markerIsPresent(day.markers) || day.flow !== undefined;
+    const hasMarkers =
+      markerIsPresent(day.markers) ||
+      day.flow !== undefined ||
+      day.missingPeriodDescription !== undefined;
     const previousCandidate = week[dayIndex - 1];
     const nextCandidate = week[dayIndex + 1];
     const previousDay =
@@ -626,6 +630,7 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
           data-calendar-month={dayMonth}
           data-current-month={isActiveMonth}
           data-flow={day.flow}
+          data-possible-missing={day.missingPeriodDescription !== undefined}
           data-orange={day.markers.orange}
           data-predicted-red={day.markers.predictedRed}
           data-recorded-after={day.markers.recordedRed && nextDay?.markers.recordedRed === true}
@@ -694,6 +699,9 @@ export const MonthlyCalendar = memo(function MonthlyCalendar({
           type="button"
         >
           <span className={styles['visuallyHidden']}>{day.accessibleName}</span>
+          {day.missingPeriodDescription === undefined ? null : (
+            <span className={styles['visuallyHidden']}>{day.missingPeriodDescription}</span>
+          )}
           {isToday ? <span className={styles['visuallyHidden']}>{copy.today}</span> : null}
           <span className={styles['dayNumber']} aria-hidden="true">
             {day.dayNumberLabel}

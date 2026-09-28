@@ -175,6 +175,8 @@ describe('period mutations', () => {
       episodes: [
         {
           id: 'new-episode',
+          source: 'calendar',
+          dateCertainty: 'exact',
           startDate: '2026-08-20',
           createdAt: changedAt,
           updatedAt: changedAt,

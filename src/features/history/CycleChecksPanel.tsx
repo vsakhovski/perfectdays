@@ -1,9 +1,11 @@
 import type {
+  PossibleSplitPeriodFinding,
   CycleCheckFinding,
   EstimateCycleCheckFinding,
   PossibleMissingPeriodFinding,
   PossiblyStaleActivePeriodFinding,
 } from '../../domain/cycle-checks';
+import { useTranslation } from 'react-i18next';
 import type { CycleEstimateSample } from '../../domain/estimate-samples';
 import type { LocalDate } from '../../domain/models';
 import styles from './CycleChecksPanel.module.css';
@@ -30,6 +32,7 @@ export interface CycleChecksPanelCopy {
 }
 
 interface CycleChecksPanelProps {
+  readonly onMerge?: (finding: PossibleSplitPeriodFinding, trigger: HTMLButtonElement) => void;
   readonly busySampleId?: string;
   readonly copy: CycleChecksPanelCopy;
   readonly errorMessage?: string;
@@ -49,6 +52,7 @@ interface CycleChecksPanelProps {
 }
 
 export function CycleChecksPanel({
+  onMerge,
   busySampleId,
   copy,
   errorMessage,
@@ -63,6 +67,7 @@ export function CycleChecksPanel({
   onUseAgain,
   statusMessage,
 }: CycleChecksPanelProps) {
+  const { t } = useTranslation();
   if (findings.length === 0 && excludedSamples.length === 0) return null;
 
   return (
@@ -105,6 +110,17 @@ export function CycleChecksPanel({
                     : copy.possibleSplitDescription(finding.clearDayCount)}
               </p>
               <div className={styles['actions']}>
+                {finding.rule !== 'possible-split-period' || onMerge === undefined ? null : (
+                  <button
+                    type="button"
+                    disabled={busySampleId !== undefined}
+                    onClick={(event) => {
+                      onMerge(finding, event.currentTarget);
+                    }}
+                  >
+                    {t(($) => $.intelligence.merge)}
+                  </button>
+                )}
                 {possiblyStaleActive ? (
                   <>
                     <button

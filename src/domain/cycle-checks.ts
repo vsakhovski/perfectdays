@@ -1,4 +1,10 @@
 import { addDays, daysBetween } from './local-date';
+import {
+  detectPersonalOutliers,
+  detectPairedCycleShifts,
+  type PersonalOutlier,
+  type PairedCycleFinding,
+} from './personal-outliers';
 import type {
   CycleCheckAcknowledgement,
   EstimateDecision,
@@ -66,6 +72,8 @@ export type EstimateCycleCheckFinding = PossibleSplitPeriodFinding | PossibleMis
 export type CycleCheckFinding = EstimateCycleCheckFinding | PossiblyStaleActivePeriodFinding;
 
 export interface ReviewedEstimateDataset {
+  readonly pairedCycleFindings: readonly PairedCycleFinding[];
+  readonly outlierFindings: readonly PersonalOutlier[];
   readonly cycleSamples: readonly CycleEstimateSample[];
   readonly durationSamples: readonly DurationEstimateSample[];
   readonly includedCycleSamples: readonly CycleEstimateSample[];
@@ -246,6 +254,20 @@ export function buildReviewedEstimateDataset(
       findingsBySampleId.set(finding.sampleId, finding);
     }
   }
+  const outlierFindings = detectPersonalOutliers(episodes, decisions).filter(
+    (finding) =>
+      !findingsBySampleId.has(finding.sampleId) &&
+      matchingEstimateDecision(
+        { id: finding.sampleId, fingerprint: finding.fingerprint },
+        decisions,
+        finding.sampleKind,
+      ) === undefined,
+  );
+  const provisional = new Set(
+    outlierFindings
+      .filter((finding) => finding.provisionalExclusion)
+      .map((finding) => finding.sampleId),
+  );
   const pendingFindings: EstimateCycleCheckFinding[] = [];
   const includedCycleSamples: CycleEstimateSample[] = [];
   const excludedCycleSamples: CycleEstimateSample[] = [];
@@ -257,7 +279,7 @@ export function buildReviewedEstimateDataset(
       includedCycleSamples.push(sample);
       continue;
     }
-    if (decision?.use === 'exclude') {
+    if (decision?.use === 'exclude' || provisional.has(sample.id)) {
       excludedCycleSamples.push(sample);
       continue;
     }
@@ -274,11 +296,14 @@ export function buildReviewedEstimateDataset(
   const excludedDurationSamples: DurationEstimateSample[] = [];
   for (const sample of durationSamples) {
     const decision = matchingEstimateDecision(sample, decisions, 'duration');
-    if (decision?.use === 'exclude') excludedDurationSamples.push(sample);
+    if (decision?.use === 'exclude' || (decision?.use !== 'include' && provisional.has(sample.id)))
+      excludedDurationSamples.push(sample);
     else includedDurationSamples.push(sample);
   }
 
   return {
+    pairedCycleFindings: detectPairedCycleShifts(includedCycleSamples, decisions),
+    outlierFindings,
     cycleSamples,
     durationSamples,
     includedCycleSamples,

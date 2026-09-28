@@ -604,3 +604,7 @@
     border-style: dotted;
   }
 }
+.dayButton[data-possible-missing='true']:not([data-recorded-red='true']) {
+  border: 1px dashed var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-text-muted) 8%, var(--color-surface));
+}

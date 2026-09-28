@@ -107,6 +107,8 @@ describe('buildDailyCheckInPayload', () => {
       historicalEpisode,
       {
         id: 'episode-new',
+        source: 'calendar',
+        dateCertainty: 'exact',
         startDate: today,
         createdAt: mutationTimestamp,
         updatedAt: mutationTimestamp,

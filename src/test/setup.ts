@@ -3,6 +3,24 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 
+// jsdom does not implement the browser's dialog top layer. Model its visibility;
+// browser tests remain responsible for native focus trapping and backdrop behavior.
+Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+  configurable: true,
+  value: function (this: HTMLDialogElement) {
+    this.setAttribute('open', '');
+  },
+  writable: true,
+});
+Object.defineProperty(HTMLDialogElement.prototype, 'close', {
+  configurable: true,
+  value: function (this: HTMLDialogElement) {
+    this.removeAttribute('open');
+    this.dispatchEvent(new Event('close'));
+  },
+  writable: true,
+});
+
 Object.defineProperty(window, 'matchMedia', {
   configurable: true,
   value: vi.fn().mockImplementation((query: string) => ({

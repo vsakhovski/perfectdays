@@ -28,6 +28,7 @@ import {
 import styles from './onboarding.module.css';
 
 export interface HistoricalPeriodDraft {
+  readonly dateCertainty?: 'exact' | 'approximate';
   readonly id: string;
   readonly startDate: LocalDate | '';
   readonly endDate: LocalDate | '';

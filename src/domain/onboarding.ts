@@ -13,6 +13,8 @@ export interface HistoricalPeriodRange {
   startDate: LocalDate;
   endDate?: LocalDate;
   startFlow?: BleedingFlow;
+  dateCertainty?: 'exact' | 'approximate';
+  source?: 'history' | 'onboarding' | 'import';
 }
 
 export interface OnboardingPreferences {
@@ -76,6 +78,8 @@ export function importHistoricalEpisodes(
     usedIds.add(id);
     episodes.push({
       id,
+      source: range.source ?? 'history',
+      dateCertainty: range.dateCertainty ?? 'exact',
       startDate: range.startDate,
       endDate: range.endDate ?? range.startDate,
       ...(range.endDate === undefined ? { durationKnown: false } : {}),
@@ -116,7 +120,11 @@ export function completeOnboarding(
   input: CompleteOnboardingInput,
   context: JournalMutationContext,
 ): VaultPayload {
-  const journal = importHistoricalEpisodes(payload, input.historicalPeriods ?? [], context);
+  const journal = importHistoricalEpisodes(
+    payload,
+    (input.historicalPeriods ?? []).map((range) => ({ ...range, source: 'onboarding' })),
+    context,
+  );
   const settings: VaultSettings = { ...payload.settings, onboardingCompleted: true };
 
   applyOptionalSettings(settings, input);

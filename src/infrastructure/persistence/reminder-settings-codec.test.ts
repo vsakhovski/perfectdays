@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_PERIOD_REMINDER } from '../../application/reminders/reminder-plan';
 import {
   createEmptyVaultPayload,
+  CURRENT_VAULT_SCHEMA_VERSION,
   decodeVaultPayload,
   encodeVaultPayload,
   migrateVaultPayload,
@@ -10,7 +11,10 @@ import {
 describe('reminder settings persistence', () => {
   it('migrates schema 6 without enabling reminders or changing journal data', () => {
     const old = { ...createEmptyVaultPayload('2026-01-01T00:00:00Z'), schemaVersion: 6 };
-    expect(migrateVaultPayload(old)).toEqual({ ...old, schemaVersion: 7 });
+    expect(migrateVaultPayload(old)).toEqual({
+      ...old,
+      schemaVersion: CURRENT_VAULT_SCHEMA_VERSION,
+    });
     expect(migrateVaultPayload(old).settings.periodReminder).toBeUndefined();
   });
   it('round-trips custom reminder preferences', () => {
